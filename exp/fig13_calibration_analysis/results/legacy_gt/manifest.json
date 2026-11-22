@@ -1,0 +1,50 @@
+{
+  "dataset": "msmarco_qwen1024",
+  "corpus": "MS MARCO 1M",
+  "embedding": "Qwen3-Embedding-0.6B",
+  "dimension": 1024,
+  "split": "seed11.cal1000.test5980",
+  "graph": "/home/smrc/samsung-nvme/jihyo/msmarco_qwen1024_scale_v014/indexes/faiss_adcbq/msmarco-qwen1024-1m.fpgraph_pgbit_binary_hnsw.n1000000.d1024.M24.efC200.faiss",
+  "graph_sha256": "464b65d945395068c06b9af36b1760730bedb2fad919afcba71eb079831f9b78",
+  "graph_build": "FP32, M=24, efConstruction=200",
+  "efSearch": 256,
+  "candidate_pool_size": 256,
+  "query_scorer": "ADC-BQ int16 compact nibble LUT, inline SIMD",
+  "refinement": "FP32 cosine, O_DIRECT io_uring, one aligned 4-KiB vector page/read",
+  "threads": 1,
+  "latency_mode": "strict query-local search -> selection -> I/O -> rerank wall time",
+  "calibration_reference": "exact FP32 top-10 within the ADC-HNSW candidate pool",
+  "important_interpretation": "0.99 calibrates candidate-pool top-10 preservation, not the fraction of queries with final global Recall@10=1.0; both are reported separately",
+  "targets": [
+    0.9,
+    0.95,
+    0.975,
+    0.99,
+    0.995
+  ],
+  "fixed_rs": [
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    75,
+    80,
+    100,
+    120,
+    140,
+    160,
+    192,
+    224,
+    256
+  ],
+  "outputs": {
+    "target_sweep": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_calibration_analysis/target_sweep.csv",
+    "fixed_r_sweep": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_calibration_analysis/fixed_r_sweep.csv",
+    "per_query_target099": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_calibration_analysis/per_query_target099.csv",
+    "error_decomposition": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_calibration_analysis/error_decomposition_target099.csv",
+    "calibration_size_sensitivity": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_calibration_analysis/calibration_size_sensitivity.csv",
+    "figure": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_calibration_analysis/msmarco_qwen1024_calibration_analysis.png"
+  }
+}

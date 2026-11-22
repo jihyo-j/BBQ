@@ -1,0 +1,17 @@
+dataset,method_key,target_recall,reachable,parameter,parameter_value,measured_recall_at_10,pages_per_query,qps
+sieun_msmarco_openai1536,adcbq,0.98,True,efSearch,64,0.987207,64.4512,2892.45
+sieun_msmarco_openai1536,turboquant,0.98,True,efSearch,64,0.9865050167,120.0,1886.439299
+sieun_msmarco_openai1536,diskann_rabitq,0.98,True,Lsearch,80,0.9829000000000002,184.413378,197.51999999999998
+sieun_msmarco_openai1536,diskann_classic,0.98,True,Lsearch,80,0.9840000000000001,184.184615,172.85333333333332
+msmarco_qwen1024,adcbq,0.98,True,efSearch,96,0.980385,46.18013822115385,2010.6
+msmarco_qwen1024,turboquant,0.98,True,efSearch,100,0.9821404682,60.0,1501.219708
+msmarco_qwen1024,diskann_rabitq,0.98,True,Lsearch,160,0.9809,340.997993,95.13
+msmarco_qwen1024,diskann_classic,0.98,True,Lsearch,176,0.9809,373.225753,92.59666666666665
+sieun_msmarco_openai1536,adcbq,0.99,True,efSearch,88,0.990217,67.6322,2322.84
+sieun_msmarco_openai1536,turboquant,0.99,True,efSearch,96,0.9914046823,120.0,1522.822444
+sieun_msmarco_openai1536,diskann_rabitq,0.99,True,Lsearch,160,0.9899999999999999,342.383612,91.93333333333334
+sieun_msmarco_openai1536,diskann_classic,0.99,True,Lsearch,176,0.9902000000000001,373.876589,88.22333333333334
+msmarco_qwen1024,adcbq,0.99,True,efSearch,288,0.990284,54.26045803720736,1054.83
+msmarco_qwen1024,turboquant,0.99,True,efSearch,320,0.9904013378,60.0,663.9012992
+msmarco_qwen1024,diskann_rabitq,0.99,True,Lsearch,448,0.9901000000000001,913.5518390000001,35.24333333333333
+msmarco_qwen1024,diskann_classic,0.99,True,Lsearch,512,0.9906,1041.956187,33.43

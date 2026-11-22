@@ -1,0 +1,4 @@
+plot_page_io_text_embedding_3_small.py
+plot_msmarco_four_method_page_io.py
+run_onebit_disk_baselines_t1.py
+run_openai_beir_11methods_t1.py

@@ -1,0 +1,1934 @@
+diff --git a/README.md b/README.md
+index 8d0f8f3..d97908b 100644
+--- a/README.md
++++ b/README.md
+@@ -83,6 +83,68 @@ Tests include:
+ * MRQ+: `./res_split_index` for indexing; `./res_split_search` for searching.
+ * HNSW: `./index_hnsw` for indexing; `./search_hnsw` for searching.
+ 
+-  
++## SSD-resident exact vectors
++
++The SSD targets keep MRQ metadata and binary codes in memory and refine candidates
++from the PCA-projected fvecs file:
++
++- MRQ reads all `D` exact dimensions from SSD.
++- MRQ+ keeps the first `B-1` exact dimensions and the full-vector norm in memory,
++  then reads only dimensions `[B-1, D)` from SSD.
++
++Build the dedicated targets and create both compact indexes:
++
++```bash
++cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
++cmake --build build --target \
++  prepare_ssd_vectors res_ssd_index res_split_ssd_index \
++  res_ssd_search res_split_ssd_search -j
++
++# Convert the projected fvecs once. For D=1024 every vector is exactly one
++# aligned 4 KiB O_DIRECT record.
++build/src/prepare_ssd_vectors \
++  /data/msmarco/msmarco-qwen-1024_proj.fvecs \
++  /nvme/msmarco-qwen-1024_proj.ssdvec
++
++OMP_NUM_THREADS=1 build/src/res_ssd_index \
++  -d msmarco-qwen-1024 -s /data/msmarco/ -b 320 -c 4096
++OMP_NUM_THREADS=1 build/src/res_split_ssd_index \
++  -d msmarco-qwen-1024 -s /data/msmarco/ -b 320 -c 4096
++```
++
++Run the same `nprobe` sweep for MRQ and MRQ+. `direct` is the benchmark mode: it
++uses aligned `O_DIRECT` reads and therefore does not turn a warm page cache into
++an apparent SSD speedup.
++
++```bash
++OMP_NUM_THREADS=1 taskset -c 8 build/src/res_ssd_search \
++  -d msmarco-qwen-1024 -s /data/msmarco/ -r results/ \
++  -k 10 -b 320 -c 4096 --probes 1,2,4,8,16,32,64,128,256,512 \
++  --rounds 3 --io-mode direct \
++  --vector-file /nvme/msmarco-qwen-1024_proj.ssdvec
++
++OMP_NUM_THREADS=1 taskset -c 8 build/src/res_split_ssd_search \
++  -d msmarco-qwen-1024 -s /data/msmarco/ -r results/ \
++  -k 10 -b 320 -c 4096 --probes 1,2,4,8,16,32,64,128,256,512 \
++  --rounds 3 --io-mode direct \
++  --vector-file /nvme/msmarco-qwen-1024_proj.ssdvec
++```
++
++By default the exact vectors are read from `SOURCE/DATASET_proj.fvecs`, which
++is retained for compatibility and debugging. Direct-I/O benchmarks should use
++the page-aligned `.ssdvec` output via `--vector-file`; this avoids the 4100-byte
++fvecs record in 1024 dimensions crossing two pages. Dataset names that
++contain `msmarc` or `dbpedia` support 1024 dimensions and `B` values 128, 256,
++320, 384, 512, 640, 768, and 1024.
++
++Each run writes CSV columns for recall, search and end-to-end QPS, wall-clock
++latency, SSD reads/query, logical bytes, aligned submitted bytes, and time spent
++inside `pread`. `--io-mode buffered` is available for debugging only.
++
++Run the deterministic direct/buffered I/O regression test with:
++
++```bash
++bash test/RESQ/test_ssd.sh build
++```
+ 
+ 
+diff --git a/include/ivf_res.h b/include/ivf_res.h
+index ccd7eed..975d7ce 100644
+--- a/include/ivf_res.h
++++ b/include/ivf_res.h
+@@ -85,7 +85,14 @@ public:
+                           uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
+                           const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
+                           const float width, const float sumq,
+-                          float *query, float *data, uint64_t *id, Disk_IO *read_buffer);
++                          float *query, uint64_t *id, Disk_IO *read_buffer);
++
++    static void res_disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
++                              uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
++                              const float sqr_y, const float res_sqr_y, const float res_error,
++                              const float p_res_error, const float vl, const float all_sqr_y,
++                              const float width, const float sumq,
++                              float *query, float *data, uint64_t *id, Disk_IO *read_buffer);
+ 
+ 
+     void uniform_prune_parameter_config(const Matrix<float> &X);
+@@ -93,6 +100,10 @@ public:
+     void save(char *filename);
+ 
+     void load(char *filename);
++
++    void save_ssd(char *filename);
++
++    void load_ssd(char *filename);
+ };
+ 
+ 
+@@ -292,8 +303,31 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+                              uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
+                              const float sqr_y, const float res_sqr_y, const float res_error, const float vl,
+                              const float width, const float sumq,
+-                             float *query, float *data, uint64_t *id, Disk_IO *read_buffer) {
+-    float buffer[D];
++                             float *query, uint64_t *id, Disk_IO *read_buffer) {
++    const size_t io_qd = read_buffer->async_qd();
++    static thread_local std::vector<uint64_t> pending_ids;
++    static thread_local std::vector<float> pending_vectors;
++    pending_ids.resize(io_qd);
++    pending_vectors.resize(io_qd * D);
++    size_t pending = 0;
++    auto flush_reads = [&]() {
++        if (pending == 0) return;
++        read_buffer->read_full_batch(pending_ids.data(), pending,
++                                     pending_vectors.data());
++        for (size_t i = 0; i < pending; i++) {
++            const float gt_dist = sqr_dist<D>(
++                    query, pending_vectors.data() + i * D);
++#ifdef COUNT_SCAN
++            count_scan++;
++#endif
++            if (gt_dist < distK) {
++                KNNs.emplace(gt_dist, pending_ids[i]);
++                if (KNNs.size() > k) KNNs.pop();
++                if (KNNs.size() == k) distK = KNNs.top().first;
++            }
++        }
++        pending = 0;
++    };
+     for (int64_t i = 0; i < B / 4 * 16; i++)LUT[i] *= 2;
+     float y = std::sqrt(sqr_y);
+     constexpr uint64_t SIZE = 32;
+@@ -322,16 +356,8 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+         ptr_low_dist = &low_dist[0];
+         for (int64_t j = 0; j < SIZE; j++) {
+             if (*ptr_low_dist < distK) {
+-                read_buffer->single_disk_io(*id, buffer);
+-                float gt_dist = sqr_dist<D>(query, buffer);
+-#ifdef COUNT_SCAN
+-                count_scan++;
+-#endif
+-                if (gt_dist < distK) {
+-                    KNNs.emplace(gt_dist, *id);
+-                    if (KNNs.size() > k) KNNs.pop();
+-                    if (KNNs.size() == k)distK = KNNs.top().first;
+-                }
++                pending_ids[pending++] = *id;
++                if (pending == io_qd) flush_reads();
+             }
+             ptr_low_dist++;
+             id++;
+@@ -359,21 +385,91 @@ void IVFRES<D, B>::disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
+         ptr_low_dist = &low_dist[0];
+         for (int64_t i = 0; i < remain; i++) {
+             if (*ptr_low_dist < distK) {
+-                read_buffer->single_disk_io(*id, buffer);
+-                float gt_dist = sqr_dist<D>(query, buffer);
+-#ifdef COUNT_SCAN
+-                count_scan++;
+-#endif
+-                if (gt_dist < distK) {
+-                    KNNs.emplace(gt_dist, *id);
+-                    if (KNNs.size() > k) KNNs.pop();
+-                    if (KNNs.size() == k)distK = KNNs.top().first;
+-                }
++                pending_ids[pending++] = *id;
++                if (pending == io_qd) flush_reads();
+             }
+             ptr_low_dist++;
+             id++;
+         }
+     }
++    flush_reads();
++}
++
++template<uint64_t D, uint64_t B>
++void IVFRES<D, B>::res_disk_scan(ResultHeap &KNNs, float &distK, uint64_t k,
++                                 uint8_t *LUT, uint8_t *packed_code, uint64_t len, Factor *ptr_fac,
++                                 const float sqr_y, const float res_sqr_y, const float res_error,
++                                 const float p_res_error, const float vl, const float all_sqr_y,
++                                 const float width, const float sumq,
++                                 float *query, float *data, uint64_t *id, Disk_IO *read_buffer) {
++    for (int64_t i = 0; i < B / 4 * 16; i++) LUT[i] *= 2;
++    const float y = std::sqrt(sqr_y);
++    constexpr uint64_t SIZE = 32;
++    uint64_t it = len / SIZE;
++    const uint64_t remain = len - it * SIZE;
++    const uint64_t nblk_remain = (remain + 31) / 32;
++    float residual[D - B + 1];
++
++    auto refine = [&](const float lower_dist, float *prefix, uint64_t vector_id) {
++        if (lower_dist >= distK) return;
++#ifdef COUNT_SCAN
++        count_scan++;
++#endif
++        const float projected_dist = all_sqr_y + prefix[0] -
++                                     2 * mask_last_ip_sim127<B - 1>(query, prefix + 1);
++        if (projected_dist - p_res_error >= distK) return;
++        read_buffer->read_range(vector_id, B - 1, D - B + 1, residual);
++        const float exact_dist = projected_dist -
++                                 2 * ip_sim<D - B + 1>(query + B - 1, residual);
++        if (exact_dist < distK) {
++            KNNs.emplace(exact_dist, vector_id);
++            if (KNNs.size() > k) KNNs.pop();
++            if (KNNs.size() == k) distK = KNNs.top().first;
++        }
++    };
++
++    while (it--) {
++        float low_dist[SIZE];
++        uint16_t PORTABLE_ALIGN32 result[SIZE];
++        accumulate<B>(SIZE / 32, packed_code, LUT, result);
++        packed_code += SIZE * B / 8;
++        for (uint64_t i = 0; i < SIZE; i++) {
++            const float estimate = ptr_fac->sqr_x + sqr_y + res_sqr_y +
++                                   ptr_fac->factor_ppc * vl +
++                                   (result[i] - sumq) * ptr_fac->factor_ip * width;
++            low_dist[i] = estimate - (y * ptr_fac->error + res_error);
++            ptr_fac++;
++#ifdef COUNT_SCAN
++            all_dist_count++;
++#endif
++        }
++        for (uint64_t i = 0; i < SIZE; i++) {
++            refine(low_dist[i], data, *id);
++            data += B;
++            id++;
++        }
++    }
++
++    if (remain > 0) {
++        float low_dist[SIZE];
++        uint16_t PORTABLE_ALIGN32 result[SIZE];
++        accumulate<B>(nblk_remain, packed_code, LUT, result);
++        for (uint64_t i = 0; i < remain; i++) {
++            const float estimate = ptr_fac->sqr_x + sqr_y + res_sqr_y +
++                                   ptr_fac->factor_ppc * vl +
++                                   (result[i] - sumq) * ptr_fac->factor_ip * width;
++            low_dist[i] = estimate - (y * ptr_fac->error + res_error);
++            ptr_fac++;
++#ifdef COUNT_SCAN
++            all_dist_count++;
++#endif
++        }
++        for (uint64_t i = 0; i < remain; i++) {
++            refine(low_dist[i], data, *id);
++            data += B;
++            id++;
++        }
++    }
+ }
+ 
+ 
+@@ -398,23 +494,25 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint64_t k, uint64_t nprobe,
+     res_error = var_count * std::sqrt(res_error);
+     // ===========================================================================================================
+     // Find out the nearest N_{probe} centroids to the query vector.
+-    Result centroid_dist[numC];
++    const uint64_t probes = std::min(nprobe, C);
++    std::vector<Result> centroid_dist(C);
+     float *ptr_c = centroid;
+     float all_sqr_y = ip_sim<D>(query, query);
+     float res_sqr_y = ip_sim<D - B>(query + B, query + B);
+     for (int64_t i = 0; i < C; i++) {
+-        centroid_dist[i].first = sqr_dist<B>(rd_query, ptr_c);
+-        centroid_dist[i].second = i;
++        centroid_dist[static_cast<size_t>(i)].first = sqr_dist<B>(rd_query, ptr_c);
++        centroid_dist[static_cast<size_t>(i)].second = i;
+         ptr_c += B;
+     }
+-    std::partial_sort(centroid_dist, centroid_dist + nprobe, centroid_dist + numC);
++    std::partial_sort(centroid_dist.begin(), centroid_dist.begin() + probes,
++                      centroid_dist.end());
+ 
+     // ===========================================================================================================
+     // Scan the first nprobe clusters.
+-    Result *ptr_centroid_dist = (&centroid_dist[0]);
++    Result *ptr_centroid_dist = centroid_dist.data();
+     uint8_t  PORTABLE_ALIGN64 byte_query[B];
+ 
+-    for (int64_t pb = 0; pb < nprobe; pb++) {
++    for (uint64_t pb = 0; pb < probes; pb++) {
+         uint64_t c = ptr_centroid_dist->second;
+         float sqr_y = ptr_centroid_dist->first;
+         ptr_centroid_dist++;
+@@ -430,15 +528,35 @@ IVFRES<D, B>::search(float *query, float *rd_query, uint64_t k, uint64_t nprobe,
+         uint8_t PORTABLE_ALIGN32 LUT[B / 4 * 16];
+         pack_LUT<B>(byte_query, LUT);
+ #ifdef RESIDUAL_SPLIT
+-        res_scan(KNNs, distK, k,
+-                 LUT, packed_code + (size_t)packed_start[c], len[c], fac + (size_t)start[c],
+-                 sqr_y, res_sqr_y, res_error, p_res_error, vl, all_sqr_y, width, sum_q,
+-                 query, data + (size_t)start[c] * B, res_data + (size_t)start[c] * (D - B + 1), id + (size_t)start[c]);
++        if (read_buffer != nullptr) {
++            res_disk_scan(KNNs, distK, k,
++                          LUT, packed_code + (size_t)packed_start[c], len[c],
++                          fac + (size_t)start[c], sqr_y, res_sqr_y, res_error,
++                          p_res_error, vl, all_sqr_y, width, sum_q, query,
++                          data + (size_t)start[c] * B, id + (size_t)start[c],
++                          read_buffer);
++        } else {
++            res_scan(KNNs, distK, k,
++                     LUT, packed_code + (size_t)packed_start[c], len[c],
++                     fac + (size_t)start[c], sqr_y, res_sqr_y, res_error,
++                     p_res_error, vl, all_sqr_y, width, sum_q, query,
++                     data + (size_t)start[c] * B,
++                     res_data + (size_t)start[c] * (D - B + 1),
++                     id + (size_t)start[c]);
++        }
+ #else
+-        fast_scan(KNNs, distK, k, \
+-                LUT, packed_code + (size_t)packed_start[c], len[c], fac + (size_t)start[c], \
+-                sqr_y, res_sqr_y, res_error, vl, width, sum_q, \
+-                query, data + (size_t)start[c] * D, id + (size_t)start[c]);
++        if (read_buffer != nullptr) {
++            disk_scan(KNNs, distK, k,
++                      LUT, packed_code + (size_t)packed_start[c], len[c],
++                      fac + (size_t)start[c], sqr_y, res_sqr_y, res_error,
++                      vl, width, sum_q, query, id + (size_t)start[c], read_buffer);
++        } else {
++            fast_scan(KNNs, distK, k,
++                      LUT, packed_code + (size_t)packed_start[c], len[c],
++                      fac + (size_t)start[c], sqr_y, res_sqr_y, res_error,
++                      vl, width, sum_q, query, data + (size_t)start[c] * D,
++                      id + (size_t)start[c]);
++        }
+ #endif
+     }
+     return KNNs;
+@@ -478,6 +596,158 @@ void IVFRES<D, B>::save(char *filename) {
+     std::cerr << "Saved!" << std::endl;
+ }
+ 
++template<uint64_t D, uint64_t B>
++void IVFRES<D, B>::save_ssd(char *filename) {
++    constexpr uint64_t SSD_MAGIC = 0x3144535351524dULL; // "MRQSSD1"
++    std::ofstream output(filename, std::ios::binary);
++    if (!output) throw std::runtime_error("Cannot create SSD index");
++
++    const uint64_t d = D;
++    const uint64_t b = B;
++#ifdef RESIDUAL_SPLIT
++    const uint64_t layout = 1;
++#else
++    const uint64_t layout = 0;
++#endif
++    output.write(reinterpret_cast<const char *>(&SSD_MAGIC), sizeof(SSD_MAGIC));
++    output.write(reinterpret_cast<const char *>(&N), sizeof(N));
++    output.write(reinterpret_cast<const char *>(&d), sizeof(d));
++    output.write(reinterpret_cast<const char *>(&C), sizeof(C));
++    output.write(reinterpret_cast<const char *>(&b), sizeof(b));
++    output.write(reinterpret_cast<const char *>(&layout), sizeof(layout));
++    output.write(reinterpret_cast<const char *>(start), C * sizeof(uint64_t));
++    output.write(reinterpret_cast<const char *>(len), C * sizeof(uint64_t));
++    output.write(reinterpret_cast<const char *>(id), N * sizeof(uint64_t));
++    output.write(reinterpret_cast<const char *>(dist_to_c), N * sizeof(float));
++    output.write(reinterpret_cast<const char *>(x0), N * sizeof(float));
++    output.write(reinterpret_cast<const char *>(var_), D * sizeof(float));
++    output.write(reinterpret_cast<const char *>(mean_), D * sizeof(float));
++    output.write(reinterpret_cast<const char *>(centroid), C * B * sizeof(float));
++    output.write(reinterpret_cast<const char *>(binary_code),
++                 static_cast<size_t>(N) * B / 64 * sizeof(uint64_t));
++
++    std::vector<float> residual_sqr_norm(N);
++#pragma omp parallel for schedule(static)
++    for (int64_t i = 0; i < static_cast<int64_t>(N); i++) {
++#ifdef RESIDUAL_SPLIT
++        residual_sqr_norm[static_cast<size_t>(i)] =
++                ip_sim<D - B>(res_data + static_cast<size_t>(i) * (D - B + 1) + 1,
++                              res_data + static_cast<size_t>(i) * (D - B + 1) + 1);
++#else
++        residual_sqr_norm[static_cast<size_t>(i)] =
++                ip_sim<D - B>(data + static_cast<size_t>(i) * D + B,
++                              data + static_cast<size_t>(i) * D + B);
++#endif
++    }
++    output.write(reinterpret_cast<const char *>(residual_sqr_norm.data()),
++                 N * sizeof(float));
++#ifdef RESIDUAL_SPLIT
++    // MRQ+ keeps the exact projected prefix in RAM; only the residual tail is on SSD.
++    output.write(reinterpret_cast<const char *>(data),
++                 static_cast<size_t>(N) * B * sizeof(float));
++#endif
++    if (!output) throw std::runtime_error("Failed while writing SSD index");
++    std::cerr << "Saved SSD index: " << filename << std::endl;
++}
++
++template<uint64_t D, uint64_t B>
++void IVFRES<D, B>::load_ssd(char *filename) {
++    constexpr uint64_t SSD_MAGIC = 0x3144535351524dULL; // "MRQSSD1"
++    std::ifstream input(filename, std::ios::binary);
++    if (!input) throw std::runtime_error("Cannot open SSD index");
++
++    uint64_t magic = 0, d = 0, b = 0, layout = 0;
++    input.read(reinterpret_cast<char *>(&magic), sizeof(magic));
++    input.read(reinterpret_cast<char *>(&N), sizeof(N));
++    input.read(reinterpret_cast<char *>(&d), sizeof(d));
++    input.read(reinterpret_cast<char *>(&C), sizeof(C));
++    input.read(reinterpret_cast<char *>(&b), sizeof(b));
++    input.read(reinterpret_cast<char *>(&layout), sizeof(layout));
++    if (magic != SSD_MAGIC || d != D || b != B) {
++        throw std::runtime_error("SSD index header does not match this binary");
++    }
++#ifdef RESIDUAL_SPLIT
++    if (layout != 1) throw std::runtime_error("MRQ+ binary requires split SSD index");
++#else
++    if (layout != 0) throw std::runtime_error("MRQ binary requires non-split SSD index");
++#endif
++    RD = D - B + 1;
++
++    u = new float[B];
++    for (uint64_t i = 0; i < B; i++) u[i] = 0.5f;
++    centroid = new float[static_cast<size_t>(C) * B];
++    start = new uint64_t[C];
++    len = new uint64_t[C];
++    id = new uint64_t[N];
++    dist_to_c = new float[N];
++    x0 = new float[N];
++    fac = new Factor[N];
++    var_ = new float[D];
++    mean_ = new float[D];
++
++    void *binary_memory = nullptr;
++    const size_t binary_bytes = static_cast<size_t>(N) * B / 64 * sizeof(uint64_t);
++    if (::posix_memalign(&binary_memory, 256, binary_bytes) != 0) throw std::bad_alloc();
++    binary_code = static_cast<uint64_t *>(binary_memory);
++
++    input.read(reinterpret_cast<char *>(start), C * sizeof(uint64_t));
++    input.read(reinterpret_cast<char *>(len), C * sizeof(uint64_t));
++    input.read(reinterpret_cast<char *>(id), N * sizeof(uint64_t));
++    input.read(reinterpret_cast<char *>(dist_to_c), N * sizeof(float));
++    input.read(reinterpret_cast<char *>(x0), N * sizeof(float));
++    input.read(reinterpret_cast<char *>(var_), D * sizeof(float));
++    input.read(reinterpret_cast<char *>(mean_), D * sizeof(float));
++    input.read(reinterpret_cast<char *>(centroid), C * B * sizeof(float));
++    input.read(reinterpret_cast<char *>(binary_code), binary_bytes);
++
++    std::vector<float> residual_sqr_norm(N);
++    input.read(reinterpret_cast<char *>(residual_sqr_norm.data()), N * sizeof(float));
++#ifdef RESIDUAL_SPLIT
++    data = new float[static_cast<size_t>(N) * B];
++    input.read(reinterpret_cast<char *>(data), static_cast<size_t>(N) * B * sizeof(float));
++    res_data = nullptr;
++#else
++    data = nullptr;
++    res_data = nullptr;
++#endif
++    if (!input) throw std::runtime_error("Truncated SSD index");
++
++    packed_start = new uint64_t[C];
++    size_t packed_bytes = 0;
++    for (uint64_t i = 0; i < C; i++) {
++        packed_start[i] = packed_bytes;
++        packed_bytes += (len[i] + 31) / 32 * 32 * B / 8;
++    }
++    void *packed_memory = nullptr;
++    if (::posix_memalign(&packed_memory, 32, std::max<size_t>(packed_bytes, 32)) != 0) {
++        throw std::bad_alloc();
++    }
++    packed_code = static_cast<uint8_t *>(packed_memory);
++    for (uint64_t i = 0; i < C; i++) {
++        pack_codes<B>(binary_code + start[i] * (B / 64), len[i],
++                      packed_code + packed_start[i]);
++    }
++
++    double average_error = 0.0;
++#pragma omp parallel for reduction(+: average_error) schedule(static)
++    for (int64_t i = 0; i < static_cast<int64_t>(N); i++) {
++        const long double x_x0 = static_cast<long double>(dist_to_c[i]) / x0[i];
++        fac[i].sqr_x = dist_to_c[i] * dist_to_c[i] +
++                       residual_sqr_norm[static_cast<size_t>(i)];
++        const long double error_term = std::max<long double>(
++                0.0L, x_x0 * x_x0 - dist_to_c[i] * dist_to_c[i]);
++        fac[i].error = 2 * max_x1 * std::sqrt(error_term);
++        average_error += fac[i].error;
++        fac[i].factor_ppc = -2 / fac_norm * x_x0 *
++                            (static_cast<float>(space.popcount(
++                                     binary_code + static_cast<size_t>(i) * B / 64)) * 2 - B);
++        fac[i].factor_ip = -2 / fac_norm * x_x0;
++    }
++    average_error /= std::max<uint64_t>(N, 1);
++    std::cerr << "Loaded SSD index; average quantization error bound: "
++              << average_error << std::endl;
++}
++
+ // load impl
+ template<uint64_t D, uint64_t B>
+ void IVFRES<D, B>::load(char *filename) {
+@@ -512,7 +782,12 @@ void IVFRES<D, B>::load(char *filename) {
+     data = new float[N * D];
+ #endif
+ 
+-    binary_code = static_cast<uint64_t *>(aligned_alloc(256, (size_t) N * B / 64 * sizeof(uint64_t)));
++    void *binary_memory = nullptr;
++    if (::posix_memalign(&binary_memory, 256,
++                         (size_t) N * B / 64 * sizeof(uint64_t)) != 0) {
++        throw std::bad_alloc();
++    }
++    binary_code = static_cast<uint64_t *>(binary_memory);
+ 
+     start = new uint64_t[C];
+     len = new uint64_t[C];
+@@ -549,7 +824,11 @@ void IVFRES<D, B>::load(char *filename) {
+         packed_start[i] = cur;
+         cur += (len[i] + 31) / 32 * 32 * B / 8;
+     }
+-    packed_code = static_cast<uint8_t *>(aligned_alloc(32, cur * sizeof(uint8_t)));
++    void *packed_memory = nullptr;
++    if (::posix_memalign(&packed_memory, 32, std::max<size_t>(cur, 32)) != 0) {
++        throw std::bad_alloc();
++    }
++    packed_code = static_cast<uint8_t *>(packed_memory);
+     for (int64_t i = 0; i < C; i++) {
+         pack_codes<B>(binary_code + start[i] * (B / 64), len[i], packed_code + packed_start[i]);
+     }
+@@ -580,20 +859,19 @@ void IVFRES<D, B>::load(char *filename) {
+ // Construction and Deconstruction Functions
+ template<uint64_t D, uint64_t B>
+ IVFRES<D, B>::IVFRES() {
+-    N = C = 0;
+-    start = len = id = NULL;
+-    x0 = dist_to_c = centroid = data = NULL;
+-    binary_code = NULL;
+-    fac = NULL;
+-    u = NULL;
++    N = C = RD = 0;
++    start = packed_start = len = id = nullptr;
++    x0 = dist_to_c = centroid = data = res_data = nullptr;
++    var_ = mean_ = u = nullptr;
++    binary_code = nullptr;
++    packed_code = nullptr;
++    fac = nullptr;
+ }
+ 
+ template<uint64_t D, uint64_t B>
+ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
+                      const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
+-                     const Matrix<float> &M) {
+-    fac = NULL;
+-    u = NULL;
++                     const Matrix<float> &M) : IVFRES() {
+ 
+     N = X.n;
+     C = _centroids.n;
+@@ -633,7 +911,12 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
+ #else
+     data = new float[N * D];
+ #endif
+-    binary_code = new uint64_t[N * B / 64];
++    void *binary_memory = nullptr;
++    if (::posix_memalign(&binary_memory, 256,
++                         static_cast<size_t>(N) * B / 64 * sizeof(uint64_t)) != 0) {
++        throw std::bad_alloc();
++    }
++    binary_code = static_cast<uint64_t *>(binary_memory);
+ 
+     std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
+ #pragma omp parallel for schedule (dynamic, 144)
+@@ -654,9 +937,7 @@ IVFRES<D, B>::IVFRES(const Matrix<float> &X, const Matrix<float> &_centroids, co
+ template<uint64_t D, uint64_t B>
+ IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Matrix<float> &dist_to_centroid,
+                      const Matrix<float> &_x0, const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
+-                     const Matrix<float> &M) {
+-    fac = NULL;
+-    u = NULL;
++                     const Matrix<float> &M) : IVFRES() {
+     ifstream in(base_file, std::ios::binary);
+     in.seekg(0, std::ios::end);
+     std::ios::pos_type ss = in.tellg();
+@@ -703,7 +984,12 @@ IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Mat
+ #else
+     data = new float[N * D];
+ #endif
+-    binary_code = new uint64_t[(size_t) N * B / 64];
++    void *binary_memory = nullptr;
++    if (::posix_memalign(&binary_memory, 256,
++                         static_cast<size_t>(N) * B / 64 * sizeof(uint64_t)) != 0) {
++        throw std::bad_alloc();
++    }
++    binary_code = static_cast<uint64_t *>(binary_memory);
+ 
+     std::memcpy(centroid, _centroids.data, C * B * sizeof(float));
+     float read_buffer[D];
+@@ -731,18 +1017,21 @@ IVFRES<D, B>::IVFRES(char *base_file, const Matrix<float> &_centroids, const Mat
+ 
+ template<uint64_t D, uint64_t B>
+ IVFRES<D, B>::~IVFRES() {
+-    if (id != NULL) delete[] id;
+-    if (dist_to_c != NULL) delete[] dist_to_c;
+-    if (len != NULL) delete[] len;
+-    if (start != NULL) delete[] start;
+-    if (x0 != NULL) delete[] x0;
+-    if (data != NULL) delete[] data;
+-    if (fac != NULL) delete[] fac;
+-    if (u != NULL) delete[] u;
+-    if (var_ != NULL) delete[] var_;
+-    if (mean_ != NULL) delete[] mean_;
+-    if (binary_code != NULL) std::free(binary_code);
+-    if (centroid != NULL) std::free(centroid);
++    delete[] id;
++    delete[] dist_to_c;
++    delete[] len;
++    delete[] start;
++    delete[] packed_start;
++    delete[] x0;
++    delete[] data;
++    delete[] res_data;
++    delete[] fac;
++    delete[] u;
++    delete[] var_;
++    delete[] mean_;
++    delete[] centroid;
++    std::free(binary_code);
++    std::free(packed_code);
+ }
+ 
+ template<uint64_t D, uint64_t B>
+diff --git a/include/matrix.h b/include/matrix.h
+index 7f20067..6dd8c9a 100644
+--- a/include/matrix.h
++++ b/include/matrix.h
+@@ -16,8 +16,6 @@
+ #include <random>
+ #include <cstring>
+ #include <assert.h>
+-#include <Eigen/Dense>
+-#include <Eigen/Core>
+ #include <omp.h>
+ 
+ template<typename T>
+@@ -260,27 +258,19 @@ void Matrix<T>::mul(const Matrix<T> &A, Matrix<T> &result) const {
+ 
+ template<typename T>
+ Matrix<T> mul(const Matrix<T> &A, const Matrix<T> &B) {
+-
+     std::cerr << "Matrix Multiplication - " << A.n << " " << A.d << " " << B.d << std::endl;
+-    Eigen::MatrixXd _A(A.n, A.d);
+-    Eigen::MatrixXd _B(B.n, B.d);
+-    Eigen::MatrixXd _C(A.n, B.d);
+-    for (int i = 0; i < A.n; i++)
+-        for (int j = 0; j < A.d; j++)
+-            _A(i, j) = A.data[i * A.d + j];
+-
+-    for (int i = 0; i < B.n; i++)
+-        for (int j = 0; j < B.d; j++)
+-            _B(i, j) = B.data[i * B.d + j];
+-
+-    _C = _A * _B;
+-
++    assert(A.d == B.n);
+     Matrix<T> result(A.n, B.d);
+-
+-    for (int i = 0; i < A.n; i++)
+-        for (int j = 0; j < B.d; j++)
+-            result.data[i * B.d + j] = _C(i, j);
+-
++#pragma omp parallel for schedule(static)
++    for (size_t i = 0; i < A.n; i++) {
++        T *out = result.data + i * B.d;
++        for (size_t j = 0; j < A.d; j++) {
++            const T a = A.data[i * A.d + j];
++            const T *b = B.data + j * B.d;
++#pragma omp simd
++            for (size_t k = 0; k < B.d; k++) out[k] += a * b[k];
++        }
++    }
+     return result;
+ }
+ 
+@@ -298,31 +288,7 @@ Matrix<T> cen(const Matrix<T> &A, const Matrix<T> &B) {
+ 
+ template<typename T>
+ Matrix<T> para_mul(const Matrix<T> &A, const Matrix<T> &B) {
+-
+-    std::cerr << "Parallel Matrix Multiplication - " << A.n << " " << A.d << " " << B.d << std::endl;
+-    Eigen::MatrixXd _A(A.n, A.d);
+-    Eigen::MatrixXd _B(B.n, B.d);
+-    Eigen::MatrixXd _C(A.n, B.d);
+-#pragma omp parallel for
+-    for (int i = 0; i < A.n; i++)
+-        for (int j = 0; j < A.d; j++)
+-            _A(i, j) = A.data[i * A.d + j];
+-
+-#pragma omp parallel for
+-    for (int i = 0; i < B.n; i++)
+-        for (int j = 0; j < B.d; j++)
+-            _B(i, j) = B.data[i * B.d + j];
+-
+-    _C = _A * _B;
+-
+-    Matrix<T> result(A.n, B.d);
+-
+-#pragma omp parallel for
+-    for (int i = 0; i < A.n; i++)
+-        for (int j = 0; j < B.d; j++)
+-            result.data[i * B.d + j] = _C(i, j);
+-
+-    return result;
++    return mul(A, B);
+ }
+ 
+ template<typename T>
+@@ -360,12 +326,13 @@ void Matrix<T>::deserialize(FILE *fp) {
+ }
+ 
+ double normalize(float *x, unsigned D) {
+-    Eigen::VectorXd v(D);
+-    for (int i = 0; i < D; i++)v(i) = x[i];
+-
+-    double norm = v.norm();
+-    v.normalize();
+-    for (int i = 0; i < D; i++)x[i] = v(i);
++    double sqr = 0.0;
++    for (unsigned i = 0; i < D; i++) sqr += static_cast<double>(x[i]) * x[i];
++    const double norm = std::sqrt(sqr);
++    if (norm > 0.0) {
++        const float inv = static_cast<float>(1.0 / norm);
++        for (unsigned i = 0; i < D; i++) x[i] *= inv;
++    }
+     return norm;
+ }
+ 
+diff --git a/include/space.h b/include/space.h
+index 55e9594..786559b 100644
+--- a/include/space.h
++++ b/include/space.h
+@@ -12,6 +12,19 @@
+ #include <iostream>
+ #include <map>
+ #include <immintrin.h>
++#include <atomic>
++#include <cerrno>
++#include <chrono>
++#include <cstdint>
++#include <cstdlib>
++#include <cstring>
++#include <fcntl.h>
++#include <libaio.h>
++#include <stdexcept>
++#include <string>
++#include <system_error>
++#include <sys/stat.h>
++#include <unistd.h>
+ 
+ #define PORTABLE_ALIGN32 __attribute__((aligned(32)))
+ #define PORTABLE_ALIGN64 __attribute__((aligned(64)))
+@@ -53,24 +66,311 @@ public:
+     ~Space() {};
+ };
+ 
++struct SSDVectorFileHeader {
++    uint64_t magic;
++    uint64_t version;
++    uint64_t dimension;
++    uint64_t count;
++    uint64_t record_bytes;
++    uint64_t data_offset;
++};
++
++inline constexpr uint64_t SSD_VECTOR_MAGIC = 0x3143455651524dULL; // "MRQVEC1"
++inline constexpr uint64_t SSD_VECTOR_VERSION = 1;
++inline constexpr uint64_t SSD_VECTOR_ALIGNMENT = 4096;
++
+ class Disk_IO {
+ public:
+-    std::ifstream IO;
+-    unsigned D=0;
++    unsigned D = 0;
++
++    Disk_IO() = default;
++    Disk_IO(const Disk_IO &) = delete;
++    Disk_IO &operator=(const Disk_IO &) = delete;
++
++    void init_data_file(const char *filename, bool use_direct_io = true) {
++        close_file();
++
++        const int header_fd = ::open(filename, O_RDONLY);
++        if (header_fd < 0) {
++            throw std::system_error(errno, std::generic_category(),
++                                    "open SSD vector file " + std::string(filename));
++        }
++        SSDVectorFileHeader header{};
++        const ssize_t header_read = ::pread(header_fd, &header, sizeof(header), 0);
++        struct stat file_stat{};
++        const int stat_result = ::fstat(header_fd, &file_stat);
++        ::close(header_fd);
++        if (header_read < static_cast<ssize_t>(sizeof(uint32_t)) || stat_result != 0) {
++            throw std::runtime_error("invalid fvecs header in " + std::string(filename));
++        }
++
++        if (header_read == static_cast<ssize_t>(sizeof(header)) &&
++            header.magic == SSD_VECTOR_MAGIC) {
++            if (header.version != SSD_VECTOR_VERSION || header.dimension == 0 ||
++                header.record_bytes < header.dimension * sizeof(float) ||
++                header.record_bytes % SSD_VECTOR_ALIGNMENT != 0 ||
++                header.data_offset % SSD_VECTOR_ALIGNMENT != 0 ||
++                header.data_offset + header.count * header.record_bytes >
++                        static_cast<uint64_t>(file_stat.st_size)) {
++                throw std::runtime_error("invalid aligned SSD vector header in " +
++                                         std::string(filename));
++            }
++            D = static_cast<unsigned>(header.dimension);
++            vector_count_ = header.count;
++            record_bytes_ = header.record_bytes;
++            data_offset_ = header.data_offset;
++            aligned_layout_ = true;
++        } else {
++            uint32_t dimension = 0;
++            std::memcpy(&dimension, &header, sizeof(dimension));
++            if (dimension == 0) {
++                throw std::runtime_error("invalid fvecs header in " + std::string(filename));
++            }
++            D = dimension;
++            record_bytes_ = (static_cast<uint64_t>(D) + 1) * sizeof(float);
++            if (static_cast<uint64_t>(file_stat.st_size) % record_bytes_ != 0) {
++                throw std::runtime_error("truncated fvecs file " + std::string(filename));
++            }
++            vector_count_ = static_cast<uint64_t>(file_stat.st_size) / record_bytes_;
++            data_offset_ = sizeof(float);
++            aligned_layout_ = false;
++        }
+ 
+-    void init_data_file(char *filename) {
+-        IO.open(filename, std::ios::binary);
+-        IO.read((char *) &D, sizeof(unsigned));
++        direct_io_ = use_direct_io;
++        const int flags = O_RDONLY | (direct_io_ ? O_DIRECT : 0);
++        fd_ = ::open(filename, flags);
++        if (fd_ < 0) {
++            throw std::system_error(errno, std::generic_category(),
++                                    "open SSD vector file " + std::string(filename));
++        }
++        filename_ = filename;
++        reset_stats();
+     }
+ 
+-    void single_disk_io(unsigned id, float *vec) {
+-        IO.seekg(std::ios::beg + (sizeof(float) * (D + 1)) * id + sizeof(float));
+-        IO.read((char *) vec, sizeof(float) * D);
++    void read_range(uint64_t id, uint64_t first_dimension, uint64_t dimension_count,
++                    float *destination) {
++        if (fd_ < 0) throw std::runtime_error("SSD vector file is not open");
++        if (id >= vector_count_) throw std::out_of_range("SSD vector id is out of range");
++        if (first_dimension + dimension_count > D) {
++            throw std::out_of_range("SSD vector range exceeds dimensionality");
++        }
++
++        const uint64_t logical_offset = data_offset_ + id * record_bytes_ +
++                                        first_dimension * sizeof(float);
++        const size_t logical_bytes = dimension_count * sizeof(float);
++        const auto begin = std::chrono::steady_clock::now();
++
++        if (direct_io_) {
++            constexpr size_t alignment = 4096;
++            const uint64_t aligned_offset = logical_offset & ~(uint64_t(alignment) - 1);
++            const size_t delta = static_cast<size_t>(logical_offset - aligned_offset);
++            const size_t required = delta + logical_bytes;
++            const size_t submitted = (required + alignment - 1) & ~(alignment - 1);
++
++            struct ThreadBuffer {
++                void *data = nullptr;
++                size_t capacity = 0;
++                ~ThreadBuffer() { std::free(data); }
++                void ensure(size_t bytes) {
++                    if (capacity >= bytes) return;
++                    std::free(data);
++                    data = nullptr;
++                    if (::posix_memalign(&data, 4096, bytes) != 0) {
++                        throw std::bad_alloc();
++                    }
++                    capacity = bytes;
++                }
++            };
++            static thread_local ThreadBuffer buffer;
++            buffer.ensure(submitted);
++
++            ssize_t got;
++            do {
++                got = ::pread(fd_, buffer.data, submitted, static_cast<off_t>(aligned_offset));
++            } while (got < 0 && errno == EINTR);
++            if (got < 0) {
++                throw std::system_error(errno, std::generic_category(),
++                                        "direct pread from " + filename_);
++            }
++            if (static_cast<size_t>(got) < required) {
++                throw std::runtime_error("short direct read from " + filename_);
++            }
++            std::memcpy(destination, static_cast<const char *>(buffer.data) + delta,
++                        logical_bytes);
++            submitted_bytes_.fetch_add(submitted, std::memory_order_relaxed);
++        } else {
++            size_t done = 0;
++            while (done < logical_bytes) {
++                ssize_t got = ::pread(fd_, reinterpret_cast<char *>(destination) + done,
++                                      logical_bytes - done,
++                                      static_cast<off_t>(logical_offset + done));
++                if (got < 0 && errno == EINTR) continue;
++                if (got < 0) {
++                    throw std::system_error(errno, std::generic_category(),
++                                            "pread from " + filename_);
++                }
++                if (got == 0) throw std::runtime_error("short read from " + filename_);
++                done += static_cast<size_t>(got);
++            }
++            submitted_bytes_.fetch_add(logical_bytes, std::memory_order_relaxed);
++        }
++
++        const auto elapsed = std::chrono::steady_clock::now() - begin;
++        io_nanoseconds_.fetch_add(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count(),
++                std::memory_order_relaxed);
++        logical_bytes_.fetch_add(logical_bytes, std::memory_order_relaxed);
++        reads_.fetch_add(1, std::memory_order_relaxed);
+     }
+ 
+-    Disk_IO() = default;
++    void single_disk_io(uint64_t id, float *vec) { read_range(id, 0, D, vec); }
++
++    void set_async_qd(size_t qd) {
++        if (qd == 0 || qd > 64) {
++            throw std::invalid_argument("async I/O queue depth must be in [1, 64]");
++        }
++        destroy_async();
++        async_qd_ = qd;
++        if (async_qd_ == 1) return;
++        async_context_ = 0;
++        const int result = ::io_setup(static_cast<unsigned>(async_qd_), &async_context_);
++        if (result < 0) {
++            async_context_ = 0;
++            throw std::system_error(-result, std::generic_category(), "io_setup");
++        }
++        async_buffers_.resize(async_qd_, nullptr);
++        for (size_t i = 0; i < async_qd_; i++) {
++            if (::posix_memalign(&async_buffers_[i], SSD_VECTOR_ALIGNMENT,
++                                 record_bytes_) != 0) {
++                destroy_async();
++                throw std::bad_alloc();
++            }
++        }
++    }
+ 
+-    ~Disk_IO() = default;
++    size_t async_qd() const { return async_qd_; }
++
++    void read_full_batch(const uint64_t *ids, size_t count, float *destinations) {
++        if (count == 0) return;
++        if (count > async_qd_) {
++            throw std::invalid_argument("I/O batch exceeds configured queue depth");
++        }
++        if (async_qd_ == 1 || !direct_io_) {
++            for (size_t i = 0; i < count; i++) {
++                single_disk_io(ids[i], destinations + i * D);
++            }
++            return;
++        }
++        if (!aligned_layout_) {
++            throw std::runtime_error("async O_DIRECT requires aligned SSD vector layout");
++        }
++
++        std::vector<struct iocb> control_blocks(count);
++        std::vector<struct iocb *> submissions(count);
++        std::vector<struct io_event> events(count);
++        for (size_t i = 0; i < count; i++) {
++            if (ids[i] >= vector_count_) {
++                throw std::out_of_range("SSD vector id is out of range");
++            }
++            const uint64_t offset = data_offset_ + ids[i] * record_bytes_;
++            ::io_prep_pread(&control_blocks[i], fd_, async_buffers_[i],
++                            record_bytes_, static_cast<off_t>(offset));
++            control_blocks[i].data = reinterpret_cast<void *>(i);
++            submissions[i] = &control_blocks[i];
++        }
++
++        const auto begin = std::chrono::steady_clock::now();
++        const int submitted = ::io_submit(async_context_, static_cast<long>(count),
++                                          submissions.data());
++        if (submitted < 0) {
++            throw std::system_error(-submitted, std::generic_category(), "io_submit");
++        }
++        if (static_cast<size_t>(submitted) != count) {
++            throw std::runtime_error("partial io_submit for MRQ SSD batch");
++        }
++        size_t completed = 0;
++        while (completed < count) {
++            const int got = ::io_getevents(
++                    async_context_, 1, static_cast<long>(count - completed),
++                    events.data() + completed, nullptr);
++            if (got < 0) {
++                throw std::system_error(-got, std::generic_category(), "io_getevents");
++            }
++            completed += static_cast<size_t>(got);
++        }
++        const auto elapsed = std::chrono::steady_clock::now() - begin;
++        for (size_t i = 0; i < count; i++) {
++            if (events[i].res < 0) {
++                throw std::system_error(static_cast<int>(-events[i].res),
++                                        std::generic_category(), "asynchronous pread");
++            }
++            if (static_cast<uint64_t>(events[i].res) != record_bytes_) {
++                throw std::runtime_error("short asynchronous direct read");
++            }
++        }
++        for (size_t i = 0; i < count; i++) {
++            std::memcpy(destinations + i * D, async_buffers_[i],
++                        static_cast<size_t>(D) * sizeof(float));
++        }
++        reads_.fetch_add(count, std::memory_order_relaxed);
++        logical_bytes_.fetch_add(count * static_cast<uint64_t>(D) * sizeof(float),
++                                 std::memory_order_relaxed);
++        submitted_bytes_.fetch_add(count * record_bytes_, std::memory_order_relaxed);
++        io_nanoseconds_.fetch_add(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count(),
++                std::memory_order_relaxed);
++    }
++
++    void reset_stats() {
++        reads_.store(0, std::memory_order_relaxed);
++        logical_bytes_.store(0, std::memory_order_relaxed);
++        submitted_bytes_.store(0, std::memory_order_relaxed);
++        io_nanoseconds_.store(0, std::memory_order_relaxed);
++    }
++
++    uint64_t reads() const { return reads_.load(std::memory_order_relaxed); }
++    uint64_t logical_bytes() const { return logical_bytes_.load(std::memory_order_relaxed); }
++    uint64_t submitted_bytes() const { return submitted_bytes_.load(std::memory_order_relaxed); }
++    double io_seconds() const {
++        return io_nanoseconds_.load(std::memory_order_relaxed) * 1e-9;
++    }
++    bool direct_io() const { return direct_io_; }
++    bool aligned_layout() const { return aligned_layout_; }
++    const char *layout_name() const { return aligned_layout_ ? "aligned" : "fvecs"; }
++
++    ~Disk_IO() { close_file(); }
++
++private:
++    int fd_ = -1;
++    bool direct_io_ = true;
++    bool aligned_layout_ = false;
++    uint64_t record_bytes_ = 0;
++    uint64_t data_offset_ = 0;
++    uint64_t vector_count_ = 0;
++    size_t async_qd_ = 1;
++    io_context_t async_context_ = 0;
++    std::vector<void *> async_buffers_;
++    std::string filename_;
++    std::atomic<uint64_t> reads_{0};
++    std::atomic<uint64_t> logical_bytes_{0};
++    std::atomic<uint64_t> submitted_bytes_{0};
++    std::atomic<uint64_t> io_nanoseconds_{0};
++
++    void close_file() {
++        destroy_async();
++        if (fd_ >= 0) ::close(fd_);
++        fd_ = -1;
++    }
++
++    void destroy_async() {
++        if (async_context_ != 0) {
++            ::io_destroy(async_context_);
++            async_context_ = 0;
++        }
++        for (void *buffer : async_buffers_) std::free(buffer);
++        async_buffers_.clear();
++        async_qd_ = 1;
++    }
+ };
+ 
+ 
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index bcecbf1..81a5b75 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -16,4 +16,22 @@ add_executable(res_search ResBitQ/res_search.cpp)
+ add_executable(res_split_search ResBitQ/res_search.cpp)
+ target_compile_definitions(res_split_search PRIVATE RESIDUAL_SPLIT)
+ 
++# SSD-resident exact-vector variants.  The compact MRQ metadata index is loaded
++# into RAM, while exact refinement reads the PCA-projected fvecs with pread.
++add_executable(res_ssd_index ResBitQ/res_index.cpp)
++target_compile_definitions(res_ssd_index PRIVATE SSD_INDEX)
++
++add_executable(res_split_ssd_index ResBitQ/res_index.cpp)
++target_compile_definitions(res_split_ssd_index PRIVATE RESIDUAL_SPLIT SSD_INDEX)
++
++add_executable(res_ssd_search ResBitQ/res_search.cpp)
++target_compile_definitions(res_ssd_search PRIVATE SSD_SCAN)
++target_link_libraries(res_ssd_search PRIVATE aio)
++
++add_executable(res_split_ssd_search ResBitQ/res_search.cpp)
++target_compile_definitions(res_split_ssd_search PRIVATE RESIDUAL_SPLIT SSD_SCAN)
++target_link_libraries(res_split_ssd_search PRIVATE aio)
++
++add_executable(prepare_ssd_vectors ResBitQ/prepare_ssd_vectors.cpp)
++
+ 
+diff --git a/src/ResBitQ/res_index.cpp b/src/ResBitQ/res_index.cpp
+index b05e41f..80e61bc 100644
+--- a/src/ResBitQ/res_index.cpp
++++ b/src/ResBitQ/res_index.cpp
+@@ -14,6 +14,81 @@
+ 
+ using namespace std;
+ 
++template<uint64_t D, uint64_t B>
++void save_selected_index(IVFRES<D, B> &ivf, char *index_path) {
++#ifdef SSD_INDEX
++    ivf.save_ssd(index_path);
++#else
++    ivf.save(index_path);
++#endif
++}
++
++template<uint64_t B>
++void build_1024_index(const Matrix<float> &X, const Matrix<float> &C,
++                      const Matrix<float> &dist_to_centroid, const Matrix<float> &x0,
++                      const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
++                      const Matrix<float> &M, char *index_path) {
++    IVFRES<1024, B> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
++    save_selected_index(ivf, index_path);
++}
++
++void dispatch_1024_index(int bit, const Matrix<float> &X, const Matrix<float> &C,
++                         const Matrix<float> &dist_to_centroid, const Matrix<float> &x0,
++                         const Matrix<uint64_t> &cluster_id, const Matrix<uint64_t> &binary,
++                         const Matrix<float> &M, char *index_path) {
++    switch (bit) {
++        case 128: build_1024_index<128>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 256: build_1024_index<256>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 320: build_1024_index<320>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 384: build_1024_index<384>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 512: build_1024_index<512>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 640: build_1024_index<640>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 768: build_1024_index<768>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        case 1024: build_1024_index<1024>(X, C, dist_to_centroid, x0, cluster_id, binary, M, index_path); break;
++        default: throw std::invalid_argument("unsupported B for 1024-dimensional data");
++    }
++}
++
++template<uint64_t D>
++void build_diskveclab_index(const Matrix<float> &X, const Matrix<float> &C,
++                            const Matrix<float> &dist_to_centroid,
++                            const Matrix<float> &x0,
++                            const Matrix<uint64_t> &cluster_id,
++                            const Matrix<uint64_t> &binary,
++                            const Matrix<float> &M, char *index_path) {
++    constexpr uint64_t B = 320;
++    IVFRES<D, B> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
++    save_selected_index(ivf, index_path);
++}
++
++void dispatch_diskveclab_index(int bit, const Matrix<float> &X,
++                               const Matrix<float> &C,
++                               const Matrix<float> &dist_to_centroid,
++                               const Matrix<float> &x0,
++                               const Matrix<uint64_t> &cluster_id,
++                               const Matrix<uint64_t> &binary,
++                               const Matrix<float> &M, char *index_path) {
++    if (bit != 320) {
++        throw std::invalid_argument("DiskVecLab MRQ-SSD requires B=320");
++    }
++    switch (X.d) {
++        case 1024:
++            build_diskveclab_index<1024>(X, C, dist_to_centroid, x0, cluster_id,
++                                         binary, M, index_path);
++            break;
++        case 1536:
++            build_diskveclab_index<1536>(X, C, dist_to_centroid, x0, cluster_id,
++                                         binary, M, index_path);
++            break;
++        case 4096:
++            build_diskveclab_index<4096>(X, C, dist_to_centroid, x0, cluster_id,
++                                         binary, M, index_path);
++            break;
++        default:
++            throw std::invalid_argument("unsupported DiskVecLab dimensionality");
++    }
++}
++
+ int main(int argc, char *argv[]) {
+ 
+     const struct option longopts[] = {
+@@ -25,7 +100,7 @@ int main(int argc, char *argv[]) {
+             {"source",  required_argument, 0, 's'},
+     };
+ 
+-    int ind, bit;
++    int ind, bit = 0;
+     int iarg = 0;
+     opterr = 1;    //getopt error message (off: 0)
+ 
+@@ -53,6 +128,12 @@ int main(int argc, char *argv[]) {
+         }
+     }
+ 
++    if (dataset[0] == '\0' || source[0] == '\0' || bit <= 0 || numC == 0) {
++        std::cerr << "Usage: " << argv[0]
++                  << " -d DATASET -s DATA_DIRECTORY/ -b BITS -c CLUSTERS\n";
++        return 2;
++    }
++
+ 
+     // ==============================================================================================================
+     // Load Data
+@@ -70,80 +151,91 @@ int main(int argc, char *argv[]) {
+     sprintf(mean_path, "%s%s_mean.fvecs", source, dataset);
+     Matrix<float> M(mean_path);
+ 
+-    sprintf(centroid_path, "%sRESCentroid_C%ld_B%d.fvecs", source, numC, bit);
++    sprintf(centroid_path, "%sRESCentroid_C%lu_B%d.fvecs", source, numC, bit);
+     Matrix<float> C(centroid_path);
+ 
+-    sprintf(x0_path, "%sRES_x0_C%ld_B%d.fvecs", source, numC, bit);
++    sprintf(x0_path, "%sRES_x0_C%lu_B%d.fvecs", source, numC, bit);
+     Matrix<float> x0(x0_path);
+ 
+-    sprintf(dist_to_centroid_path, "%sp%s_dist_to_centroid_%ld.fvecs", source, dataset, numC);
++    sprintf(dist_to_centroid_path, "%sp%s_dist_to_centroid_%lu.fvecs", source, dataset, numC);
+     Matrix<float> dist_to_centroid(dist_to_centroid_path);
+ 
+-    sprintf(cluster_id_path, "%sp%s_cluster_id_%ld.ivecs", source, dataset, numC);
++    sprintf(cluster_id_path, "%sp%s_cluster_id_%lu.ivecs", source, dataset, numC);
+     Matrix<uint64_t> cluster_id(cluster_id_path);
+ 
+-    sprintf(binary_path, "%sRES_Rand_C%ld_B%d.Ivecs", source, numC, bit);
++    sprintf(binary_path, "%sRES_Rand_C%lu_B%d.Ivecs", source, numC, bit);
+     Matrix<uint64_t> binary(binary_path);
+ 
+-#ifdef RESIDUAL_SPLIT
+-    sprintf(index_path, "%sivf_split%d_B%d.index", source, numC, bit);
++#if defined(RESIDUAL_SPLIT) && defined(SSD_INDEX)
++    sprintf(index_path, "%sivf_split%lu_B%d.ssd.index", source, numC, bit);
++#elif defined(RESIDUAL_SPLIT)
++    sprintf(index_path, "%sivf_split%lu_B%d.index", source, numC, bit);
++#elif defined(SSD_INDEX)
++    sprintf(index_path, "%sivf_res%lu_B%d.ssd.index", source, numC, bit);
+ #else
+-    sprintf(index_path, "%sivf_res%d_B%d.index", source, numC, bit);
++    sprintf(index_path, "%sivf_res%lu_B%d.index", source, numC, bit);
+ #endif
+     std::cerr << "Loading Succeed!" << std::endl << std::endl;
+     // ==============================================================================================================
+     std::string str_data(dataset);
+     std::cerr << "dataset:: " << str_data << std::endl;
+ 
++    if (str_data.rfind("diskveclab_", 0) == 0) {
++        dispatch_diskveclab_index(bit, X, C, dist_to_centroid, x0, cluster_id,
++                                  binary, M, index_path);
++        return 0;
++    }
++
+     if (str_data == "msong") {
+         const uint64_t BB = 128, DIM = 420;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "gist") {
+         const uint64_t BB = 320, DIM = 960;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "deep1M") {
+         const uint64_t BB = 128, DIM = 256;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "tiny5m") {
+         const uint64_t BB = 128, DIM = 384;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "word2vec") {
+         const uint64_t BB = 256, DIM = 300;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "sift") {
+         const uint64_t BB = 64, DIM = 128;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "glove2.2m") {
+         const uint64_t BB = 256, DIM = 300;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "OpenAI-1536") {
+         const uint64_t BB = 512, DIM = 1536;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+     if (str_data == "OpenAI-3072") {
+         const uint64_t BB = 512, DIM = 3072;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+-    if (str_data.find("msmarc") != std::string::npos) {
+-        const uint64_t BB = 320, DIM = 1024;
++    if (str_data.find("msmarc") != std::string::npos ||
++        str_data.find("dbpedia") != std::string::npos) {
+         auto start_time = std::chrono::high_resolution_clock::now();
+-        IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
++        dispatch_1024_index(bit, X, C, dist_to_centroid, x0, cluster_id, binary, M,
++                            index_path);
+         auto end_time = std::chrono::high_resolution_clock::now();
+         auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+         std::ofstream out("./results/time-log/"+str_data+"/RES-Index-Time.log", std::ios::app);
+@@ -152,12 +244,11 @@ int main(int argc, char *argv[]) {
+ #else
+         out<<"RES Naive Index Time:"<<duration.count()<<" (s)";
+ #endif
+-        ivf.save(index_path);
+     }
+     if (str_data == "yt1m") {
+         const uint64_t BB = 512, DIM = 1024;
+         IVFRES<DIM, BB> ivf(X, C, dist_to_centroid, x0, cluster_id, binary, M);
+-        ivf.save(index_path);
++        save_selected_index(ivf, index_path);
+     }
+ 
+     return 0;
+diff --git a/src/ResBitQ/res_search.cpp b/src/ResBitQ/res_search.cpp
+index 6d1daf1..7f4fbf5 100644
+--- a/src/ResBitQ/res_search.cpp
++++ b/src/ResBitQ/res_search.cpp
+@@ -1,269 +1,378 @@
+ #define EIGEN_DONT_PARALLELIZE
+ #define USE_AVX2
+ #define FAST_SCAN
+-#include <iostream>
+-#include <fstream>
+ 
+-#include <ctime>
++#include <algorithm>
++#include <chrono>
+ #include <cmath>
+-#include <matrix.h>
+-#include <utils.h>
+-#include "ivf_res.h"
++#include <cstdio>
++#include <cstring>
++#include <fstream>
+ #include <getopt.h>
++#include <iomanip>
++#include <iostream>
++#include <limits>
++#include <stdexcept>
++#include <string>
++#include <sstream>
++#include <vector>
++
++#include "matrix.h"
++#include "utils.h"
++#include "ivf_res.h"
+ #include "space.h"
+ 
+ using namespace std;
+ 
+-const int MAXK = 100;
+-
+-long double rotation_time = 0;
+-int probe_base = 50;
+-char data_path[256] = "";
++double rotation_time_us = 0.0;
++int probe_base = 0;
++int probe_steps = 20;
++int benchmark_rounds = 1;
++bool probe_base_overridden = false;
++bool var_count_overridden = false;
++std::vector<uint64_t> explicit_probes;
++uint64_t max_queries = 0;
++size_t async_qd = 1;
+ 
+ template<uint64_t D, uint64_t B>
+-void test(const Matrix<float> &Q, const Matrix<float> &RandQ, const Matrix<unsigned> &G,
+-          const IVFRES<D, B> &ivf, int k) {
+-    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
+-    struct rusage run_start, run_end;
++void test(const Matrix<float> &Q, const Matrix<float> &RandQ,
++          const Matrix<unsigned> &G, const IVFRES<D, B> &ivf, int k,
++          Disk_IO *disk) {
++    if (k <= 0 || static_cast<uint64_t>(k) > G.d) {
++        throw std::invalid_argument("K must be positive and no larger than ground-truth K");
++    }
+ 
+-    // ========================================================================
+-    // Search Parameter
+-    // ========================================================================
++    const uint64_t query_count = max_queries == 0 ? Q.n : std::min<uint64_t>(Q.n, max_queries);
++    cout << "nprobe,recall,search_qps,end_to_end_qps,search_us_per_query,"
++            "end_to_end_us_per_query,ssd_reads_per_query,logical_bytes_per_query,"
++            "submitted_bytes_per_query,io_us_per_query,result_id_hash,queries,rounds,"
++            "io_mode,io_qd,vector_layout\n";
++    std::vector<uint64_t> sweep;
++    if (!explicit_probes.empty()) {
++        sweep = explicit_probes;
++    } else {
++        for (int step = 1; step <= probe_steps; step++) {
++            sweep.push_back(static_cast<uint64_t>(probe_base) * step);
++        }
++    }
++    uint64_t previous_nprobe = 0;
++    for (const uint64_t requested_nprobe : sweep) {
++        const uint64_t nprobe = std::min<uint64_t>(requested_nprobe, ivf.C);
++        if (nprobe == 0 || nprobe == previous_nprobe) continue;
++        previous_nprobe = nprobe;
+ 
+-    for (int nprobe = probe_base; nprobe <= probe_base * 20; nprobe += probe_base) {
+-        float total_time = 0;
+-        float total_ratio = 0;
+-        int correct = 0;
+-#ifdef COUNT_SCAN
+-        count_scan = 0;
+-        all_dist_count = 0;
+-#endif
+-        for (int i = 0; i < Q.n; i++) {
+-            GetCurTime(&run_start);
+-            ResultHeap KNNs = ivf.search(Q.data + i * Q.d, RandQ.data + i * RandQ.d, k, nprobe);
+-            GetCurTime(&run_end);
+-            GetTime(&run_start, &run_end, &usr_t, &sys_t);
+-            total_time += usr_t * 1e6;
++        uint64_t correct = 0;
++        uint64_t reads = 0, logical_bytes = 0, submitted_bytes = 0;
++        double io_seconds = 0.0;
++        double search_seconds = 0.0;
++        uint64_t result_id_hash = 1469598103934665603ULL;
+ 
+-            int tmp_correct = 0;
+-            while (KNNs.empty() == false) {
+-                int id = KNNs.top().second;
+-                KNNs.pop();
+-                for (int j = 0; j < k; j++)
+-                    if (id == G.data[i * G.d + j])tmp_correct++;
++        for (int round = 0; round < benchmark_rounds; round++) {
++            if (disk != nullptr) disk->reset_stats();
++            const auto begin = std::chrono::steady_clock::now();
++            for (uint64_t i = 0; i < query_count; i++) {
++                ResultHeap result = ivf.search(Q.data + i * Q.d,
++                                               RandQ.data + i * RandQ.d,
++                                               k, nprobe,
++                                               std::numeric_limits<float>::max(), disk);
++                while (!result.empty()) {
++                    const uint64_t id = result.top().second;
++                    result.pop();
++                    result_id_hash ^= id + 0x9e3779b97f4a7c15ULL +
++                                      (i << 6) + (i >> 2);
++                    result_id_hash *= 1099511628211ULL;
++                    for (int j = 0; j < k; j++) {
++                        if (id == G.data[i * G.d + j]) correct++;
++                    }
++                }
++            }
++            search_seconds += std::chrono::duration<double>(
++                    std::chrono::steady_clock::now() - begin).count();
++            if (disk != nullptr) {
++                reads += disk->reads();
++                logical_bytes += disk->logical_bytes();
++                submitted_bytes += disk->submitted_bytes();
++                io_seconds += disk->io_seconds();
+             }
+-            correct += tmp_correct;
+         }
+-        float time_us_per_query = total_time / Q.n + rotation_time;
+-        float recall = 1.0f * correct / (Q.n * k);
+ 
+-//        cout << "------------------------------------------------" << endl;
+-#ifdef COUNT_SCAN
+-        cout << "Count Full Scan " << count_scan << endl;
+-        cout << "All Distance Count " << all_dist_count << endl;
+-        cout << "Ratio:: " << (double) count_scan / all_dist_count << endl;
+-#endif
+-//        cout << "nprobe = " << nprobe << " k = " << k << endl;
+-//        cout << "Recall = " << recall * 100.000 << "%\t" << "Ratio = " << average_ratio << endl;
+-//        cout << "Time = " << time_us_per_query << " us \t QPS = " << 1e6 / (time_us_per_query) << " query/s" << endl;
+-        cout << recall * 100.0 << " " << 1e6 / (time_us_per_query) << endl;
++        const double query_runs = static_cast<double>(query_count) * benchmark_rounds;
++        const double search_us = search_seconds * 1e6 / query_runs;
++        const double end_to_end_us = search_us + rotation_time_us;
++        const double recall = static_cast<double>(correct) /
++                              (query_runs * static_cast<double>(k));
++        cout << nprobe << ',' << std::fixed << std::setprecision(6) << recall << ','
++             << 1e6 / search_us << ',' << 1e6 / end_to_end_us << ','
++             << search_us << ',' << end_to_end_us << ','
++             << static_cast<double>(reads) / query_runs << ','
++             << static_cast<double>(logical_bytes) / query_runs << ','
++             << static_cast<double>(submitted_bytes) / query_runs << ','
++             << io_seconds * 1e6 / query_runs << ',' << result_id_hash << ','
++             << query_count << ','
++             << benchmark_rounds << ','
++             << (disk == nullptr ? "memory" : (disk->direct_io() ? "direct" : "buffered"))
++             << ',' << (disk == nullptr ? 0 : disk->async_qd())
++             << ',' << (disk == nullptr ? "memory" : disk->layout_name())
++             << '\n';
++        cout.flush();
++        if (nprobe == ivf.C) break;
+     }
+ }
+ 
+-int main(int argc, char *argv[]) {
++template<uint64_t D, uint64_t B>
++void run_search(const Matrix<float> &Q, const Matrix<float> &RandQ,
++                const Matrix<unsigned> &G, char *index_path, int k,
++                Disk_IO *disk, int default_probe_base, float default_var_count) {
++    if (!probe_base_overridden) probe_base = default_probe_base;
++    if (!var_count_overridden) var_count = default_var_count;
++    IVFRES<D, B> ivf;
++#ifdef SSD_SCAN
++    ivf.load_ssd(index_path);
++    if (disk == nullptr || disk->D != D) {
++        throw std::runtime_error("SSD vector dimensionality does not match the index");
++    }
++#else
++    ivf.load(index_path);
++#endif
++    test(Q, RandQ, G, ivf, k, disk);
++}
+ 
+-    const struct option longopts[] = {
+-            // General Parameter
+-            {"help",        no_argument,       0, 'h'},
++template<uint64_t B>
++void run_1024_search(const Matrix<float> &Q, const Matrix<float> &RandQ,
++                     const Matrix<unsigned> &G, char *index_path, int k,
++                     Disk_IO *disk) {
++    run_search<1024, B>(Q, RandQ, G, index_path, k, disk, 30, 20.0f);
++}
++
++void dispatch_1024_search(int bit, const Matrix<float> &Q,
++                          const Matrix<float> &RandQ, const Matrix<unsigned> &G,
++                          char *index_path, int k, Disk_IO *disk) {
++    switch (bit) {
++        case 128: run_1024_search<128>(Q, RandQ, G, index_path, k, disk); break;
++        case 256: run_1024_search<256>(Q, RandQ, G, index_path, k, disk); break;
++        case 320: run_1024_search<320>(Q, RandQ, G, index_path, k, disk); break;
++        case 384: run_1024_search<384>(Q, RandQ, G, index_path, k, disk); break;
++        case 512: run_1024_search<512>(Q, RandQ, G, index_path, k, disk); break;
++        case 640: run_1024_search<640>(Q, RandQ, G, index_path, k, disk); break;
++        case 768: run_1024_search<768>(Q, RandQ, G, index_path, k, disk); break;
++        case 1024: run_1024_search<1024>(Q, RandQ, G, index_path, k, disk); break;
++        default: throw std::invalid_argument("unsupported B for 1024-dimensional data");
++    }
++}
+ 
+-            // Query Parameter
+-            {"K",           required_argument, 0, 'k'},
++void dispatch_diskveclab_search(int bit, const Matrix<float> &Q,
++                                const Matrix<float> &RandQ,
++                                const Matrix<unsigned> &G,
++                                char *index_path, int k, Disk_IO *disk) {
++    if (bit != 320) {
++        throw std::invalid_argument("DiskVecLab MRQ-SSD requires B=320");
++    }
++    switch (Q.d) {
++        case 1024:
++            run_search<1024, 320>(Q, RandQ, G, index_path, k, disk, 30, 20.0f);
++            break;
++        case 1536:
++            run_search<1536, 320>(Q, RandQ, G, index_path, k, disk, 30, 20.0f);
++            break;
++        case 4096:
++            run_search<4096, 320>(Q, RandQ, G, index_path, k, disk, 30, 20.0f);
++            break;
++        default:
++            throw std::invalid_argument("unsupported DiskVecLab dimensionality");
++    }
++}
+ 
+-            // Indexing Path
+-            {"dataset",     required_argument, 0, 'd'},
+-            {"source",      required_argument, 0, 's'},
+-            {"result_path", required_argument, 0, 'r'},
++int main(int argc, char *argv[]) {
++    const struct option longopts[] = {
++            {"help",        no_argument,       nullptr, 'h'},
++            {"K",           required_argument, nullptr, 'k'},
++            {"dataset",     required_argument, nullptr, 'd'},
++            {"source",      required_argument, nullptr, 's'},
++            {"result_path", required_argument, nullptr, 'r'},
++            {"bits",        required_argument, nullptr, 'b'},
++            {"clusters",    required_argument, nullptr, 'c'},
++            {"probe-base",  required_argument, nullptr, 'p'},
++            {"probe-steps", required_argument, nullptr, 't'},
++            {"rounds",      required_argument, nullptr, 'n'},
++            {"var-count",   required_argument, nullptr, 'v'},
++            {"io-mode",     required_argument, nullptr, 'i'},
++            {"vector-file", required_argument, nullptr, 'f'},
++            {"probes",      required_argument, nullptr, 'P'},
++            {"max-queries", required_argument, nullptr, 'q'},
++            {"async-qd",    required_argument, nullptr, 'a'},
++            {nullptr, 0, nullptr, 0}
+     };
+ 
+-    int ind, bit;
+-    int iarg = 0;
+-    opterr = 1;    //getopt error message (off: 0)
+-
++    int bit = 0;
++    int subk = 0;
+     char dataset[256] = "";
+     char source[256] = "";
+     char result_path[256] = "";
+-    int subk = 0;
++    char vector_file[512] = "";
++    std::string io_mode = "direct";
+ 
+-    while (iarg != -1) {
+-        iarg = getopt_long(argc, argv, "d:r:k:s:b:c:", longopts, &ind);
+-        switch (iarg) {
+-            case 'k':
+-                if (optarg)subk = atoi(optarg);
+-                break;
+-            case 's':
+-                if (optarg)strcpy(source, optarg);
+-                break;
+-            case 'r':
+-                if (optarg)strcpy(result_path, optarg);
+-                break;
+-            case 'd':
+-                if (optarg)strcpy(dataset, optarg);
++    int option_index = 0;
++    int option;
++    while ((option = getopt_long(argc, argv, "hd:r:k:s:b:c:p:t:n:v:i:f:P:q:a:",
++                                 longopts, &option_index)) != -1) {
++        switch (option) {
++            case 'd': std::strncpy(dataset, optarg, sizeof(dataset) - 1); break;
++            case 's': std::strncpy(source, optarg, sizeof(source) - 1); break;
++            case 'r': std::strncpy(result_path, optarg, sizeof(result_path) - 1); break;
++            case 'k': subk = std::atoi(optarg); break;
++            case 'b': bit = std::atoi(optarg); break;
++            case 'c': numC = std::strtoull(optarg, nullptr, 10); break;
++            case 'p':
++                probe_base = std::atoi(optarg);
++                probe_base_overridden = true;
+                 break;
+-            case 'b':
+-                if (optarg) bit = atoi(optarg);
++            case 't': probe_steps = std::atoi(optarg); break;
++            case 'n': benchmark_rounds = std::atoi(optarg); break;
++            case 'v':
++                var_count = std::strtof(optarg, nullptr);
++                var_count_overridden = true;
+                 break;
+-            case 'c':
+-                if (optarg) numC = atoi(optarg);
++            case 'i': io_mode = optarg; break;
++            case 'f': std::strncpy(vector_file, optarg, sizeof(vector_file) - 1); break;
++            case 'P': {
++                std::stringstream values(optarg);
++                std::string value;
++                while (std::getline(values, value, ',')) {
++                    const uint64_t probe = std::strtoull(value.c_str(), nullptr, 10);
++                    if (probe == 0) throw std::invalid_argument("--probes values must be positive");
++                    explicit_probes.push_back(probe);
++                }
+                 break;
++            }
++            case 'q': max_queries = std::strtoull(optarg, nullptr, 10); break;
++            case 'a': async_qd = std::strtoull(optarg, nullptr, 10); break;
++            case 'h':
++            default:
++                std::cerr << "Usage: " << argv[0]
++                          << " -d DATASET -s DATA_DIRECTORY/ -r RESULT_DIRECTORY/"
++                             " -k K -b BITS -c CLUSTERS [--probe-base N]"
++                             " [--probe-steps N] [--rounds N] [--var-count F]"
++                             " [--io-mode direct|buffered] [--vector-file PATH]"
++                             " [--probes 1,2,4,...] [--max-queries N]"
++                             " [--async-qd N]\n";
++                return option == 'h' ? 0 : 2;
+         }
+     }
+ 
+-    // ================================================================================================================================
+-    // Data Files
+-    char query_path[256] = "";
+-    sprintf(query_path, "%s%s_query.fvecs", source, dataset);
+-    Matrix<float> Q(query_path);
+-
+-    char mean_path[256] = "";
+-    sprintf(mean_path, "%s%s_mean.fvecs", source, dataset);
+-    Matrix<float> M(mean_path);
++    if (dataset[0] == '\0' || source[0] == '\0' || subk <= 0 || bit <= 0 ||
++        numC == 0 || probe_steps <= 0 || benchmark_rounds <= 0 ||
++        async_qd == 0 || async_qd > 64 ||
++        (io_mode != "direct" && io_mode != "buffered")) {
++        std::cerr << "Invalid or missing arguments; use --help.\n";
++        return 2;
++    }
+ 
+-    sprintf(data_path, "%s%s_proj.fvecs", source, dataset);
++    char query_path[512], mean_path[512], projected_data_path[512];
++    char groundtruth_path[512], random_matrix_path[512], pca_matrix_path[512];
++    std::snprintf(query_path, sizeof(query_path), "%s%s_query.fvecs", source, dataset);
++    std::snprintf(mean_path, sizeof(mean_path), "%s%s_mean.fvecs", source, dataset);
++    std::snprintf(projected_data_path, sizeof(projected_data_path), "%s%s_proj.fvecs",
++                  source, dataset);
++    if (vector_file[0] != '\0') {
++        std::strncpy(projected_data_path, vector_file, sizeof(projected_data_path) - 1);
++        projected_data_path[sizeof(projected_data_path) - 1] = '\0';
++    }
++    std::snprintf(groundtruth_path, sizeof(groundtruth_path), "%s%s_groundtruth.ivecs",
++                  source, dataset);
++    std::snprintf(random_matrix_path, sizeof(random_matrix_path), "%sRESP_C%lu_B%d.fvecs",
++                  source, numC, bit);
++    std::snprintf(pca_matrix_path, sizeof(pca_matrix_path), "%s%s_pca.fvecs",
++                  source, dataset);
+ 
+-    char groundtruth_path[256] = "";
+-    sprintf(groundtruth_path, "%s%s_groundtruth.ivecs", source, dataset);
++    Matrix<float> Q(query_path);
++    Matrix<float> M(mean_path);
+     Matrix<unsigned> G(groundtruth_path);
+-
+-    char random_matrix_path[256] = "";
+-    sprintf(random_matrix_path, "%sRESP_C%d_B%d.fvecs", source, numC, bit);
+     Matrix<float> P(random_matrix_path);
++    Matrix<float> PCA(pca_matrix_path);
+ 
+-    char PCA_matrix_path[256] = "";
+-    sprintf(PCA_matrix_path, "%s%s_pca.fvecs", source, dataset);
+-    Matrix<float> PCA(PCA_matrix_path);
+-
+-    char index_path[256] = "";
+-#ifdef RESIDUAL_SPLIT
+-    sprintf(index_path, "%sivf_split%ld_B%d.index", source, numC, bit);
++    char index_path[512];
++#if defined(RESIDUAL_SPLIT) && defined(SSD_SCAN)
++    std::snprintf(index_path, sizeof(index_path), "%sivf_split%lu_B%d.ssd.index", source, numC, bit);
++#elif defined(RESIDUAL_SPLIT)
++    std::snprintf(index_path, sizeof(index_path), "%sivf_split%lu_B%d.index", source, numC, bit);
++#elif defined(SSD_SCAN)
++    std::snprintf(index_path, sizeof(index_path), "%sivf_res%lu_B%d.ssd.index", source, numC, bit);
+ #else
+-    sprintf(index_path, "%sivf_res%ld_B%d.index", source, numC, bit);
++    std::snprintf(index_path, sizeof(index_path), "%sivf_res%lu_B%d.index", source, numC, bit);
+ #endif
+ 
+-    std::cerr << index_path << std::endl;
+-    char result_file_view[256] = "";
+-#if defined(RESIDUAL_SPLIT)
+-    sprintf(result_file_view, "%s%s_ivf_split_scan_%ld_%d.log", result_path, dataset, numC, bit);
++    if (result_path[0] != '\0') {
++        char result_file[512];
++#if defined(RESIDUAL_SPLIT) && defined(SSD_SCAN)
++        const char *method = "mrq_plus_ssd";
++#elif defined(RESIDUAL_SPLIT)
++        const char *method = "mrq_plus_memory";
++#elif defined(SSD_SCAN)
++        const char *method = "mrq_ssd";
+ #else
+-    sprintf(result_file_view, "%s%s_ivf_res_scan_%ld_%d.log", result_path, dataset, numC, bit);
++        const char *method = "mrq_memory";
+ #endif
+-    std::cerr << result_file_view << std::endl;
+-    std::cerr << "Loading Succeed!" << std::endl;
+-    // ================================================================================================================================
+-
++        std::snprintf(result_file, sizeof(result_file), "%s%s_%s_C%lu_B%d_%s.csv",
++                      result_path, dataset, method, numC, bit,
++#ifdef SSD_SCAN
++                      io_mode.c_str()
++#else
++                      "memory"
++#endif
++        );
++        if (std::freopen(result_file, "w", stdout) == nullptr) {
++            throw std::runtime_error("cannot open result file " + std::string(result_file));
++        }
++        std::cerr << "Results: " << result_file << '\n';
++    }
+ 
+-    freopen(result_file_view, "a", stdout);
+-    float sys_t, usr_t, usr_t_sum = 0, total_time = 0, search_time = 0;
+-    struct rusage run_start, run_end;
+-    GetCurTime(&run_start);
+-    std::cerr << "begin Matrix Operation" << std::endl;
++    const auto transform_begin = std::chrono::steady_clock::now();
+     Matrix<float> PCAQ(Q.n, Q.d, Q);
+     PCAQ = mul(PCAQ, PCA);
+     PCAQ = cen(PCAQ, M);
+-    auto TEMP_Q = resize_matrix(PCAQ, PCAQ.n, bit);
+-    auto RandQ = mul(TEMP_Q, P);
++    auto projected_query = resize_matrix(PCAQ, PCAQ.n, bit);
++    auto RandQ = mul(projected_query, P);
++    rotation_time_us = std::chrono::duration<double>(
++            std::chrono::steady_clock::now() - transform_begin).count() * 1e6 / Q.n;
+ 
+-    GetCurTime(&run_end);
+-    GetTime(&run_start, &run_end, &usr_t, &sys_t);
+-    rotation_time = usr_t * 1e6 / Q.n;
+-    std::string str_data(dataset);
+-    std::cerr << "dataset:: " << str_data << std::endl;
+-    if (str_data == "msong") {
+-        const uint64_t BB = 128, DIM = 420;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 5;
+-        var_count = 5;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "gist") {
+-        const uint64_t BB = 320, DIM = 960;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 25;
+-        var_count = 5;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "deep1M") {
+-        const uint64_t BB = 128, DIM = 256;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 15;
+-        var_count = 5;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "tiny5m") {
+-        const uint64_t BB = 128, DIM = 384;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 25;
+-        var_count = 4;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "word2vec") {
+-        const uint64_t BB = 256, DIM = 300;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 15;
+-        var_count = 3;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "sift") {
+-        const uint64_t BB = 64, DIM = 128;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 8;
+-        var_count = 4;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "glove2.2m") {
+-        const uint64_t BB = 256, DIM = 300;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 15;
+-        var_count = 4;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "OpenAI-1536") {
+-        const uint64_t BB = 512, DIM = 1536;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 30;
+-        var_count = 20;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "OpenAI-3072") {
+-        const uint64_t BB = 512, DIM = 3072;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 30;
+-        var_count = 20;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data.find("msmarc") != std::string::npos) {
+-        const uint64_t BB = 320, DIM = 1024;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 30;
+-        var_count = 20;
+-        test(PCAQ, RandQ, G, ivf, subk);
+-    }
+-    if (str_data == "yt1m") {
+-        const uint64_t BB = 512, DIM = 1024;
+-        IVFRES<DIM, BB> ivf;
+-        ivf.load(index_path);
+-        probe_base = 30;
+-        var_count = 10;
+-        test(PCAQ, RandQ, G, ivf, subk);
++    Disk_IO disk_reader;
++    Disk_IO *disk = nullptr;
++#ifdef SSD_SCAN
++    disk_reader.init_data_file(projected_data_path, io_mode == "direct");
++    disk_reader.set_async_qd(async_qd);
++    disk = &disk_reader;
++#endif
++
++    const std::string name(dataset);
++    bool matched = true;
++    if (name.rfind("diskveclab_", 0) == 0) {
++        dispatch_diskveclab_search(bit, PCAQ, RandQ, G, index_path, subk, disk);
++    } else if (name == "msong") {
++        run_search<420, 128>(PCAQ, RandQ, G, index_path, subk, disk, 5, 5.0f);
++    } else if (name == "gist") {
++        run_search<960, 320>(PCAQ, RandQ, G, index_path, subk, disk, 25, 5.0f);
++    } else if (name == "deep1M") {
++        run_search<256, 128>(PCAQ, RandQ, G, index_path, subk, disk, 15, 5.0f);
++    } else if (name == "tiny5m") {
++        run_search<384, 128>(PCAQ, RandQ, G, index_path, subk, disk, 25, 4.0f);
++    } else if (name == "word2vec") {
++        run_search<300, 256>(PCAQ, RandQ, G, index_path, subk, disk, 15, 3.0f);
++    } else if (name == "sift") {
++        run_search<128, 64>(PCAQ, RandQ, G, index_path, subk, disk, 8, 4.0f);
++    } else if (name == "glove2.2m") {
++        run_search<300, 256>(PCAQ, RandQ, G, index_path, subk, disk, 15, 4.0f);
++    } else if (name == "OpenAI-1536") {
++        run_search<1536, 512>(PCAQ, RandQ, G, index_path, subk, disk, 30, 20.0f);
++    } else if (name == "OpenAI-3072") {
++        run_search<3072, 512>(PCAQ, RandQ, G, index_path, subk, disk, 30, 20.0f);
++    } else if (name.find("msmarc") != std::string::npos ||
++               name.find("dbpedia") != std::string::npos) {
++        dispatch_1024_search(bit, PCAQ, RandQ, G, index_path, subk, disk);
++    } else if (name == "yt1m") {
++        run_search<1024, 512>(PCAQ, RandQ, G, index_path, subk, disk, 30, 10.0f);
++    } else {
++        matched = false;
+     }
++    if (!matched) throw std::invalid_argument("unsupported dataset name: " + name);
+     return 0;
+ }

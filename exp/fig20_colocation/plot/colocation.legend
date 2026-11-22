@@ -1,0 +1,8 @@
+nrows = 2
+ytop = 19
+ls=1 | 4 KB, co-located | lp
+ls=2 | 4 KB, baseline | lp
+ls=3 | 8 KB, co-located | lp
+ls=4 | 8 KB, baseline | lp
+ls=5 | 16 KB, co-located | lp
+ls=6 | 16 KB, baseline | lp

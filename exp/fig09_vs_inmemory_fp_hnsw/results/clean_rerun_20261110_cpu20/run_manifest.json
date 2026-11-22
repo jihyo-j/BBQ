@@ -1,0 +1,66 @@
+{
+  "protocol": "calibrated_adcbq_ssd_vs_fp_hnsw_ram_clean_t1_rerun",
+  "created": "2026-11-10T11:16:21.529204+09:00",
+  "cpu_affinity": [
+    20
+  ],
+  "load_average_start": [
+    1.54248046875,
+    2.572265625,
+    2.5927734375
+  ],
+  "load_average_end": [
+    1.54248046875,
+    2.572265625,
+    2.5927734375
+  ],
+  "adc_efs": [
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "fp_efs": [
+    32,
+    40,
+    48,
+    56,
+    64,
+    72,
+    80,
+    96,
+    112,
+    128,
+    160,
+    192,
+    224,
+    256,
+    320,
+    384,
+    512,
+    640,
+    768,
+    1024
+  ],
+  "rounds": {
+    "msmarco_qwen1024": 5,
+    "dbpedia_qwen1024": 20
+  },
+  "qps_statistic": "median across rounds",
+  "M": 24,
+  "efConstruction": 200,
+  "same_topology": true,
+  "calibration_protocol": "per_ef_pool_top10_split_conformal",
+  "calibration_target": 0.99,
+  "calibration_event": "all exact-FP top-10 within each ef candidate pool",
+  "sidecars": {
+    "msmarco_qwen1024": "/home/smrc/samsung-nvme/jihyo/adcbq_aligned4k_fp_transient/msmarco_qwen1024.fp32.aligned4k.fbin",
+    "dbpedia_qwen1024": "/home/smrc/samsung-nvme/jihyo/adcbq_aligned4k_fp_transient/dbpedia_qwen1024.fp32.aligned4k.fbin"
+  },
+  "outputs": [
+    "/home/jihyo/workspace/RaBitQ-Library/experiment/calibrated_adcbq_hnsw_ssd_vs_fp_hnsw_ram_t1/clean_rerun_20261110_cpu20/recall_qps_t1_from_recall096_rerun.png",
+    "/home/jihyo/workspace/RaBitQ-Library/experiment/calibrated_adcbq_hnsw_ssd_vs_fp_hnsw_ram_t1/clean_rerun_20261110_cpu20/recall_qps_t1_from_recall096_rerun.pdf",
+    "/home/jihyo/workspace/RaBitQ-Library/experiment/calibrated_adcbq_hnsw_ssd_vs_fp_hnsw_ram_t1/clean_rerun_20261110_cpu20/recall_qps_t1_from_recall096_rerun.csv"
+  ]
+}

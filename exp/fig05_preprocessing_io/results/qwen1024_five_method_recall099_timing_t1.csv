@@ -1,0 +1,11 @@
+dataset,method_key,method,recall_at_10,qps,query_preprocess_us,exact_fp_io_wait_us,fixed_rerank_or_adaptive_reads_per_query,io_policy,search_parameter
+msmarco_qwen1024,adcbq1,ADC-BQ,0.991,348.77593616666667,4.7454125,517.6182266666667,120.0,one fixed final per-query io_uring FP rerank batch,ef=384
+msmarco_qwen1024,qdranttq1,TurboQuant TQ1+,0.9906,362.29850336666664,9.560889,279.9356276666667,80.0,one final per-query io_uring FP rerank batch,ef=512
+msmarco_qwen1024,rabitq1,RaBitQ-1 C16 adaptive,0.9913,86.89273122044355,22.98788817,9984.832102333334,147.758,sync pread FP reads interleaved in HNSW search,ef=768
+msmarco_qwen1024,diskann_pq128,DiskANN PQ128 adaptive,0.9903,22.05,124.22966666666666,35806.35,776.654,native-AIO FP graph-node reads interleaved in beam search,"L=768, beam=2"
+msmarco_qwen1024,diskann_opq128,DiskANN OPQ128 adaptive,0.9906,16.683333333333334,13971.187,36096.31333333333,776.244,native-AIO FP graph-node reads interleaved in beam search,"L=768, beam=2"
+nq_qwen1024,adcbq1,ADC-BQ,0.9908,983.9573132,4.673154333,249.518494,80.0,one fixed final per-query io_uring FP rerank batch,ef=128
+nq_qwen1024,qdranttq1,TurboQuant TQ1+,0.9907,1062.671885,9.969442167,207.26770733333333,60.0,one final per-query io_uring FP rerank batch,ef=128
+nq_qwen1024,rabitq1,RaBitQ-1 C16 adaptive,0.9906,95.81543668767213,22.94279383,9374.129149,142.803,sync pread FP reads interleaved in HNSW search,ef=512
+nq_qwen1024,diskann_pq128,DiskANN PQ128 adaptive,0.992,41.94,120.56633333333333,18669.083333333332,392.88100000000003,native-AIO FP graph-node reads interleaved in beam search,"L=384, beam=2"
+nq_qwen1024,diskann_opq128,DiskANN OPQ128 adaptive,0.9909,37.71666666666667,11781.899666666666,11988.18,265.0,native-AIO FP graph-node reads interleaved in beam search,"L=256, beam=2"

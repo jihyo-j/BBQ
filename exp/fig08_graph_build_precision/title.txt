@@ -1,0 +1,1 @@
+Fig 8 + Table 4: FP32-built vs 1-bit-built HNSW graph (MS MARCO, Quora; Qwen-1024)

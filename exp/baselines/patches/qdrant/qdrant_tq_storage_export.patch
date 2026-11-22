@@ -1,0 +1,13 @@
+diff --git a/lib/quantization/src/encoded_storage.rs b/lib/quantization/src/encoded_storage.rs
+--- a/lib/quantization/src/encoded_storage.rs
++++ b/lib/quantization/src/encoded_storage.rs
+@@ -286,6 +286,11 @@ pub struct TestEncodedStorage {
+ #[cfg(feature = "testing")]
+ impl TestEncodedStorage {
++    /// Contiguous encoded bytes for zero-copy foreign scorers used by tests
++    /// and standalone benchmarks.
++    pub fn as_bytes(&self) -> &[u8] {
++        &self.data
++    }
++
+     pub fn from_file(path: &Path, quantized_vector_size: usize) -> std::io::Result<Self> {

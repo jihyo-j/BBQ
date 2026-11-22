@@ -1,0 +1,5 @@
+nrows = 1
+ytop = 10.5
+ls=1 | BBQ | lp
+ls=4 | TurboQuant 1bit | lp
+ls=3 | RaBitQ 1bit + adaptive rerank | lp

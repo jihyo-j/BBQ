@@ -1,0 +1,1 @@
+Fig 20 / Sec 6.9: colocation under constrained DRAM (MS MARCO OpenAI-1536; 24 threads)

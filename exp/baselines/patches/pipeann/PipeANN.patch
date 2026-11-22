@@ -1,0 +1,113 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f40a9b8..ca2d38b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -27,6 +27,7 @@ endif()
+ include_directories(
+ 	${PROJECT_SOURCE_DIR}/include 
+ 	${PROJECT_SOURCE_DIR}/include/tsl/include 
++	/home/jihyo/workspace/RaBitQ-Library/include/rabitqlib/third
+ )
+ 
+ add_compile_options(
+diff --git a/include/nbr/rabitq/utils/defines.hpp b/include/nbr/rabitq/utils/defines.hpp
+index 3c18833..f48976b 100644
+--- a/include/nbr/rabitq/utils/defines.hpp
++++ b/include/nbr/rabitq/utils/defines.hpp
+@@ -2,7 +2,7 @@
+ 
+ #include <limits>
+ 
+-#include <eigen3/Eigen/Dense>
++#include <Eigen/Dense>
+ 
+ #define BIT_ID(x) (__builtin_popcount((x) - 1))
+ #define LOWBIT(x) ((x) & (-(x)))
+@@ -65,4 +65,4 @@ namespace rabitqlib {
+ 
+   enum MetricType : std::uint8_t { METRIC_L2, METRIC_IP };
+   enum ScalarQuantizerType : std::uint8_t { RECONSTRUCTION, UNBIASED_ESTIMATION, PLAIN };
+-}  // namespace rabitqlib
+\ No newline at end of file
++}  // namespace rabitqlib
+diff --git a/include/utils/percentile_stats.h b/include/utils/percentile_stats.h
+index 51fd463..455b66e 100644
+--- a/include/utils/percentile_stats.h
++++ b/include/utils/percentile_stats.h
+@@ -1,7 +1,10 @@
+ #pragma once
+ 
+ #include <cstdint>
++#include <atomic>
+ #include <functional>
++#include <iomanip>
++#include <iostream>
+ #include <vector>
+ 
+ #include "utils.h"
+@@ -29,8 +32,43 @@ namespace pipeann {
+     double filter_io_us[N_FILTER_TYPES] = {0};
+     double filter_cpu_us[N_FILTER_TYPES] = {0};
+     double filter_io_us1[N_FILTER_TYPES] = {0};
++    double n_io_requests = 0;  // physical read submissions; n_ios is 4 KiB pages
+   };
+ 
++  inline void print_query_stats_block(QueryStats *stats, uint64_t len, uint64_t block) {
++    const auto old_flags = std::cout.flags();
++    const auto old_precision = std::cout.precision();
++    const auto emit = [&](const char *name, const std::function<double(const QueryStats &)> &fn) {
++      std::vector<double> values(len);
++      double sum = 0.0;
++      for (uint64_t i = 0; i < len; ++i) {
++        values[i] = fn(stats[i]);
++        sum += values[i];
++      }
++      std::sort(values.begin(), values.end());
++      const auto pick = [&](double q) {
++        return values[static_cast<uint64_t>(q * static_cast<double>(len - 1))];
++      };
++      std::cout << std::setprecision(12)
++                << "PIPEANN_QUERY_STATS block=" << block << " metric=" << name
++                << " mean=" << sum / static_cast<double>(len)
++                << " min=" << values.front() << " max=" << values.back()
++                << " p95=" << pick(0.95) << " p99=" << pick(0.99) << '\n';
++    };
++    emit("latency_us", [](const QueryStats &s) { return s.total_us; });
++    emit("page_reads_4k", [](const QueryStats &s) { return s.n_ios; });
++    emit("io_requests", [](const QueryStats &s) { return s.n_io_requests; });
++    emit("read_bytes", [](const QueryStats &s) { return s.n_ios * 4096.0; });
++    emit("io_us", [](const QueryStats &s) { return s.io_us; });
++    emit("cpu_us", [](const QueryStats &s) { return s.cpu_us; });
++    emit("head_us", [](const QueryStats &s) { return s.head_us; });
++    emit("comparisons", [](const QueryStats &s) { return s.n_cmps; });
++    emit("hops", [](const QueryStats &s) { return s.n_hops; });
++    std::cout.flags(old_flags);
++    std::cout.precision(old_precision);
++    std::cout.flush();
++  }
++
+   inline double get_percentile_stats(QueryStats *stats, uint64_t len, float percentile,
+                                      const std::function<double(const QueryStats &)> &member_fn) {
+     std::vector<double> vals(len);
+@@ -47,6 +85,9 @@ namespace pipeann {
+ 
+   inline double get_mean_stats(QueryStats *stats, uint64_t len,
+                                const std::function<double(const QueryStats &)> &member_fn) {
++    static std::atomic<uint64_t> call{0};
++    const uint64_t current = call.fetch_add(1);
++    if (len > 0 && (current % 3) == 0) print_query_stats_block(stats, len, current / 3);
+     double avg = 0;
+     for (uint64_t i = 0; i < len; i++) {
+       avg += member_fn(stats[i]);
+diff --git a/src/search/pipe_search_common.h b/src/search/pipe_search_common.h
+index 3e9fc81..afcadac 100644
+--- a/src/search/pipe_search_common.h
++++ b/src/search/pipe_search_common.h
+@@ -299,6 +299,7 @@ namespace pipeann {
+       cur_buf_idx = (cur_buf_idx + 1) % MAX_N_SECTOR_READS;
+ 
+       if (stats != nullptr) {
++        stats->n_io_requests += 1.0;
+         stats->n_ios += (double) read_io_size / SECTOR_LEN;
+       }
+       return true;

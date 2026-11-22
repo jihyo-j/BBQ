@@ -1,0 +1,1 @@
+Fig 11: Recall@k for k=30/50/100 (NQ Qwen-1024; T=1)

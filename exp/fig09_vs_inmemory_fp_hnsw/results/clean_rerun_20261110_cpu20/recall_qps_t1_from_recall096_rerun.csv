@@ -1,0 +1,51 @@
+dataset,method,efSearch,threads,rounds,queries,recall_at_10,qps_median,qps_mean,pages_4k_per_query,full_vector_storage,calibration_target,calibration_tau,calibration_query_level_all_top10_coverage
+msmarco_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,64,1,5,5980,0.972625,3063.89,3062.85,39.066220735785954,SSD O_DIRECT,0.99,1.445445804610186,0.991
+msmarco_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,128,1,5,5980,0.984114,1880.45,1879.12,51.35535117056856,SSD O_DIRECT,0.99,1.6285894892430972,0.991
+msmarco_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,256,1,5,5980,0.989732,1138.9,1135.81,54.0448160535117,SSD O_DIRECT,0.99,1.6341171349498942,0.991
+msmarco_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,512,1,5,5980,0.992793,633.749,631.428,55.041806020066886,SSD O_DIRECT,0.99,1.6341171349498942,0.991
+msmarco_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,1024,1,5,5980,0.994465,317.849,317.005,55.4814381270903,SSD O_DIRECT,0.99,1.6341171349498942,0.991
+msmarco_qwen1024,Full FP32 HNSW (in-memory),32,1,5,5980,0.958796,3028.58,3023.67,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),40,1,5,5980,0.965368,2546.81,2528.77,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),48,1,5,5980,0.970936,2189.98,2185.4,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),56,1,5,5980,0.973679,1932.04,1926.53,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),64,1,5,5980,0.976455,1734.24,1727.55,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),72,1,5,5980,0.978779,1564.2,1561.89,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),80,1,5,5980,0.980635,1425.23,1422.17,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),96,1,5,5980,0.983411,1211.31,1210.16,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),112,1,5,5980,0.98505,1057.89,1055.21,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),128,1,5,5980,0.986221,936.687,935.152,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),160,1,5,5980,0.987692,770.258,769.716,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),192,1,5,5980,0.98913,650.394,650.281,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),224,1,5,5980,0.989699,564.408,564.024,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),256,1,5,5980,0.990635,498.06,497.74,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),320,1,5,5980,0.991806,401.94,401.391,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),384,1,5,5980,0.992642,337.656,337.771,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),512,1,5,5980,0.993746,256.774,256.745,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),640,1,5,5980,0.994314,207.983,207.894,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),768,1,5,5980,0.994749,177.188,177.229,0.0,process_owned_ram,,,
+msmarco_qwen1024,Full FP32 HNSW (in-memory),1024,1,5,5980,0.995301,133.523,133.463,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,64,1,20,300,0.975667,2564.34,2557.9,43.876666666666665,SSD O_DIRECT,0.99,1.5760870791269528,1.0
+dbpedia_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,128,1,20,300,0.987333,1613.29,1610.36,51.39,SSD O_DIRECT,0.99,1.5760870791269528,1.0
+dbpedia_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,256,1,20,300,0.992333,972.96,965.438,53.7,SSD O_DIRECT,0.99,1.5760870791269528,1.0
+dbpedia_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,512,1,20,300,0.993667,542.395,542.212,54.583333333333336,SSD O_DIRECT,0.99,1.5760870791269528,1.0
+dbpedia_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,1024,1,20,300,0.994333,277.402,276.566,54.95666666666666,SSD O_DIRECT,0.99,1.5760870791269528,1.0
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),32,1,20,300,0.964667,2424.58,2405.25,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),40,1,20,300,0.971333,2020.68,2011.77,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),48,1,20,300,0.976,1741.55,1740.07,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),56,1,20,300,0.977667,1515.8,1512.41,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),64,1,20,300,0.979333,1358.29,1358.16,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),72,1,20,300,0.982,1222.87,1221.51,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),80,1,20,300,0.982333,1109.67,1102.98,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),96,1,20,300,0.983,940.023,939.63,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),112,1,20,300,0.986333,816.906,815.863,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),128,1,20,300,0.987667,722.832,721.462,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),160,1,20,300,0.988667,593.382,591.142,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),192,1,20,300,0.991667,500.987,500.925,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),224,1,20,300,0.993333,433.251,432.949,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),256,1,20,300,0.994333,381.046,380.15,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),320,1,20,300,0.994667,306.585,306.565,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),384,1,20,300,0.994667,258.612,258.491,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),512,1,20,300,0.995667,197.085,197.013,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),640,1,20,300,0.995667,158.965,158.836,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),768,1,20,300,0.996,137.334,137.217,0.0,process_owned_ram,,,
+dbpedia_qwen1024,Full FP32 HNSW (in-memory),1024,1,20,300,0.996,103.935,103.679,0.0,process_owned_ram,,,

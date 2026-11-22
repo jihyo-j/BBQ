@@ -1,0 +1,7 @@
+# from ../results/legacy_gt/target_sweep.csv
+# target test_pool_top10_coverage final_mean_recall_at_10 mean_fp_reads
+0.9 0.911706 0.981706 28.344
+0.95 0.962876 0.986957 35.233
+0.975 0.979264 0.988462 40.875
+0.99 0.992809 0.989732 54.044
+0.995 0.995318 0.989950 58.618

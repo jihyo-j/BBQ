@@ -1,0 +1,1 @@
+Fig 9 / Sec 6.2: BBQ (SSD) vs in-memory FP32 HNSW (MS MARCO, DBpedia; Qwen-1024; T=1)

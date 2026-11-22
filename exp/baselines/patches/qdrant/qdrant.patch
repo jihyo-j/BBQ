@@ -1,0 +1,123 @@
+diff --git a/lib/quantization/src/encoded_storage.rs b/lib/quantization/src/encoded_storage.rs
+index 119860c..8dfea1b 100644
+--- a/lib/quantization/src/encoded_storage.rs
++++ b/lib/quantization/src/encoded_storage.rs
+@@ -284,6 +284,12 @@ pub struct TestEncodedStorage {
+ 
+ #[cfg(feature = "testing")]
+ impl TestEncodedStorage {
++    /// Contiguous encoded bytes for zero-copy foreign scorers used by tests
++    /// and standalone benchmarks.
++    pub fn as_bytes(&self) -> &[u8] {
++        &self.data
++    }
++
+     pub fn from_file(path: &Path, quantized_vector_size: usize) -> std::io::Result<Self> {
+         let mut file = OneshotFile::open(path)?;
+         let mut buffer = Vec::new();
+diff --git a/lib/quantization/src/turboquant/mod.rs b/lib/quantization/src/turboquant/mod.rs
+index 0e4f075..1cc760d 100644
+--- a/lib/quantization/src/turboquant/mod.rs
++++ b/lib/quantization/src/turboquant/mod.rs
+@@ -139,6 +139,54 @@ pub struct EncodedQueryTQ {
+     ec_correction: f32,
+ }
+ 
++/// Scalar parameters accompanying an exported TQ+ Bits1 wide query.
++pub struct Bits1WideQueryExport {
++    pub postprocess_scale: f32,
++    pub bias_correction: i64,
++    pub ec_correction: f32,
++    pub l2_norm: Option<f32>,
++}
++
++impl EncodedQueryTQ {
++    /// Export the integer query consumed by the 1-bit asymmetric scorer.
++    /// Database scoring can then run in the caller while query rotation and
++    /// quantization remain in the canonical TurboQuant implementation.
++    pub fn export_bits1_wide(&self, output: &mut [i16]) -> Option<Bits1WideQueryExport> {
++        let EncodedQueryTQData::Bits1Wide(query) = &self.data else {
++            return None;
++        };
++        if !query.export_signed_i16(output) {
++            return None;
++        }
++        Some(Bits1WideQueryExport {
++            postprocess_scale: query.postprocess_scale(),
++            bias_correction: query.bias_correction(),
++            ec_correction: self.ec_correction,
++            l2_norm: self.l2_norm,
++        })
++    }
++
++    /// Export the native two-byte, eight-plane layout used by the AVX-512
++    /// Bits1Wide scorer.
++    pub fn export_bits1_wide_planes(
++        &self,
++        output: &mut [i8],
++    ) -> Option<Bits1WideQueryExport> {
++        let EncodedQueryTQData::Bits1Wide(query) = &self.data else {
++            return None;
++        };
++        if !query.export_planes_i8(output) {
++            return None;
++        }
++        Some(Bits1WideQueryExport {
++            postprocess_scale: query.postprocess_scale(),
++            bias_correction: query.bias_correction(),
++            ec_correction: self.ec_correction,
++            l2_norm: self.l2_norm,
++        })
++    }
++}
++
+ /// SIMD-ready encoded query, one variant per supported bit-width.  Each
+ /// variant wraps the bit-width's [`simd::Query{N}bitSimd`] precomputation
+ /// (rotation-applied query, quantized to the SIMD-friendly integer form);
+diff --git a/lib/quantization/src/turboquant/simd/query/mod.rs b/lib/quantization/src/turboquant/simd/query/mod.rs
+index 0cc62df..c065730 100644
+--- a/lib/quantization/src/turboquant/simd/query/mod.rs
++++ b/lib/quantization/src/turboquant/simd/query/mod.rs
+@@ -299,6 +299,42 @@ impl<const PLANES: usize, const QUERY_BYTES: usize> QuerySimd<PLANES, QUERY_BYTE
+         }
+     }
+ 
++    /// Export the signed 16-bit query values represented by the two byte
++    /// planes. This is intended for embedding the TurboQuant scorer in a
++    /// foreign traversal implementation without crossing an FFI boundary for
++    /// every distance evaluation.
++    pub fn export_signed_i16(&self, output: &mut [i16]) -> bool {
++        if QUERY_BYTES != 2 || output.len() != self.vector_bytes * PLANES {
++            return false;
++        }
++        for (i, value) in output.iter_mut().enumerate() {
++            let (j, k) = (i / PLANES, i % PLANES);
++            let low = i16::from(self.planes.plane(0, k)[j]);
++            let high = i16::from(self.planes.plane(1, k)[j]);
++            *value = low + 256 * high;
++        }
++        true
++    }
++
++    /// Float multiplier applied after the integer dot product.
++    pub fn postprocess_scale(&self) -> f32 {
++        self.postprocess_scale
++    }
++
++    /// Unsigned-codebook bias subtracted before float reconstruction.
++    pub fn bias_correction(&self) -> i64 {
++        self.bias_correction
++    }
++
++    /// Export the SIMD query planes in their native contiguous layout.
++    pub fn export_planes_i8(&self, output: &mut [i8]) -> bool {
++        if output.len() != self.planes.data.len() {
++            return false;
++        }
++        output.copy_from_slice(&self.planes.data);
++        true
++    }
++
+     /// Packed bytes per encoded vector: `dim / PLANES`.
+     #[inline]
+     pub fn vector_bytes(&self) -> usize {

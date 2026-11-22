@@ -1,0 +1,3 @@
+dataset,method,efSearch,threads,nq,recall_at_10,qps,end_to_end_us_per_query,mean_internal_query_latency_us,io_wait_us_per_query,adaptive_fp_reads_per_query,odirect_bytes_per_query,io_engine,rounds,qps_stddev
+msmarco_qwen1024,RaBitQ-1b-c16 + adaptive FP,768,1,1000,0.9913,87.3256549324268,11451.403971761465,11451.043893,9984.832102333334,147.758,605216.768,synchronous O_DIRECT pread interleaved in HNSW search,3,0.1242949999366595
+nq_qwen1024,RaBitQ-1b-c16 + adaptive FP,512,1,1000,0.9906,95.95789022475769,10421.276918922862,10420.991031666666,9374.129149,142.803,584921.088,synchronous O_DIRECT pread interleaved in HNSW search,3,0.22732467364410502

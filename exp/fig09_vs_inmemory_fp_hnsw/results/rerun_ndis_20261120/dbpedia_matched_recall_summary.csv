@@ -1,0 +1,3 @@
+dataset,method,efSearch,queries,calibration_queries,rounds,recall_at_10,qps_median,distance_evaluations_mean,distance_evaluations_p50,distance_evaluations_p95,distance_evaluations_max,refined_fp32_candidates_mean,refined_fp32_candidates_p95,refined_fp32_candidates_p99,refined_fp32_candidates_max
+dbpedia_qwen1024,Calibrated ADC-BQ HNSW + SSD FP32 rerank,1024,300,100,20,0.994333,269.297,22976.9,23099,29419.3,31894,54.9567,125,171.16,264
+dbpedia_qwen1024,In-memory FP32 HNSW,256,300,100,20,0.994333,360.717,6834.33,,,,0,0,0,0

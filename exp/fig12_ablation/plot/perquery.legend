@@ -1,0 +1,7 @@
+nrows = 2
+ytop = 19
+ls=1 | Quora −0.38 | p
+ls=2 | DBpedia −0.44 | p
+ls=3 | MS MARCO −0.46 | p
+ls=4 | NQ −0.45 | p
+ls=5 | FEVER −0.54 | p

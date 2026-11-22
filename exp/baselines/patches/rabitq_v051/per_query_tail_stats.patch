@@ -1,0 +1,59 @@
+--- a/include/rabitqlib/index/hnsw/hnsw.hpp
++++ b/include/rabitqlib/index/hnsw/hnsw.hpp
+@@
+ #include <cassert>
++#include <chrono>
+ #include <cmath>
+@@
+ struct AdaptiveFpSearchResult {
+     std::vector<std::vector<std::pair<float, PID>>> results;
+     std::vector<size_t> fp_read_count;
++    std::vector<uint64_t> query_latency_ns;
+ };
+@@
+     output.results.resize(query_num);
+     output.fp_read_count.resize(query_num, 0);
++    output.query_latency_ns.resize(query_num, 0);
+@@
+         [&](size_t idx, size_t /*thread_id*/) {
++            const auto query_start = std::chrono::steady_clock::now();
+@@
+             output.fp_read_count[idx] = fp_reads;
++            output.query_latency_ns[idx] = static_cast<uint64_t>(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(
++                    std::chrono::steady_clock::now() - query_start
++                ).count()
++            );
+         }
+@@
+     output.results.resize(query_num);
+     output.fp_read_count.resize(query_num, 0);
++    output.query_latency_ns.resize(query_num, 0);
+@@
+         [&](size_t idx, size_t /*thread_id*/) {
++            const auto query_start = std::chrono::steady_clock::now();
+@@
+             output.fp_read_count[idx] = fp_reads;
++            output.query_latency_ns[idx] = static_cast<uint64_t>(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(
++                    std::chrono::steady_clock::now() - query_start
++                ).count()
++            );
+         }
+--- a/python_bindings/hnsw_bindings.cpp
++++ b/python_bindings/hnsw_bindings.cpp
+@@
+         auto ids = py::array_t<rabitqlib::PID>(shape);
+         auto dists = py::array_t<float>(shape);
+         auto fp_read_count = py::array_t<uint64_t>(nq);
++        auto query_latency_ns = py::array_t<uint64_t>(nq);
+@@
+             fp_read_count.mutable_data()[i] = static_cast<uint64_t>(
+                 output.fp_read_count[static_cast<size_t>(i)]
+             );
++            query_latency_ns.mutable_data()[i] =
++                output.query_latency_ns[static_cast<size_t>(i)];
+         }
+         py::dict stats;
+         stats["fp_read_count"] = fp_read_count;
++        stats["query_latency_ns"] = query_latency_ns;

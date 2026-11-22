@@ -1,0 +1,1 @@
+Fig 5 + Sec 4 end-to-end: query preprocessing vs exact-FP I/O wait (Qwen-1024)

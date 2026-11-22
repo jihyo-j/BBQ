@@ -1,0 +1,42 @@
+diff --git a/AnnService/src/SSDServing/main.cpp b/AnnService/src/SSDServing/main.cpp
+index 867e02f..1adc2c2 100644
+--- a/AnnService/src/SSDServing/main.cpp
++++ b/AnnService/src/SSDServing/main.cpp
+@@ -28,6 +28,7 @@ int BootProgram(bool forANNIndexTestTool, std::map<std::string, std::map<std::st
+ {
+ 
+     bool searchSSD = false;
++    bool buildSSD = false;
+     std::string QuantizerFilePath = "";
+     if (forANNIndexTestTool)
+     {
+@@ -69,7 +70,7 @@ int BootProgram(bool forANNIndexTestTool, std::map<std::string, std::map<std::st
+ 
+         valueType = iniReader.GetParameter(SEC_BASE, "ValueType", valueType);
+         distCalcMethod = iniReader.GetParameter(SEC_BASE, "DistCalcMethod", distCalcMethod);
+-        bool buildSSD = iniReader.GetParameter(SEC_BUILD_SSD_INDEX, "isExecute", false);
++        buildSSD = iniReader.GetParameter(SEC_BUILD_SSD_INDEX, "isExecute", false);
+         searchSSD = iniReader.GetParameter(SEC_SEARCH_SSD_INDEX, "isExecute", false);
+         QuantizerFilePath = iniReader.GetParameter(SEC_BASE, "QuantizerFilePath", std::string(""));
+ 
+@@ -116,6 +117,20 @@ int BootProgram(bool forANNIndexTestTool, std::map<std::string, std::map<std::st
+         return -1;
+     }
+ 
++    // Persist the top-level loader/config and vector-ID map as part of the
++    // measured end-to-end build. The stock SSDServing path leaves only the
++    // head/posting artifacts, which cannot be reopened by a separate T=1/T=24
++    // benchmark process.
++    if (buildSSD)
++    {
++        const std::string indexDirectory = index->GetParameter("IndexDirectory", "Base");
++        if (indexDirectory.empty() || index->SaveIndex(indexDirectory) != ErrorCode::Success)
++        {
++            SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "Failed to persist SPANN index.\n");
++            return -1;
++        }
++    }
++
+     SPANN::Options *opts = nullptr;
+ 
+ #define DefineVectorValueType(Name, Type)                                                                              \

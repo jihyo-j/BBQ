@@ -1,0 +1,4 @@
+nrows = 1
+ytop = 98.68
+ls=1 | FP32 | lp
+ls=2 | 1-bit codes | lp

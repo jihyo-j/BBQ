@@ -1,0 +1,5 @@
+category,queries,fraction,definition
+Final perfect,5490,0.9180602006688964,final Recall@10 = 1.0
+Selection-limited,37,0.006187290969899666,full-pool perfect but calibrated prefix is not
+Metric/reference mismatch,146,0.024414715719063545,all global GT10 are present but full-pool exact rerank is not perfect
+Traversal-limited,307,0.051337792642140466,at least one global GT10 is absent from the 256-candidate pool

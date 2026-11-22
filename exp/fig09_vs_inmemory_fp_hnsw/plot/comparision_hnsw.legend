@@ -1,0 +1,5 @@
+nrows = 1
+ytop = 10.5
+scale = 0.92
+ls=1 | BBQ (1-bit codes in DRAM, FP32 on SSD) | lp
+ls=2 | FP32 HNSW (all in DRAM) | lp

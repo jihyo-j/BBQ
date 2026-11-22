@@ -1,0 +1,1 @@
+Fig 19 / Sec 6.8: online insertion 1M -> 100M (MS MARCO Qwen-1024; 32 threads)

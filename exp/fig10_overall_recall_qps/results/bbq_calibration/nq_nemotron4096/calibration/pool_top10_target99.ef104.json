@@ -1,0 +1,19 @@
+{
+  "protocol": "per-ef-pool-top10-split-conformal",
+  "target_pool_top10_coverage": 0.99,
+  "ef": 104,
+  "calibration_rows": 1000,
+  "efSearch": 104,
+  "tau": 1.6208448949209278,
+  "target_all_top10_coverage": 0.99,
+  "empirical_all_top10_coverage": 0.991,
+  "conformal_order": 991,
+  "calibration_queries": 1000,
+  "reference": "exact FP top-10 within the ADC-HNSW candidate pool",
+  "rerank_count_mean": 18.191,
+  "rerank_count_min": 10,
+  "rerank_count_p95": 32.0,
+  "rerank_count_p99": 42.0,
+  "rerank_count_max": 60,
+  "status": "feasible"
+}

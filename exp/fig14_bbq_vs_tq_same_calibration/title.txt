@@ -1,0 +1,1 @@
+Fig 14: BBQ vs TurboQuant-1bit under the same calibration (NQ, MS MARCO; Qwen-1024; T=1)

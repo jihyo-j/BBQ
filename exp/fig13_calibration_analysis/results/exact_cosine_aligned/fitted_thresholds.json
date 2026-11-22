@@ -1,0 +1,50 @@
+{
+  "protocol": "per-ef-pool-top10-split-conformal",
+  "reference": "exact FP32 top-10 within each ADC-HNSW candidate pool",
+  "dataset": "msmarco_qwen1024",
+  "efSearch": 256,
+  "calibration_queries": 1000,
+  "test_queries": 5980,
+  "fits": [
+    {
+      "target": 0.9,
+      "conformal_order": 901,
+      "tau": 1.0238696566624634,
+      "calibration_covered_queries": 901,
+      "calibration_queries": 1000,
+      "calibration_empirical_coverage": 0.901
+    },
+    {
+      "target": 0.95,
+      "conformal_order": 951,
+      "tau": 1.2308795946391005,
+      "calibration_covered_queries": 951,
+      "calibration_queries": 1000,
+      "calibration_empirical_coverage": 0.951
+    },
+    {
+      "target": 0.975,
+      "conformal_order": 976,
+      "tau": 1.3710290788879416,
+      "calibration_covered_queries": 976,
+      "calibration_queries": 1000,
+      "calibration_empirical_coverage": 0.976
+    },
+    {
+      "target": 0.99,
+      "conformal_order": 991,
+      "tau": 1.6340869684899542,
+      "calibration_covered_queries": 991,
+      "calibration_queries": 1000,
+      "calibration_empirical_coverage": 0.991
+    },
+    {
+      "target": 0.995,
+      "conformal_order": 996,
+      "tau": 1.7111748051278017,
+      "calibration_covered_queries": 996,
+      "calibration_queries": 1000,
+      "calibration_empirical_coverage": 0.996
+    }
+  ]
+}

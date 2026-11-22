@@ -1,0 +1,4 @@
+category,queries,fraction,definition
+Final perfect,5489,0.9178929765886288,final Recall@10 = 1.0
+Selection-limited,37,0.006187290969899666,full-pool perfect but calibrated prefix is not
+Traversal-limited,454,0.07591973244147157,even exact reranking of all 256 candidates is not perfect

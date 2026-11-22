@@ -1,0 +1,24 @@
+{
+  "protocol": "equal-candidate-pool-equal-qd-fixed75-vs-calibrated",
+  "candidate_pool": "efSearch for both policies",
+  "fp_rerank_qd": "efSearch for both policies",
+  "fixed_reads": 75,
+  "calibrated_reads": "query-adaptive threshold prefix",
+  "efs": [
+    80,
+    100,
+    120,
+    140,
+    160,
+    180,
+    200,
+    220,
+    240,
+    256,
+    320,
+    512,
+    1024
+  ],
+  "binary": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_optimized/faiss_adcbq_hnsw_equal_pool_qd",
+  "summary": "/home/jihyo/workspace/RaBitQ-Library/experiment/msmarco_qwen1024_equal_pool_qd_ablation_t1/equal_pool_qd_fixed75_vs_calibrated.csv"
+}

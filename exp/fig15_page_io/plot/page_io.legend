@@ -1,0 +1,6 @@
+nrows = 2
+ytop = 19
+ls=1 | BBQ | lp
+ls=4 | TurboQuant 1bit | lp
+ls=2 | DiskANN | lp
+ls=3 | DiskANN RaBitQ+adaptive rerank | lp

@@ -1,0 +1,8 @@
+nrows = 2
+ytop = 19
+ls=1 | Sym-BQ | lp
+ls=2 | ADC-BQ | lp
+ls=3 | BBQ + Fixed R\\@75 | lp
+ls=4 | BBQ + Calibrated R | lp
+ls=5 | FP reads / query | box
+ls=6 | Latency | lp

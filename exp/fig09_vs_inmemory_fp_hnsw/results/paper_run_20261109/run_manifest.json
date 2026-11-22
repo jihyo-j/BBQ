@@ -1,0 +1,65 @@
+{
+  "protocol": "calibrated_adcbq_vs_fp_hnsw_fullvec_process_owned_ram",
+  "datasets": [
+    "msmarco_qwen1024",
+    "dbpedia_qwen1024"
+  ],
+  "efs": [
+    32,
+    40,
+    48,
+    56,
+    64,
+    72,
+    80,
+    96,
+    112,
+    128,
+    160,
+    192,
+    224,
+    256,
+    320,
+    384,
+    512,
+    640,
+    768,
+    1024
+  ],
+  "rounds_by_dataset": {
+    "msmarco_qwen1024": 5,
+    "dbpedia_qwen1024": 20
+  },
+  "qps_statistic_by_dataset": {
+    "msmarco_qwen1024": "mean_5",
+    "dbpedia_qwen1024": "median_20"
+  },
+  "threads": 1,
+  "cpu_affinity": [
+    20
+  ],
+  "load_average_at_manifest": [
+    1.552734375,
+    1.27685546875,
+    2.1015625
+  ],
+  "M": 24,
+  "efConstruction": 200,
+  "k": 10,
+  "calibration_target": 0.99,
+  "calibration_reference": "exact FP top-10 within each ADC candidate pool",
+  "split_seed": 11,
+  "full_vector_condition": {
+    "adcbq": "complete FP32 base copied into process-owned RAM before timing",
+    "fp_hnsw": "complete normalized FP32 base stored in IndexHNSWFlat RAM storage"
+  },
+  "same_topology": true,
+  "combined_csv": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_vs_fp_hnsw_fullvec_ram/clean_t1_cpu20_20261109/recall_qps_fullvec_ram_t1.csv",
+  "target_summary_csv": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_vs_fp_hnsw_fullvec_ram/clean_t1_cpu20_20261109/target_recall_summary_t1.csv",
+  "figures": [
+    "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_vs_fp_hnsw_fullvec_ram/clean_t1_cpu20_20261109/recall_qps_fullvec_ram_t1.png",
+    "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_vs_fp_hnsw_fullvec_ram/clean_t1_cpu20_20261109/recall_qps_fullvec_ram_t1.pdf"
+  ],
+  "adc_binary": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_optimized/faiss_adcbq_hnsw_calibrated",
+  "fp_binary": "/home/jihyo/workspace/RaBitQ-Library/experiment/faiss_fp_hnsw_resident_from_binary_graph"
+}

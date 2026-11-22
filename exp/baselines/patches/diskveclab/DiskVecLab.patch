@@ -1,0 +1,1418 @@
+diff --git a/.gitignore b/.gitignore
+index 14487d0..40fd0e2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -4,6 +4,8 @@ ELPIS/code/Release
+ tempfolder*
+ 
+ build
++**/build-release/
++**/__pycache__/
+ log
+ MARGO/release
+ MARGO/debug
+@@ -13,4 +15,4 @@ Gorgeous/release
+ Gorgeous/debug
+ 
+ **/config_dataset_auto.sh
+-indices
+\ No newline at end of file
++indices
+diff --git a/README.md b/README.md
+index b1e7a43..c660ac6 100644
+--- a/README.md
++++ b/README.md
+@@ -34,6 +34,28 @@ For details of the methods, please refer to the corresponding papers below:
+ - [arXiv preprint] Gorgeous: Revisiting the Data Layout for Disk-Resident High-Dimensional Vector Search
+ - [NeurIPS'21] SPANN: Highly-efficient billion-scale approximate nearest neighborhood search
+ 
++### External method adapters
++
++The local `src/BBQ` adapter runs calibrated ADC-BQ (BBQ) with the same dataset
++manifests and emits a compact common result CSV. BBQ remains a separate method
++because its compressed HNSW traversal and final batched FP refinement are not the
++same query path as using ADC-BQ inside DiskANN. See [`src/BBQ/README.md`](src/BBQ/README.md).
++
++### NQ/MSMARCO modern-embedding pilot
++
++`test/run_nq_msmarco_baselines.py` runs the Qwen-1024 NQ and MSMARCO pilot with
++24 build threads and one search thread. It compares a shared FP32-node DiskANN
++graph with PQ64 routing, the same graph with pure 1-bit RaBitQ routing
++(`ex_bits=0`), native PipeANN with 1-bit RaBitQ, and SPANN PQ128 with fixed
++exact FP32 rerank@80. Builds and completed searches are reused on restart.
++
++```bash
++python3 test/run_nq_msmarco_baselines.py --rounds 1
++```
++
++Raw method CSVs, a union table, and the matched Recall@10 0.95/0.99 summary are
++written under `results/nq_msmarco_qwen1024/`.
++
+ 
+ ## Usage
+ 
+diff --git a/src/DiskAnn/apps/CMakeLists.txt b/src/DiskAnn/apps/CMakeLists.txt
+index 17e9c86..48ba36d 100644
+--- a/src/DiskAnn/apps/CMakeLists.txt
++++ b/src/DiskAnn/apps/CMakeLists.txt
+@@ -4,7 +4,7 @@
+ set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+ 
+-set(FAISS_ROOT /usr/local)
++set(FAISS_ROOT "/usr/local" CACHE PATH "Faiss installation prefix")
+ include_directories(${FAISS_ROOT}/include)
+ 
+ find_package(OpenMP REQUIRED)
+diff --git a/src/DiskAnn/apps/build_disk_index.cpp b/src/DiskAnn/apps/build_disk_index.cpp
+index dabece1..39d9243 100644
+--- a/src/DiskAnn/apps/build_disk_index.cpp
++++ b/src/DiskAnn/apps/build_disk_index.cpp
+@@ -17,7 +17,7 @@ int main(int argc, char **argv)
+ {
+     std::string data_type, dist_fn, data_path, index_path_prefix, codebook_prefix, label_file, universal_label,
+         label_type;
+-    uint32_t num_threads, R, L, disk_PQ, build_PQ, QD, Lf, filter_threshold, rabitq_clusters;
++    uint32_t num_threads, R, L, disk_PQ, build_PQ, QD, Lf, filter_threshold, rabitq_clusters, rabitq_bits;
+     float B, M, alpha;
+     bool append_reorder_data = false;
+     bool use_opq = false;
+@@ -86,6 +86,10 @@ int main(int argc, char **argv)
+                                        "Number of clusters for RaBitQ multi-cluster quantization. "
+                                        "0 means use default (16). Higher values may improve recall "
+                                        "at the cost of slightly more memory.");
++        optional_configs.add_options()("rabitq_bits",
++                                       po::value<uint32_t>(&rabitq_bits)->default_value(0),
++                                       "Also emit a RaBitQ routing artifact with this many total bits per dimension. "
++                                       "Use 1 for pure 1-bit codes (no extra bits); 0 disables RaBitQ generation.");
+ 
+         // Merge required and optional parameters
+         desc.add(required_configs).add(optional_configs);
+@@ -154,15 +158,16 @@ int main(int argc, char **argv)
+             if (data_type == std::string("int8"))
+                 return diskann::build_disk_index<int8_t>(data_path.c_str(), index_path_prefix.c_str(), params.c_str(),
+                                                          metric, use_opq, codebook_prefix, use_filters, label_file,
+-                                                         universal_label, filter_threshold, Lf, rabitq_clusters);
++                                                         universal_label, filter_threshold, Lf, rabitq_clusters,
++                                                         rabitq_bits);
+             else if (data_type == std::string("uint8"))
+                 return diskann::build_disk_index<uint8_t, uint16_t>(
+                     data_path.c_str(), index_path_prefix.c_str(), params.c_str(), metric, use_opq, codebook_prefix,
+-                    use_filters, label_file, universal_label, filter_threshold, Lf, rabitq_clusters);
++                    use_filters, label_file, universal_label, filter_threshold, Lf, rabitq_clusters, rabitq_bits);
+             else if (data_type == std::string("float"))
+                 return diskann::build_disk_index<float, uint16_t>(
+                     data_path.c_str(), index_path_prefix.c_str(), params.c_str(), metric, use_opq, codebook_prefix,
+-                    use_filters, label_file, universal_label, filter_threshold, Lf, rabitq_clusters);
++                    use_filters, label_file, universal_label, filter_threshold, Lf, rabitq_clusters, rabitq_bits);
+             else
+             {
+                 diskann::cerr << "Error. Unsupported data type" << std::endl;
+@@ -174,15 +179,18 @@ int main(int argc, char **argv)
+             if (data_type == std::string("int8"))
+                 return diskann::build_disk_index<int8_t>(data_path.c_str(), index_path_prefix.c_str(), params.c_str(),
+                                                          metric, use_opq, codebook_prefix, use_filters, label_file,
+-                                                         universal_label, filter_threshold, Lf, rabitq_clusters);
++                                                         universal_label, filter_threshold, Lf, rabitq_clusters,
++                                                         rabitq_bits);
+             else if (data_type == std::string("uint8"))
+                 return diskann::build_disk_index<uint8_t>(data_path.c_str(), index_path_prefix.c_str(), params.c_str(),
+                                                           metric, use_opq, codebook_prefix, use_filters, label_file,
+-                                                          universal_label, filter_threshold, Lf, rabitq_clusters);
++                                                          universal_label, filter_threshold, Lf, rabitq_clusters,
++                                                          rabitq_bits);
+             else if (data_type == std::string("float"))
+                 return diskann::build_disk_index<float>(data_path.c_str(), index_path_prefix.c_str(), params.c_str(),
+                                                         metric, use_opq, codebook_prefix, use_filters, label_file,
+-                                                        universal_label, filter_threshold, Lf, rabitq_clusters);
++                                                        universal_label, filter_threshold, Lf, rabitq_clusters,
++                                                        rabitq_bits);
+             else
+             {
+                 diskann::cerr << "Error. Unsupported data type" << std::endl;
+diff --git a/src/DiskAnn/apps/search_disk_index.cpp b/src/DiskAnn/apps/search_disk_index.cpp
+index 0e9b97a..38f1c5a 100644
+--- a/src/DiskAnn/apps/search_disk_index.cpp
++++ b/src/DiskAnn/apps/search_disk_index.cpp
+@@ -47,6 +47,36 @@ void print_stats(std::string category, std::vector<float> percentiles, std::vect
+     diskann::cout << std::endl;
+ }
+ 
++void print_query_distribution(uint32_t search_l, const std::string &metric, diskann::QueryStats *stats,
++                              size_t query_num,
++                              const std::function<double(const diskann::QueryStats &)> &value_fn)
++{
++    std::vector<double> values(query_num);
++    double sum = 0.0;
++    for (size_t i = 0; i < query_num; ++i)
++    {
++        values[i] = value_fn(stats[i]);
++        sum += values[i];
++    }
++    std::sort(values.begin(), values.end());
++    const auto percentile = [&values](double fraction) {
++        if (values.size() == 1)
++            return values[0];
++        const double position = fraction * static_cast<double>(values.size() - 1);
++        const size_t lower = static_cast<size_t>(position);
++        const size_t upper = std::min(lower + 1, values.size() - 1);
++        const double weight = position - static_cast<double>(lower);
++        return values[lower] + weight * (values[upper] - values[lower]);
++    };
++    const auto old_precision = diskann::cout.precision();
++    diskann::cout.precision(6);
++    diskann::cout << "QUERY_STATS L=" << search_l << " metric=" << metric
++                  << " mean=" << (sum / static_cast<double>(query_num)) << " min=" << values.front()
++                  << " max=" << values.back() << " p95=" << percentile(0.95) << " p99=" << percentile(0.99)
++                  << std::endl;
++    diskann::cout.precision(old_precision);
++}
++
+ template <typename T, typename LabelT = uint32_t>
+ int search_disk_index(diskann::Metric &metric, const std::string &index_path_prefix,
+                       const std::string &result_output_prefix, const std::string &query_file, std::string &gt_file,
+@@ -326,6 +356,22 @@ int search_disk_index(diskann::Metric &metric, const std::string &index_path_pre
+         }
+         else
+             diskann::cout << std::endl;
++
++        // A classic DiskANN SSD node contains one FP vector plus its graph
++        // neighbors.  Both PQ-routed classic search and RaBitQ-routed search
++        // therefore perform one FP-vector read for every submitted graph-node
++        // request.  n_4k records the actual number of submitted 4 KiB sectors,
++        // including multi-sector high-dimensional nodes.
++        print_query_distribution(L, "fp_vectors", stats, query_num,
++                                 [](const diskann::QueryStats &s) { return s.n_ios.load(); });
++        print_query_distribution(L, "graph_io_requests", stats, query_num,
++                                 [](const diskann::QueryStats &s) { return s.n_ios.load(); });
++        print_query_distribution(L, "graph_4k_pages", stats, query_num,
++                                 [](const diskann::QueryStats &s) { return s.n_4k.load(); });
++        print_query_distribution(L, "total_4k_pages", stats, query_num,
++                                 [](const diskann::QueryStats &s) { return s.n_4k.load(); });
++        print_query_distribution(L, "latency_us", stats, query_num,
++                                 [](const diskann::QueryStats &s) { return s.total_us.load(); });
+         delete[] stats;
+     }
+ 
+@@ -554,4 +600,4 @@ int main(int argc, char **argv)
+         diskann::cerr << "Index search failed." << std::endl;
+         return -1;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/DiskAnn/include/disk_utils.h b/src/DiskAnn/include/disk_utils.h
+index 567852c..9a8201e 100644
+--- a/src/DiskAnn/include/disk_utils.h
++++ b/src/DiskAnn/include/disk_utils.h
+@@ -99,7 +99,8 @@ DISKANN_DLLEXPORT int build_disk_index(
+     const std::string &label_file = std::string(""), // default is empty string for no label_file
+     const std::string &universal_label = "", const uint32_t filter_threshold = 0,
+     const uint32_t Lf = 0,
+-    const size_t rabitq_clusters = 0); // 0 = use RABITQ_DEFAULT_NUM_CLUSTERS
++    const size_t rabitq_clusters = 0, // 0 = use RABITQ_DEFAULT_NUM_CLUSTERS
++    const size_t rabitq_bits = 0);    // 0 = do not emit a RaBitQ routing artifact
+ 
+ template <typename T>
+ DISKANN_DLLEXPORT void create_disk_layout(const std::string base_file, const std::string mem_index_file,
+diff --git a/src/DiskAnn/include/pq.h b/src/DiskAnn/include/pq.h
+index 881d37c..424179e 100644
+--- a/src/DiskAnn/include/pq.h
++++ b/src/DiskAnn/include/pq.h
+@@ -102,5 +102,6 @@ void generate_quantized_data_build_disk_index(const std::string &data_file_to_us
+                              const diskann::Metric compareMetric,
+                              const double p_val, const uint64_t num_pq_chunks, const bool use_opq,
+                              const std::string &codebook_prefix = "",
+-                             const size_t rabitq_clusters = 0);
++                             const size_t rabitq_clusters = 0,
++                             const size_t rabitq_bits = 0);
+ } // namespace diskann
+diff --git a/src/DiskAnn/include/rabitqlib/fastscan/highacc_fastscan.hpp b/src/DiskAnn/include/rabitqlib/fastscan/highacc_fastscan.hpp
+index a4657b0..2c1cfe4 100644
+--- a/src/DiskAnn/include/rabitqlib/fastscan/highacc_fastscan.hpp
++++ b/src/DiskAnn/include/rabitqlib/fastscan/highacc_fastscan.hpp
+@@ -64,6 +64,34 @@ inline void accumulate_hacc(
+     int32_t* accu_res,
+     size_t dim
+ ) {
++    // The SIMD kernel below accumulates each low/high LUT byte in 16-bit
++    // lanes.  One 1024-D block has 256 four-dimensional codebooks, so its
++    // worst-case byte sum is 256 * 255 = 65280 and still fits uint16_t.
++    // Larger dimensions can overflow those lanes.  Accumulate independent
++    // safe-sized blocks and combine their already widened int32 results.
++    if (dim > 1024) {
++        for (size_t i = 0; i < 32; ++i) {
++            accu_res[i] = 0;
++        }
++        size_t consumed_dim = 0;
++        while (consumed_dim < dim) {
++            const size_t remaining = dim - consumed_dim;
++            const size_t block_dim = remaining > 1024 ? 1024 : remaining;
++            alignas(64) int32_t block_res[32];
++            accumulate_hacc(
++                codes + consumed_dim * 4,
++                hc_lut + consumed_dim * 8,
++                block_res,
++                block_dim
++            );
++            for (size_t i = 0; i < 32; ++i) {
++                accu_res[i] += block_res[i];
++            }
++            consumed_dim += block_dim;
++        }
++        return;
++    }
++
+     __m512i low_mask = _mm512_set1_epi8(0xf);
+     __m512i accu[2][4];
+ 
+@@ -143,4 +171,4 @@ inline void accumulate_hacc(
+     _mm512_storeu_epi32(accu_res, res[0]);
+     _mm512_storeu_epi32(accu_res + 16, res[1]);
+ }
+-}  // namespace rabitqlib::fastscan
+\ No newline at end of file
++}  // namespace rabitqlib::fastscan
+diff --git a/src/DiskAnn/include/rabitqlib/utils/fht_avx.hpp b/src/DiskAnn/include/rabitqlib/utils/fht_avx.hpp
+index e7e2d65..aead1d2 100644
+--- a/src/DiskAnn/include/rabitqlib/utils/fht_avx.hpp
++++ b/src/DiskAnn/include/rabitqlib/utils/fht_avx.hpp
+@@ -1343,3 +1343,17 @@ inline void helper_float_11(float *buf);
+ inline void helper_float_11(float *buf) {
+   helper_float_11_recursive(buf, 11);
+ }
++inline void helper_float_12(float *buf) {
++  // H_4096 = [[H_2048, H_2048], [H_2048, -H_2048]].
++  // Reuse the generated 2048-point kernel and finish with one AVX2
++  // butterfly stage.  This keeps exactly the same unnormalised FHT
++  // convention as helper_float_6..11; the rotator applies 1/sqrt(d).
++  helper_float_11(buf);
++  helper_float_11(buf + 2048);
++  for (int i = 0; i < 2048; i += 8) {
++    const __m256 x = _mm256_loadu_ps(buf + i);
++    const __m256 y = _mm256_loadu_ps(buf + 2048 + i);
++    _mm256_storeu_ps(buf + i, _mm256_add_ps(x, y));
++    _mm256_storeu_ps(buf + 2048 + i, _mm256_sub_ps(x, y));
++  }
++}
+diff --git a/src/DiskAnn/include/rabitqlib/utils/rotator.hpp b/src/DiskAnn/include/rabitqlib/utils/rotator.hpp
+index 9b552b2..c4f0125 100644
+--- a/src/DiskAnn/include/rabitqlib/utils/rotator.hpp
++++ b/src/DiskAnn/include/rabitqlib/utils/rotator.hpp
+@@ -217,6 +217,9 @@ class FhtKacRotator : public Rotator<float> {
+             case 11:
+                 this->fht_float_ = helper_float_11;
+                 break;
++            case 12:
++                this->fht_float_ = helper_float_12;
++                break;
+             default:
+                 // TODO(lib): should we do more?
+                 std::cerr << "dimension of vector is too big\n";
+@@ -372,4 +375,4 @@ Rotator<T>* choose_rotator(
+     std::cerr << "Invaid rotator type in choose_rotator()\n";
+     exit(1);
+ }
+-}  // namespace rabitqlib
+\ No newline at end of file
++}  // namespace rabitqlib
+diff --git a/src/DiskAnn/src/CMakeLists.txt b/src/DiskAnn/src/CMakeLists.txt
+index a4196d3..e9748bd 100644
+--- a/src/DiskAnn/src/CMakeLists.txt
++++ b/src/DiskAnn/src/CMakeLists.txt
+@@ -22,7 +22,7 @@ else()
+     add_library(${PROJECT_NAME}_s STATIC ${CPP_SOURCES})
+ endif()
+ 
+-set(FAISS_ROOT /usr/local)
++set(FAISS_ROOT "/usr/local" CACHE PATH "Faiss installation prefix")
+ include_directories(${FAISS_ROOT}/include)
+ 
+ target_link_libraries(${PROJECT_NAME} PRIVATE ${FAISS_ROOT}/lib/libfaiss.so)
+diff --git a/src/DiskAnn/src/disk_utils.cpp b/src/DiskAnn/src/disk_utils.cpp
+index 5d5c23b..fefe0b5 100644
+--- a/src/DiskAnn/src/disk_utils.cpp
++++ b/src/DiskAnn/src/disk_utils.cpp
+@@ -1101,7 +1101,7 @@ template <typename T, typename LabelT>
+ int build_disk_index(const char *dataFilePath, const char *indexFilePath, const char *indexBuildParameters,
+                      diskann::Metric compareMetric, bool use_opq, const std::string &codebook_prefix, bool use_filters,
+                      const std::string &label_file, const std::string &universal_label, const uint32_t filter_threshold,
+-                     const uint32_t Lf, const size_t rabitq_clusters)
++                     const uint32_t Lf, const size_t rabitq_clusters, const size_t rabitq_bits)
+ {
+     std::stringstream parser;
+     parser << std::string(indexBuildParameters);
+@@ -1321,7 +1321,7 @@ int build_disk_index(const char *dataFilePath, const char *indexFilePath, const
+     // Generate PQ centroids and quantize data
+     generate_quantized_data_build_disk_index<T>(data_file_to_use, pq_pivots_path, pq_compressed_vectors_path, faiss_lsq_index_path,
+                                faiss_rabitq_index_path, compareMetric, p_val,
+-                               num_pq_chunks, use_opq, codebook_prefix, rabitq_clusters);
++                               num_pq_chunks, use_opq, codebook_prefix, rabitq_clusters, rabitq_bits);
+     diskann::cout << timer.elapsed_seconds_for_step("generating quantized data") << std::endl;
+ 
+ // Gopal. Splitting diskann_dll into separate DLLs for search and build.
+@@ -1443,7 +1443,8 @@ template DISKANN_DLLEXPORT int build_disk_index<int8_t, uint32_t>(const char *da
+                                                                   const std::string &label_file,
+                                                                   const std::string &universal_label,
+                                                                   const uint32_t filter_threshold, const uint32_t Lf,
+-                                                                  const size_t rabitq_clusters);
++                                                                  const size_t rabitq_clusters,
++                                                                  const size_t rabitq_bits);
+ template DISKANN_DLLEXPORT int build_disk_index<uint8_t, uint32_t>(const char *dataFilePath, const char *indexFilePath,
+                                                                    const char *indexBuildParameters,
+                                                                    diskann::Metric compareMetric, bool use_opq,
+@@ -1451,7 +1452,8 @@ template DISKANN_DLLEXPORT int build_disk_index<uint8_t, uint32_t>(const char *d
+                                                                    const std::string &label_file,
+                                                                    const std::string &universal_label,
+                                                                    const uint32_t filter_threshold, const uint32_t Lf,
+-                                                                   const size_t rabitq_clusters);
++                                                                   const size_t rabitq_clusters,
++                                                                   const size_t rabitq_bits);
+ template DISKANN_DLLEXPORT int build_disk_index<float, uint32_t>(const char *dataFilePath, const char *indexFilePath,
+                                                                  const char *indexBuildParameters,
+                                                                  diskann::Metric compareMetric, bool use_opq,
+@@ -1459,7 +1461,8 @@ template DISKANN_DLLEXPORT int build_disk_index<float, uint32_t>(const char *dat
+                                                                  const std::string &label_file,
+                                                                  const std::string &universal_label,
+                                                                  const uint32_t filter_threshold, const uint32_t Lf,
+-                                                                 const size_t rabitq_clusters);
++                                                                 const size_t rabitq_clusters,
++                                                                 const size_t rabitq_bits);
+ // LabelT = uint16
+ template DISKANN_DLLEXPORT int build_disk_index<int8_t, uint16_t>(const char *dataFilePath, const char *indexFilePath,
+                                                                   const char *indexBuildParameters,
+@@ -1468,7 +1471,8 @@ template DISKANN_DLLEXPORT int build_disk_index<int8_t, uint16_t>(const char *da
+                                                                   const std::string &label_file,
+                                                                   const std::string &universal_label,
+                                                                   const uint32_t filter_threshold, const uint32_t Lf,
+-                                                                  const size_t rabitq_clusters);
++                                                                  const size_t rabitq_clusters,
++                                                                  const size_t rabitq_bits);
+ template DISKANN_DLLEXPORT int build_disk_index<uint8_t, uint16_t>(const char *dataFilePath, const char *indexFilePath,
+                                                                    const char *indexBuildParameters,
+                                                                    diskann::Metric compareMetric, bool use_opq,
+@@ -1476,7 +1480,8 @@ template DISKANN_DLLEXPORT int build_disk_index<uint8_t, uint16_t>(const char *d
+                                                                    const std::string &label_file,
+                                                                    const std::string &universal_label,
+                                                                    const uint32_t filter_threshold, const uint32_t Lf,
+-                                                                   const size_t rabitq_clusters);
++                                                                   const size_t rabitq_clusters,
++                                                                   const size_t rabitq_bits);
+ template DISKANN_DLLEXPORT int build_disk_index<float, uint16_t>(const char *dataFilePath, const char *indexFilePath,
+                                                                  const char *indexBuildParameters,
+                                                                  diskann::Metric compareMetric, bool use_opq,
+@@ -1484,7 +1489,8 @@ template DISKANN_DLLEXPORT int build_disk_index<float, uint16_t>(const char *dat
+                                                                  const std::string &label_file,
+                                                                  const std::string &universal_label,
+                                                                  const uint32_t filter_threshold, const uint32_t Lf,
+-                                                                 const size_t rabitq_clusters);
++                                                                 const size_t rabitq_clusters,
++                                                                 const size_t rabitq_bits);
+ 
+ template DISKANN_DLLEXPORT int build_merged_vamana_index<int8_t, uint32_t>(
+     std::string base_file, diskann::Metric compareMetric, uint32_t L, uint32_t R, double sampling_rate,
+diff --git a/src/DiskAnn/src/pq.cpp b/src/DiskAnn/src/pq.cpp
+index 57f0924..7eee0b3 100644
+--- a/src/DiskAnn/src/pq.cpp
++++ b/src/DiskAnn/src/pq.cpp
+@@ -1135,7 +1135,8 @@ void generate_disk_quantized_data(const std::string &data_file_to_use, const std
+ int generate_rabitq_data(const float *train_data,const std::string data_file_path,
+                          const std::string &index_file_path, int64_t dim, int64_t num_points, int64_t num_pq_chunks,
+                          const std::string& data_type, size_t rabitq_clusters) {
+-    auto pq_table = PQFactory::create_pq_table(PQType::RABITQ, dim, num_pq_chunks, rabitq_clusters);
++    const size_t clusters = rabitq_clusters == 0 ? RABITQ_DEFAULT_NUM_CLUSTERS : rabitq_clusters;
++    auto pq_table = PQFactory::create_pq_table(PQType::RABITQ, dim, num_pq_chunks, clusters);
+     pq_table->train(num_points, train_data, data_file_path, index_file_path, data_type);
+     return 0;
+ }
+@@ -1158,7 +1159,8 @@ void generate_quantized_data_build_disk_index(const std::string &data_file_to_us
+                              diskann::Metric compareMetric,
+                              const double p_val, const size_t num_pq_chunks, const bool use_opq,
+                              const std::string &codebook_prefix,
+-                             const size_t rabitq_clusters)
++                             const size_t rabitq_clusters,
++                             const size_t rabitq_bits)
+ {
+     // Determine data type string from template parameter
+     std::string data_type_str;
+@@ -1183,12 +1185,20 @@ void generate_quantized_data_build_disk_index(const std::string &data_file_to_us
+         bool make_zero_mean = true;
+         if (compareMetric == diskann::Metric::INNER_PRODUCT)
+             make_zero_mean = false;
+-        auto pq_type = PQType::PQ;
+-        if (pq_type == PQType::OPQ) // we also do not center the data for OPQ
++        if (use_opq)
++        {
+             make_zero_mean = false;
+-
+-        switch (pq_type) {
+-        case PQType::PQ:
++            log_timed_block("OPQ: generate pivots", [&]() {
++                generate_opq_pivots(train_data, train_size, (uint32_t)train_dim, NUM_PQ_CENTROIDS,
++                                    (uint32_t)num_pq_chunks, pq_pivots_path, make_zero_mean);
++            });
++            log_timed_block("OPQ: generate quantized codes", [&]() {
++                generate_pq_data_from_pivots<T>(data_file_to_use, NUM_PQ_CENTROIDS, (uint32_t)num_pq_chunks,
++                                                pq_pivots_path, pq_compressed_vectors_path, true);
++            });
++        }
++        else
++        {
+             log_timed_block("PQ: generate pivots", [&]() {
+                 generate_pq_pivots(train_data, train_size, (uint32_t)train_dim, NUM_PQ_CENTROIDS,
+                                    (uint32_t)num_pq_chunks, NUM_KMEANS_REPS_PQ, pq_pivots_path, make_zero_mean);
+@@ -1197,41 +1207,23 @@ void generate_quantized_data_build_disk_index(const std::string &data_file_to_us
+                 generate_pq_data_from_pivots<T>(data_file_to_use, NUM_PQ_CENTROIDS, (uint32_t)num_pq_chunks,
+                                                 pq_pivots_path, pq_compressed_vectors_path, false);
+             });
+-            [[fallthrough]];
+-        case PQType::RABITQ:
+-            if (num_pq_chunks > 8) {
+-                diskann::cout << "Training RabitQ index with " << rabitq_clusters << " clusters" << std::endl;
+-                log_timed_block("RabitQ: generate quantized codes", [&]() {
+-                    generate_rabitq_data(train_data, data_file_to_use, disk_rabitq_index_path, (uint32_t)train_dim,
+-                                        train_size, num_pq_chunks, data_type_str, rabitq_clusters);
+-                });
+-            }
+-            [[fallthrough]];
+-        case PQType::LSQ:
+-            if (num_pq_chunks <= 64) {
+-                diskann::cout << "Training LSQ index" << std::endl;
+-                log_timed_block("LSQ: generate quantized codes", [&]() {
+-                    generate_lsq_data(train_data, data_file_to_use, disk_lsq_index_path, (uint32_t)train_dim,
+-                                      train_size, num_pq_chunks, data_type_str);
+-                });
+-            } else {
+-                diskann::cout << "Skipping LSQ training for num_pq_chunks >= 64" << std::endl;
+-            }
+-            delete[] train_data;
+-            diskann::cout << "TEMP: ONLY TRAIN INDEX, EXIT NOW" << std::endl;
+-            exit(EXIT_SUCCESS);
+-            break;
+-        case PQType::OPQ:
+-            generate_opq_pivots(train_data, train_size, (uint32_t)train_dim, NUM_PQ_CENTROIDS, (uint32_t)num_pq_chunks,
+-                                pq_pivots_path, make_zero_mean);
+-            delete[] train_data;
+-            generate_pq_data_from_pivots<T>(data_file_to_use, NUM_PQ_CENTROIDS, (uint32_t)num_pq_chunks, pq_pivots_path,
+-                                            pq_compressed_vectors_path, true);
+-            break;
+-        default:
+-            throw std::runtime_error("Unsupported PQ type");
+         }
+ 
++        if (rabitq_bits > 0)
++        {
++            if (rabitq_bits > 8)
++                throw std::invalid_argument("rabitq_bits must be in [1, 8]");
++            const size_t rabitq_chunks = rabitq_bits * 16;
++            diskann::cout << "Training " << rabitq_bits << "-bit RaBitQ index with "
++                          << rabitq_clusters << " clusters" << std::endl;
++            log_timed_block("RabitQ: generate quantized codes", [&]() {
++                generate_rabitq_data(train_data, data_file_to_use, disk_rabitq_index_path,
++                                     (uint32_t)train_dim, train_size, rabitq_chunks,
++                                     data_type_str, rabitq_clusters);
++            });
++        }
++        delete[] train_data;
++
+         //        if (!use_opq)
+         //        {
+         //            generate_pq_pivots(train_data, train_size, (uint32_t)train_dim, NUM_PQ_CENTROIDS, (uint32_t)num_pq_chunks,
+@@ -1393,7 +1385,8 @@ template DISKANN_DLLEXPORT void generate_quantized_data_build_disk_index<int8_t>
+                                                                 diskann::Metric compareMetric, const double p_val,
+                                                                 const size_t num_pq_chunks, const bool use_opq,
+                                                                 const std::string &codebook_prefix,
+-                                                                const size_t rabitq_clusters);
++                                                                const size_t rabitq_clusters,
++                                                                const size_t rabitq_bits);
+ 
+ template DISKANN_DLLEXPORT void generate_quantized_data_build_disk_index<uint8_t>(const std::string &data_file_to_use,
+                                                                  const std::string &pq_pivots_path,
+@@ -1403,7 +1396,8 @@ template DISKANN_DLLEXPORT void generate_quantized_data_build_disk_index<uint8_t
+                                                                  diskann::Metric compareMetric, const double p_val,
+                                                                  const size_t num_pq_chunks, const bool use_opq,
+                                                                  const std::string &codebook_prefix,
+-                                                                 const size_t rabitq_clusters);
++                                                                 const size_t rabitq_clusters,
++                                                                 const size_t rabitq_bits);
+ 
+ template DISKANN_DLLEXPORT void generate_quantized_data_build_disk_index<float>(const std::string &data_file_to_use,
+                                                                const std::string &pq_pivots_path,
+@@ -1413,6 +1407,7 @@ template DISKANN_DLLEXPORT void generate_quantized_data_build_disk_index<float>(
+                                                                diskann::Metric compareMetric, const double p_val,
+                                                                const size_t num_pq_chunks, const bool use_opq,
+                                                                const std::string &codebook_prefix,
+-                                                               const size_t rabitq_clusters);
++                                                               const size_t rabitq_clusters,
++                                                               const size_t rabitq_bits);
+ } // namespace diskann
+ 
+diff --git a/src/DiskAnn/src/pq_flash_index.cpp b/src/DiskAnn/src/pq_flash_index.cpp
+index 292a436..4dfe935 100644
+--- a/src/DiskAnn/src/pq_flash_index.cpp
++++ b/src/DiskAnn/src/pq_flash_index.cpp
+@@ -838,7 +838,7 @@ int PQFlashIndex<T, LabelT>::load_from_separate_paths(uint32_t num_threads, cons
+         return -1;
+     }
+ 
+-    size_t npts_u64, nchunks_u64;
++    size_t npts_u64 = 0, nchunks_u64 = 0;
+     std::string data_type_str = get_data_type_string<T>();
+     
+     if (pq_type == PQType::RABITQ || pq_type == PQType::LSQ)
+@@ -1519,7 +1519,7 @@ uint8_t *data, uint8_t *pq_coord_scratch, float* pq_dists) override {
+                                                 num_sectors_per_node * defaults::SECTOR_LEN, fnhood.second);
+                 if (stats != nullptr)
+                 {
+-                    stats->n_4k++;
++                    stats->n_4k += static_cast<unsigned>(num_sectors_per_node);
+                     stats->n_ios++;
+                 }
+                 num_ios++;
+@@ -1915,7 +1915,7 @@ void PQFlashIndex<T, LabelT>::init_search(const T *query1, const uint64_t k_sear
+                                                 num_sectors_per_node * defaults::SECTOR_LEN, fnhood.second);
+                 if (stats != nullptr)
+                 {
+-                    stats->n_4k++;
++                    stats->n_4k += static_cast<unsigned>(num_sectors_per_node);
+                     stats->n_ios++;
+                 }
+                 num_ios++;
+@@ -2177,7 +2177,7 @@ void PQFlashIndex<T, LabelT>::resume_search(const T *query1, const uint64_t k_se
+                                                 num_sectors_per_node * defaults::SECTOR_LEN, fnhood.second);
+                 if (stats != nullptr)
+                 {
+-                    stats->n_4k++;
++                    stats->n_4k += static_cast<unsigned>(num_sectors_per_node);
+                     stats->n_ios++;
+                 }
+                 num_ios++;
+diff --git a/src/SPANN b/src/SPANN
+index b2748d9..cafdd0a 160000
+--- a/src/SPANN
++++ b/src/SPANN
+@@ -1 +1 @@
+-Subproject commit b2748d982c68be70240285b0e222acea62d6c08e
++Subproject commit cafdd0abf261a8b26fbbb5ece132a46c823572f5-dirty
+diff --git a/src/SPANN-ext/AnnService/CMakeLists.txt b/src/SPANN-ext/AnnService/CMakeLists.txt
+index d03306f..89f29ed 100644
+--- a/src/SPANN-ext/AnnService/CMakeLists.txt
++++ b/src/SPANN-ext/AnnService/CMakeLists.txt
+@@ -4,18 +4,19 @@
+ set(AnnService ${PROJECT_SOURCE_DIR}/AnnService)
+ set(Zstd ${PROJECT_SOURCE_DIR}/ThirdParty/zstd)
+ set(RabitqLib ${PROJECT_SOURCE_DIR}/AnnService/inc/Core/Common/rabitqlib)
+-set(FAISS_ROOT /usr/local)
++set(FAISS_ROOT /usr/local CACHE PATH "FAISS installation prefix")
+ include_directories(${FAISS_ROOT}/include)
+ 
+ # Find FAISS library
+ find_path(FAISS_INCLUDE_DIR
+     NAMES faiss/IndexAdditiveQuantizer.h
++    HINTS ${FAISS_ROOT}/include
+     PATHS /usr/local/include /opt/local/include /usr/include
+-    PATH_SUFFIXES faiss
+ )
+ 
+ find_library(FAISS_LIBRARY
+     NAMES faiss
++    HINTS ${FAISS_ROOT}/lib ${FAISS_ROOT}/lib64
+     PATHS /usr/local/lib /opt/local/lib /usr/lib /usr/lib64
+ )
+ 
+@@ -126,6 +127,18 @@ add_executable(ssdserving ${SSD_SERVING_HDR_FILES} ${SSD_SERVING_FILES})
+ target_link_libraries(ssdserving SPTAGLibStatic ${Boost_LIBRARIES})
+ target_compile_definitions(ssdserving PRIVATE _exe)
+ 
++set(SPANN_RABITQ_BENCHMARK_SOURCE "" CACHE FILEPATH
++    "Optional source file for the SPANN+RaBitQ adaptive O_DIRECT benchmark")
++if(SPANN_RABITQ_BENCHMARK_SOURCE)
++    find_library(URING_LIBRARY NAMES uring)
++    if(NOT URING_LIBRARY)
++        message(FATAL_ERROR "liburing is required for SPANN_RABITQ_BENCHMARK_SOURCE")
++    endif()
++    add_executable(spann_rabitq_adaptive_benchmark ${SPANN_RABITQ_BENCHMARK_SOURCE})
++    target_link_libraries(spann_rabitq_adaptive_benchmark
++        SPTAGLibStatic ${Boost_LIBRARIES} ${URING_LIBRARY})
++endif()
++
+ # for Test
+ add_library(ssdservingLib ${SSD_SERVING_HDR_FILES} ${SSD_SERVING_FILES})
+ target_link_libraries(ssdservingLib SPTAGLibStatic ${Boost_LIBRARIES})
+diff --git a/src/SPANN-ext/AnnService/inc/Core/BKT/Index.h b/src/SPANN-ext/AnnService/inc/Core/BKT/Index.h
+index 0b1e7b2..e0de3a5 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/BKT/Index.h
++++ b/src/SPANN-ext/AnnService/inc/Core/BKT/Index.h
+@@ -156,6 +156,17 @@ namespace SPTAG
+             inline float ComputeDistanceQuantizer(const void* pX, const void* pY) const override {
+                 return m_fComputeDistanceQuantizer((const std::uint8_t*)pX, (const std::uint8_t*)pY, m_pSamples.C());
+             }
++            inline float ComputeDistanceQuantizerWithLowerBound(const void* pX,
++                                                                 const void* pY,
++                                                                 float& p_lowerBound) const override {
++                if (m_pQuantizer && m_iDistCalcMethod == DistCalcMethod::L2) {
++                    return m_pQuantizer->L2DistanceWithLowerBound(
++                        (const std::uint8_t*)pX,
++                        (const std::uint8_t*)pY,
++                        p_lowerBound);
++                }
++                return VectorIndex::ComputeDistanceQuantizerWithLowerBound(pX, pY, p_lowerBound);
++            }
+             inline const void* GetSample(const SizeType idx) const { return (void*)m_pSamples[idx]; }
+             inline bool ContainSample(const SizeType idx) const { return idx >= 0 && idx < m_deletedID.R() && !m_deletedID.Contains(idx); }
+             inline bool NeedRefine() const { return m_deletedID.Count() > (size_t)(GetNumSamples() * m_fDeletePercentageForRefine); }
+diff --git a/src/SPANN-ext/AnnService/inc/Core/Common/IQuantizer.h b/src/SPANN-ext/AnnService/inc/Core/Common/IQuantizer.h
+index 9b446c0..694621f 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/Common/IQuantizer.h
++++ b/src/SPANN-ext/AnnService/inc/Core/Common/IQuantizer.h
+@@ -18,6 +18,15 @@ namespace SPTAG
+         public:
+             virtual float L2Distance(const std::uint8_t* pX, const std::uint8_t* pY) const = 0;
+ 
++            virtual float L2DistanceWithLowerBound(const std::uint8_t* pX,
++                                                   const std::uint8_t* pY,
++                                                   float& p_lowerBound) const
++            {
++                const float distance = L2Distance(pX, pY);
++                p_lowerBound = distance;
++                return distance;
++            }
++
+             virtual float CosineDistance(const std::uint8_t* pX, const std::uint8_t* pY) const = 0;
+ 
+             template <typename T>
+@@ -27,6 +36,11 @@ namespace SPTAG
+ 
+             virtual SizeType QuantizeSize() const = 0;
+ 
++            // Most quantizers use the same layout for stored vectors and queries.
++            // Asymmetric quantizers may override this when a query needs a larger
++            // scratch representation than a stored code.
++            virtual SizeType QuantizeQuerySize() const { return QuantizeSize(); }
++
+             virtual void ReconstructVector(const std::uint8_t* qvec, void* vecout) const = 0;
+ 
+             virtual SizeType ReconstructSize() const = 0;
+diff --git a/src/SPANN-ext/AnnService/inc/Core/Common/QueryResultSet.h b/src/SPANN-ext/AnnService/inc/Core/Common/QueryResultSet.h
+index 3f57f60..77a343d 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/Common/QueryResultSet.h
++++ b/src/SPANN-ext/AnnService/inc/Core/Common/QueryResultSet.h
+@@ -59,11 +59,12 @@ public:
+             // SPTAGLIB_LOG(Helper::LogLevel::LL_Info, "setTarget: quantizer not null");
+ 
+             // Allocate quantized target buffer
+-            if (m_target == m_quantizedTarget || (m_quantizedSize != quantizer->QuantizeSize()))
++            const auto queryQuantizedSize = quantizer->QuantizeQuerySize();
++            if (m_target == m_quantizedTarget || (m_quantizedSize != queryQuantizedSize))
+             {
+                 if (m_target != m_quantizedTarget) ALIGN_FREE(m_quantizedTarget);
+-                m_quantizedTarget = ALIGN_ALLOC(quantizer->QuantizeSize());
+-                m_quantizedSize = quantizer->QuantizeSize();
++                m_quantizedTarget = ALIGN_ALLOC(queryQuantizedSize);
++                m_quantizedSize = queryQuantizedSize;
+             }
+             m_target = p_target;
+ 
+@@ -74,7 +75,7 @@ public:
+ 
+                 // Allocate temporary float buffer, the dim shoudld be passed from outside
+                 // for now, wo just hard code
+-                auto dim = 128;
++                auto dim = quantizer->ReconstructDim();
+                 std::vector<float> float_vector(dim);
+                 
+                 // Convert T* to float*
+@@ -98,7 +99,7 @@ public:
+     // Set target with pre-quantized data (no re-quantization needed)
+     inline void SetTargetWithQuantized(const T* p_target, const uint8_t* p_quantized_target, const std::shared_ptr<IQuantizer>& quantizer)
+     {
+-        auto quantized_size = quantizer == nullptr ? 0 : quantizer->QuantizeSize();
++        auto quantized_size = quantizer == nullptr ? 0 : quantizer->QuantizeQuerySize();
+ 
+         if (quantized_size == 0) {
+             QueryResult::SetTarget((const void*)p_target);
+@@ -139,11 +140,20 @@ public:
+     }
+ 
+     bool AddPoint(const SizeType index, float dist)
++    {
++        // No compressed-code bound was supplied (for example, a SPANN FP32
++        // head result).  The sentinel lets the caller distinguish this path
++        // from posting candidates carrying a certified RaBitQ lower bound.
++        return AddPoint(index, dist, -MaxDist);
++    }
++
++    bool AddPoint(const SizeType index, float dist, float lowerBound)
+     {
+         if (dist < m_results[0].Dist || (dist == m_results[0].Dist && index < m_results[0].VID))
+         {
+             m_results[0].VID = index;
+             m_results[0].Dist = dist;
++            m_results[0].LowerBound = lowerBound;
+             Heapify(m_resultNum);
+             return true;
+         }
+diff --git a/src/SPANN-ext/AnnService/inc/Core/Common/RaBitQQuantizer.h b/src/SPANN-ext/AnnService/inc/Core/Common/RaBitQQuantizer.h
+index 5ee3d18..25505f5 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/Common/RaBitQQuantizer.h
++++ b/src/SPANN-ext/AnnService/inc/Core/Common/RaBitQQuantizer.h
+@@ -68,6 +68,10 @@ namespace SPTAG {
+             RaBitQQuantizer(DimensionType dim = 0, SizeType bits = 8, int64_t num_points = 0);
+             
+             virtual float L2Distance(const std::uint8_t* pX, const std::uint8_t* pY) const override;
++
++            virtual float L2DistanceWithLowerBound(const std::uint8_t* pX,
++                                                   const std::uint8_t* pY,
++                                                   float& p_lowerBound) const override;
+             
+             virtual float CosineDistance(const std::uint8_t* pX, const std::uint8_t* pY) const override;
+             
+@@ -77,6 +81,8 @@ namespace SPTAG {
+             void QuantizeVector(const void* vec, std::uint8_t* vecout, SizeType row_id, bool ADC = true) const;
+             
+             virtual SizeType QuantizeSize() const override;
++
++            virtual SizeType QuantizeQuerySize() const override;
+             
+             virtual void ReconstructVector(const std::uint8_t* qvec, void* vecout) const override;
+             
+@@ -118,6 +124,8 @@ namespace SPTAG {
+             void Train(SizeType n, const float* x);
+ 
+             bool isRaBitQ() override { return true; }
++
++            SizeType GetNumPoints() const { return m_num_points; }
+             
+         protected:
+             void InitializeRotator();
+@@ -138,9 +146,8 @@ namespace SPTAG {
+             void LoadDebugVectors(const std::string& filename);
+             
+             bool m_EnableADC = false;
+-            bool is_load = false;
+         };
+     }
+ }
+ 
+-#endif // _SPTAG_COMMON_RABITQQUANTIZER_H_
+\ No newline at end of file
++#endif // _SPTAG_COMMON_RABITQQUANTIZER_H_
+diff --git a/src/SPANN-ext/AnnService/inc/Core/SPANN/ExtraFullGraphSearcher.h b/src/SPANN-ext/AnnService/inc/Core/SPANN/ExtraFullGraphSearcher.h
+index 5399380..0a6d152 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/SPANN/ExtraFullGraphSearcher.h
++++ b/src/SPANN-ext/AnnService/inc/Core/SPANN/ExtraFullGraphSearcher.h
+@@ -124,8 +124,9 @@ namespace SPTAG
+             int vectorID = *(reinterpret_cast<int*>(p_postingListFullData + offsetVectorID));\
+             if (p_exWorkSpace->m_deduper.CheckAndSet(vectorID)) continue; \
+             (this->*m_parseEncoding)(p_index, listInfo, (ValueType*)(p_postingListFullData + offsetVector));\
+-            auto distance2leaf = p_index->ComputeDistanceQuantizer(queryResults.GetQuantizedTarget(), p_postingListFullData + offsetVector); \
+-            queryResults.AddPoint(vectorID, distance2leaf); \
++            float lowerBound = MaxDist; \
++            auto distance2leaf = p_index->ComputeDistanceQuantizerWithLowerBound(queryResults.GetQuantizedTarget(), p_postingListFullData + offsetVector, lowerBound); \
++            queryResults.AddPoint(vectorID, distance2leaf, lowerBound); \
+         } \
+ 
+ #define ProcessPostingOffset() \
+@@ -136,8 +137,9 @@ namespace SPTAG
+             int vectorID = *(reinterpret_cast<int*>(p_postingListFullData + offsetVectorID));\
+             if (p_exWorkSpace->m_deduper.CheckAndSet(vectorID)) continue; \
+             (this->*m_parseEncoding)(p_index, listInfo, (ValueType*)(p_postingListFullData + offsetVector));\
+-            auto distance2leaf = p_index->ComputeDistance(queryResults.GetQuantizedTarget(), p_postingListFullData + offsetVector); \
+-            queryResults.AddPoint(vectorID, distance2leaf); \
++            float lowerBound = MaxDist; \
++            auto distance2leaf = p_index->ComputeDistanceQuantizerWithLowerBound(queryResults.GetQuantizedTarget(), p_postingListFullData + offsetVector, lowerBound); \
++            queryResults.AddPoint(vectorID, distance2leaf, lowerBound); \
+             foundResult = true;\
+             break;\
+         } \
+diff --git a/src/SPANN-ext/AnnService/inc/Core/SearchQuery.h b/src/SPANN-ext/AnnService/inc/Core/SearchQuery.h
+index 7c6b533..29765b1 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/SearchQuery.h
++++ b/src/SPANN-ext/AnnService/inc/Core/SearchQuery.h
+@@ -168,6 +168,7 @@ public:
+         {
+             m_results[p_index].VID = p_VID;
+             m_results[p_index].Dist = p_dist;
++            m_results[p_index].LowerBound = -MaxDist;
+         }
+     }
+ 
+@@ -210,6 +211,7 @@ public:
+         {
+             m_results[i].VID = -1;
+             m_results[i].Dist = MaxDist;
++            m_results[i].LowerBound = MaxDist;
+             m_results[i].Meta.Clear();
+         }
+     }
+diff --git a/src/SPANN-ext/AnnService/inc/Core/SearchResult.h b/src/SPANN-ext/AnnService/inc/Core/SearchResult.h
+index 8c458fe..fada093 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/SearchResult.h
++++ b/src/SPANN-ext/AnnService/inc/Core/SearchResult.h
+@@ -66,15 +66,16 @@ namespace SPTAG
+     {
+         SizeType VID;
+         float Dist;
++        float LowerBound;
+         ByteArray Meta;
+         bool RelaxedMono;
+ 
+-        BasicResult() : VID(-1), Dist(MaxDist), RelaxedMono(false) {}
++        BasicResult() : VID(-1), Dist(MaxDist), LowerBound(MaxDist), RelaxedMono(false) {}
+ 
+-        BasicResult(SizeType p_vid, float p_dist) : VID(p_vid), Dist(p_dist), RelaxedMono(false) {}
++        BasicResult(SizeType p_vid, float p_dist) : VID(p_vid), Dist(p_dist), LowerBound(-MaxDist), RelaxedMono(false) {}
+ 
+-        BasicResult(SizeType p_vid, float p_dist, ByteArray p_meta) : VID(p_vid), Dist(p_dist), Meta(p_meta), RelaxedMono(false) {}
+-        BasicResult(SizeType p_vid, float p_dist, ByteArray p_meta, bool p_relaxedMono) : VID(p_vid), Dist(p_dist), Meta(p_meta), RelaxedMono(p_relaxedMono) {}
++        BasicResult(SizeType p_vid, float p_dist, ByteArray p_meta) : VID(p_vid), Dist(p_dist), LowerBound(-MaxDist), Meta(p_meta), RelaxedMono(false) {}
++        BasicResult(SizeType p_vid, float p_dist, ByteArray p_meta, bool p_relaxedMono) : VID(p_vid), Dist(p_dist), LowerBound(-MaxDist), Meta(p_meta), RelaxedMono(p_relaxedMono) {}
+     };
+ 
+ } // namespace SPTAG
+diff --git a/src/SPANN-ext/AnnService/inc/Core/VectorIndex.h b/src/SPANN-ext/AnnService/inc/Core/VectorIndex.h
+index e36ec27..aa60856 100644
+--- a/src/SPANN-ext/AnnService/inc/Core/VectorIndex.h
++++ b/src/SPANN-ext/AnnService/inc/Core/VectorIndex.h
+@@ -61,6 +61,14 @@ public:
+     virtual float AccurateDistance(const void* pX, const void* pY) const = 0;
+     virtual float ComputeDistance(const void* pX, const void* pY) const = 0;
+     virtual float ComputeDistanceQuantizer(const void* pX, const void* pY) const {return 0;}
++    virtual float ComputeDistanceQuantizerWithLowerBound(const void* pX,
++                                                         const void* pY,
++                                                         float& p_lowerBound) const
++    {
++        const float distance = ComputeDistanceQuantizer(pX, pY);
++        p_lowerBound = distance;
++        return distance;
++    }
+     virtual float GetDistance(const void* target, const SizeType idx) const = 0;
+     virtual const void* GetSample(const SizeType idx) const = 0;
+     virtual bool ContainSample(const SizeType idx) const = 0;
+diff --git a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReader.h b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReader.h
+index ea68419..8ae0e23 100644
+--- a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReader.h
++++ b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReader.h
+@@ -47,6 +47,8 @@ public:
+ 
+     virtual std::shared_ptr<VectorSet> GetVectorSet(SizeType start = 0, SizeType end = -1) const = 0;
+ 
++    virtual SizeType GetVectorCount() const = 0;
++
+     virtual std::shared_ptr<MetadataSet> GetMetadataSet() const = 0;
+ 
+     virtual bool IsNormalized() const { return m_options->m_normalized; }
+diff --git a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/DefaultReader.h b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/DefaultReader.h
+index 2051cfd..78ea272 100644
+--- a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/DefaultReader.h
++++ b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/DefaultReader.h
+@@ -22,6 +22,8 @@ public:
+ 
+     virtual std::shared_ptr<VectorSet> GetVectorSet(SizeType start = 0, SizeType end = -1) const;
+ 
++    virtual SizeType GetVectorCount() const;
++
+     virtual std::shared_ptr<MetadataSet> GetMetadataSet() const;
+ 
+ private:
+diff --git a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/MemoryReader.h b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/MemoryReader.h
+index 1a5f84a..396e1df 100644
+--- a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/MemoryReader.h
++++ b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/MemoryReader.h
+@@ -31,6 +31,8 @@ namespace SPTAG
+                     end - start));
+             }
+ 
++            virtual SizeType GetVectorCount() const { return m_vectors->Count(); }
++
+             virtual std::shared_ptr<MetadataSet> GetMetadataSet() const { return nullptr; }
+ 
+         private:
+diff --git a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/TxtReader.h b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/TxtReader.h
+index 9fcb726..8b44a3d 100644
+--- a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/TxtReader.h
++++ b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/TxtReader.h
+@@ -27,6 +27,8 @@ public:
+ 
+     virtual std::shared_ptr<VectorSet> GetVectorSet(SizeType start = 0, SizeType end = -1) const;
+ 
++    virtual SizeType GetVectorCount() const;
++
+     virtual std::shared_ptr<MetadataSet> GetMetadataSet() const;
+ 
+ private:
+diff --git a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/XvecReader.h b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/XvecReader.h
+index 5cd6584..7a7ac5e 100644
+--- a/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/XvecReader.h
++++ b/src/SPANN-ext/AnnService/inc/Helper/VectorSetReaders/XvecReader.h
+@@ -22,6 +22,8 @@ public:
+ 
+     virtual std::shared_ptr<VectorSet> GetVectorSet(SizeType start = 0, SizeType end = -1) const;
+ 
++    virtual SizeType GetVectorCount() const;
++
+     virtual std::shared_ptr<MetadataSet> GetMetadataSet() const;
+ 
+ private:
+diff --git a/src/SPANN-ext/AnnService/src/Core/Common/RaBitQQuantizer.cpp b/src/SPANN-ext/AnnService/src/Core/Common/RaBitQQuantizer.cpp
+index c3ee455..99dd86d 100644
+--- a/src/SPANN-ext/AnnService/src/Core/Common/RaBitQQuantizer.cpp
++++ b/src/SPANN-ext/AnnService/src/Core/Common/RaBitQQuantizer.cpp
+@@ -16,7 +16,16 @@
+ namespace SPTAG {
+     namespace COMMON {
+         RaBitQQuantizer::RaBitQQuantizer(DimensionType dim, SizeType bits, int64_t num_points)
+-        : m_dim(dim), m_bits(bits), m_num_points(num_points), m_quantization_counter(0) {
++        : m_dim(dim),
++          m_bits(bits),
++          m_padded_dim(0),
++          m_num_points(static_cast<SizeType>(num_points)),
++          m_ex_bits(0),
++          m_bin_data_stride(0),
++          m_ex_data_stride(0),
++          m_diskann_bin_data_stride(0),
++          m_diskann_ex_data_stride(0),
++          m_quantization_counter(0) {
+             if (dim > 0) {
+                 SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "point %d, m_bits %d!\n", num_points, m_bits);
+                 InitializeRotator();
+@@ -44,6 +53,13 @@ namespace SPTAG {
+ 
+ 
+         float RaBitQQuantizer::L2Distance(const std::uint8_t* pX, const std::uint8_t* pY) const {
++            float lower_bound = 0.0f;
++            return L2DistanceWithLowerBound(pX, pY, lower_bound);
++        }
++
++        float RaBitQQuantizer::L2DistanceWithLowerBound(const std::uint8_t* pX,
++                                                       const std::uint8_t* pY,
++                                                       float& p_lowerBound) const {
+             // pX is the query vector (quantized with embedded cache)
+             // pY is the posting list vector (quantized) - not used, we use row_id to access DiskAnn format data
+             // row_id is the actual vector ID from the posting list
+@@ -92,6 +108,7 @@ namespace SPTAG {
+                 );
+             }
+ 
++            p_lowerBound = low_dist;
+             return est_dist;
+         }
+ 
+@@ -136,7 +153,7 @@ namespace SPTAG {
+             
+             // Store in SPTAG format for reconstruction compatibility
+             //StoreSPTAGFormat(reinterpret_cast<const float*>(rotated_data.Data()), vecout, row_id);
+-            if (is_load) {
++            if (ADC) {
+                 // means the vector is query
+                 //std::memcpy(query_rotated, query_rotated + m_padded_dim, vecout);
+                 // float* vecout_float = reinterpret_cast<float*>(vecout);
+@@ -179,17 +196,13 @@ namespace SPTAG {
+         }
+ 
+         SizeType RaBitQQuantizer::QuantizeSize() const {
+-            //if(m_EnableADC) {
+-            //  return m_padded_dim * sizeof(float) + sizeof(float);
+-            //}
+-            if (is_load) {
+-                // quantize query
+-                // origin query vector + query_norm
+-                return m_padded_dim * sizeof(float) + sizeof(float);
+-            }
+             return m_diskann_bin_data_stride + m_diskann_ex_data_stride;
+         }
+ 
++        SizeType RaBitQQuantizer::QuantizeQuerySize() const {
++            return m_padded_dim * sizeof(float) + sizeof(float);
++        }
++
+         void RaBitQQuantizer::ReconstructVector(const std::uint8_t* qvec, void* vecout) const {
+             // Extract delta and vl values (ignore row ID for reconstruction)
+             const float* delta = reinterpret_cast<const float*>(qvec + m_padded_dim);
+@@ -240,25 +253,17 @@ namespace SPTAG {
+ 
+             // Save rotator
+             if (m_rotator) {
+-                // Create a temporary file to save the rotator
+-                std::string temp_filename = "temp_rotator.bin";
+-                std::ofstream temp_file(temp_filename, std::ios::binary);
+-                m_rotator->save(temp_file);
+-                temp_file.close();
+-                
+-                // Read the file content
+-                std::ifstream temp_read(temp_filename, std::ios::binary | std::ios::ate);
+-                SizeType rotator_size = static_cast<SizeType>(temp_read.tellg());
+-                temp_read.seekg(0, std::ios::beg);
+-                std::vector<char> rotator_data(rotator_size);
+-                temp_read.read(rotator_data.data(), rotator_size);
+-                temp_read.close();
+-                
+-                // Delete the temporary file
+-                std::remove(temp_filename.c_str());
++                std::ostringstream rotator_stream(std::ios::out | std::ios::binary);
++                m_rotator->save(rotator_stream);
++                const std::string rotator_data = rotator_stream.str();
++                if (rotator_data.size() > static_cast<size_t>((std::numeric_limits<SizeType>::max)())) {
++                    SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "RaBitQ rotator payload is too large.\n");
++                    return ErrorCode::Fail;
++                }
++                SizeType rotator_size = static_cast<SizeType>(rotator_data.size());
+                 
+                 IOBINARY(p_out, WriteBinary, sizeof(SizeType), (char*)&rotator_size);
+-                IOBINARY(p_out, WriteBinary, rotator_size, (char*)rotator_data.data());
++                IOBINARY(p_out, WriteBinary, rotator_size, const_cast<char*>(rotator_data.data()));
+             } else {
+                 SizeType rotator_size = 0;
+                 IOBINARY(p_out, WriteBinary, sizeof(SizeType), (char*)&rotator_size);
+@@ -273,19 +278,34 @@ namespace SPTAG {
+ 
+         ErrorCode RaBitQQuantizer::LoadQuantizer(std::shared_ptr<Helper::DiskIO> p_in) {
+             SPTAGLIB_LOG(Helper::LogLevel::LL_Info, "Loading RaBitQ Quantizer.\n");
+-            is_load = true;
+             IOBINARY(p_in, ReadBinary, sizeof(DimensionType), (char*)&m_dim);
+-            IOBINARY(p_in, ReadBinary, sizeof(DimensionType), (char*)&m_padded_dim);
++            DimensionType stored_padded_dim = 0;
++            IOBINARY(p_in, ReadBinary, sizeof(DimensionType), (char*)&stored_padded_dim);
+             IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&m_bits);
+             IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&m_ex_bits);
+             IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&m_num_points);
+             
+             // Load DiskAnn format strides
+-            IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&m_diskann_bin_data_stride);
+-            IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&m_diskann_ex_data_stride);
++            SizeType stored_bin_stride = 0;
++            SizeType stored_ex_stride = 0;
++            IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&stored_bin_stride);
++            IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&stored_ex_stride);
+ 
+             // Initialize rotator and query config
+             InitializeRotator();
++            if (m_dim <= 0 || m_bits <= 0 || m_bits > 8 || m_ex_bits != m_bits - 1 ||
++                m_num_points < 0 || stored_padded_dim != m_padded_dim) {
++                SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "Invalid RaBitQ quantizer header.\n");
++                return ErrorCode::Fail;
++            }
++            const auto expected_bin_stride = static_cast<SizeType>(rabitqlib::BinDataMap<float>::data_bytes(m_padded_dim));
++            const auto expected_ex_stride = static_cast<SizeType>(rabitqlib::ExDataMap<float>::data_bytes(m_padded_dim, m_ex_bits));
++            if (stored_bin_stride != expected_bin_stride || stored_ex_stride != expected_ex_stride) {
++                SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "RaBitQ quantizer stride mismatch.\n");
++                return ErrorCode::Fail;
++            }
++            m_diskann_bin_data_stride = stored_bin_stride;
++            m_diskann_ex_data_stride = stored_ex_stride;
+             m_query_config = rabitqlib::quant::faster_config(m_padded_dim, rabitqlib::SplitSingleQuery<float>::kNumBits);
+ 
+             // Load rotated centroid
+@@ -295,24 +315,14 @@ namespace SPTAG {
+             // Load rotator
+             SizeType rotator_size = 0;
+             IOBINARY(p_in, ReadBinary, sizeof(SizeType), (char*)&rotator_size);
+-            if (rotator_size > 0) {
+-                std::vector<char> rotator_data(rotator_size);
+-                IOBINARY(p_in, ReadBinary, rotator_size, (char*)rotator_data.data());
+-                
+-                // Create a temporary file to load the rotator
+-                std::string temp_filename = "temp_rotator.bin";
+-                std::ofstream temp_file(temp_filename, std::ios::binary);
+-                temp_file.write(rotator_data.data(), rotator_size);
+-                temp_file.close();
+-                
+-                // Load from the temporary file
+-                std::ifstream temp_read(temp_filename, std::ios::binary);
+-                m_rotator->load(temp_read);
+-                temp_read.close();
+-                
+-                // Delete the temporary file
+-                std::remove(temp_filename.c_str());
++            if (rotator_size <= 0 || rotator_size > (1 << 30)) {
++                SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "Invalid RaBitQ rotator payload size.\n");
++                return ErrorCode::Fail;
+             }
++            std::string rotator_data(static_cast<size_t>(rotator_size), '\0');
++            IOBINARY(p_in, ReadBinary, rotator_size, rotator_data.data());
++            std::istringstream rotator_stream(rotator_data, std::ios::in | std::ios::binary);
++            m_rotator->load(rotator_stream);
+ 
+ 
+ 
+@@ -587,4 +597,4 @@ namespace SPTAG {
+                 m_original_vectors_map.size(), filename.c_str());
+         }
+       }
+-}
+\ No newline at end of file
++}
+diff --git a/src/SPANN-ext/AnnService/src/Core/VectorIndex.cpp b/src/SPANN-ext/AnnService/src/Core/VectorIndex.cpp
+index 1d90fed..ab763b6 100644
+--- a/src/SPANN-ext/AnnService/src/Core/VectorIndex.cpp
++++ b/src/SPANN-ext/AnnService/src/Core/VectorIndex.cpp
+@@ -653,9 +653,19 @@ VectorIndex::LoadIndex(const std::string& p_loaderFilePath, std::shared_ptr<Vect
+         handles.push_back(std::move(ptr));
+     }
+ 
++    // The quantizer determines the in-memory vector type and the SSD posting
++    // searcher specialization.  It must therefore be installed before
++    // LoadIndexData(), not after it has already constructed those objects.
++    size_t metaStart = p_vectorIndex->GetIndexFiles()->size();
++    size_t quantizerStart = metaStart;
++    if (iniReader.DoesSectionExist("MetaData")) quantizerStart += 2;
++    if (iniReader.DoesSectionExist("Quantizer")) {
++        p_vectorIndex->SetQuantizer(SPTAG::COMMON::IQuantizer::LoadIQuantizer(handles[quantizerStart]));
++        if (!p_vectorIndex->m_pQuantizer) return ErrorCode::FailedParseValue;
++    }
++
+     if ((ret = p_vectorIndex->LoadIndexData(handles)) != ErrorCode::Success) return ret;
+ 
+-    size_t metaStart = p_vectorIndex->GetIndexFiles()->size();
+     if (iniReader.DoesSectionExist("MetaData"))
+     {
+         p_vectorIndex->SetMetadata(new MemMetadataSet(handles[metaStart], handles[metaStart + 1], 
+@@ -673,12 +683,6 @@ VectorIndex::LoadIndex(const std::string& p_loaderFilePath, std::shared_ptr<Vect
+         }
+         metaStart += 2;
+     }
+-    if (iniReader.DoesSectionExist("Quantizer")) {
+-        SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "Loading quantizer from LoadIndex metaStart: %d\n", metaStart);
+-        p_vectorIndex->SetQuantizer(SPTAG::COMMON::IQuantizer::LoadIQuantizer(handles[metaStart]));
+-        SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "LoadIndex loaded quantizer at %p\n", p_vectorIndex->m_pQuantizer.get());
+-        if (!p_vectorIndex->m_pQuantizer) return ErrorCode::FailedParseValue;
+-    }
+     p_vectorIndex->m_bReady = true;
+     return ErrorCode::Success;
+ }
+diff --git a/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/DefaultReader.cpp b/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/DefaultReader.cpp
+index 3d2d5d5..122bd81 100644
+--- a/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/DefaultReader.cpp
++++ b/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/DefaultReader.cpp
+@@ -76,6 +76,21 @@ DefaultVectorReader::GetVectorSet(SizeType start, SizeType end) const
+ }
+ 
+ 
++SizeType
++DefaultVectorReader::GetVectorCount() const
++{
++    auto ptr = f_createIO();
++    if (ptr == nullptr || !ptr->Initialize(m_vectorOutput.c_str(), std::ios::binary | std::ios::in)) {
++        throw std::runtime_error("Failed read file");
++    }
++    SizeType row = 0;
++    if (ptr->ReadBinary(sizeof(SizeType), reinterpret_cast<char*>(&row)) != sizeof(SizeType) || row < 0) {
++        throw std::runtime_error("Invalid vector count header");
++    }
++    return row;
++}
++
++
+ std::shared_ptr<MetadataSet>
+ DefaultVectorReader::GetMetadataSet() const
+ {
+diff --git a/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/TxtReader.cpp b/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/TxtReader.cpp
+index 35aae3e..29e97de 100644
+--- a/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/TxtReader.cpp
++++ b/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/TxtReader.cpp
+@@ -154,6 +154,21 @@ TxtVectorReader::GetVectorSet(SizeType start, SizeType end) const
+ }
+ 
+ 
++SizeType
++TxtVectorReader::GetVectorCount() const
++{
++    auto ptr = f_createIO();
++    if (ptr == nullptr || !ptr->Initialize(m_vectorOutput.c_str(), std::ios::binary | std::ios::in)) {
++        throw std::runtime_error("Failed read file");
++    }
++    SizeType row = 0;
++    if (ptr->ReadBinary(sizeof(SizeType), reinterpret_cast<char*>(&row)) != sizeof(SizeType) || row < 0) {
++        throw std::runtime_error("Invalid vector count header");
++    }
++    return row;
++}
++
++
+ std::shared_ptr<MetadataSet>
+ TxtVectorReader::GetMetadataSet() const
+ {
+diff --git a/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/XvecReader.cpp b/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/XvecReader.cpp
+index a0b77e2..5dc902f 100644
+--- a/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/XvecReader.cpp
++++ b/src/SPANN-ext/AnnService/src/Helper/VectorSetReaders/XvecReader.cpp
+@@ -113,6 +113,21 @@ XvecVectorReader::GetVectorSet(SizeType start, SizeType end) const
+ }
+ 
+ 
++SizeType
++XvecVectorReader::GetVectorCount() const
++{
++    auto ptr = f_createIO();
++    if (ptr == nullptr || !ptr->Initialize(m_vectorOutput.c_str(), std::ios::binary | std::ios::in)) {
++        throw std::runtime_error("Failed read file");
++    }
++    SizeType row = 0;
++    if (ptr->ReadBinary(sizeof(SizeType), reinterpret_cast<char*>(&row)) != sizeof(SizeType) || row < 0) {
++        throw std::runtime_error("Invalid vector count header");
++    }
++    return row;
++}
++
++
+ std::shared_ptr<MetadataSet>
+ XvecVectorReader::GetMetadataSet() const
+ {
+diff --git a/src/SPANN-ext/AnnService/src/Quantizer/main.cpp b/src/SPANN-ext/AnnService/src/Quantizer/main.cpp
+index 23f1c8d..4f53fb5 100644
+--- a/src/SPANN-ext/AnnService/src/Quantizer/main.cpp
++++ b/src/SPANN-ext/AnnService/src/Quantizer/main.cpp
+@@ -8,13 +8,52 @@
+ #include <inc/Core/Common/DistanceUtils.h>
+ #include "inc/Quantizer/Training.h"
+ #include "inc/Core/Common/FlatQuantizer.h"
++#include "inc/Core/Common/RaBitQQuantizer.h"
+ 
++#include <fstream>
+ #include <memory>
+ 
+ using namespace SPTAG;
+ 
++namespace {
++
++void ResetOutput(const std::string& path)
++{
++    if (!path.empty() && fileexists(path.c_str()) && std::remove(path.c_str()) != 0)
++    {
++        throw std::runtime_error("Failed to remove stale quantizer output: " + path);
++    }
++}
++
++void ValidateUInt8VectorFile(const std::string& path, SizeType expectedRows, DimensionType expectedDim)
++{
++    std::ifstream input(path, std::ios::binary | std::ios::ate);
++    if (!input)
++    {
++        throw std::runtime_error("Failed to validate quantized vector file: " + path);
++    }
++    const std::streamoff actualBytes = input.tellg();
++    input.seekg(0, std::ios::beg);
++    SizeType rows = -1;
++    DimensionType dim = -1;
++    input.read(reinterpret_cast<char*>(&rows), sizeof(rows));
++    input.read(reinterpret_cast<char*>(&dim), sizeof(dim));
++    const std::uint64_t expectedBytes = sizeof(SizeType) + sizeof(DimensionType) +
++        static_cast<std::uint64_t>(expectedRows) * static_cast<std::uint64_t>(expectedDim);
++    if (!input || rows != expectedRows || dim != expectedDim ||
++        actualBytes < 0 || static_cast<std::uint64_t>(actualBytes) != expectedBytes)
++    {
++        throw std::runtime_error("Quantized vector header or payload size mismatch: " + path);
++    }
++}
++
++} // namespace
++
+ void QuantizeAndSave(std::shared_ptr<SPTAG::Helper::VectorSetReader>& vectorReader, std::shared_ptr<QuantizerOptions>& options, std::shared_ptr<SPTAG::COMMON::IQuantizer>& quantizer)
+ {
++    ResetOutput(options->m_outputFile);
++    ResetOutput(options->m_outputFullVecFile);
++    ResetOutput(options->m_outputReconstructVecFile);
+     std::shared_ptr<SPTAG::VectorSet> set;
+     
+     for (int i = 0; (set = vectorReader->GetVectorSet(i, i + options->m_trainingSamples))->Count() > 0; i += options->m_trainingSamples)
+@@ -55,14 +94,14 @@ if (!(quantizer->isPQ()) && options->m_inputValueType == SPTAG::VectorValueType:
+ #pragma omp parallel for
+         for (int j = 0; j < set->Count(); j++)
+         {
+-            quantizer->QuantizeVector((void*)(float_data.get() + j * set->Dimension()), (uint8_t*)quantized_vectors->GetVector(j));
++            quantizer->QuantizeVector((void*)(float_data.get() + j * set->Dimension()), (uint8_t*)quantized_vectors->GetVector(j), false);
+         }
+         //SPTAGLIB_LOG(Helper::LogLevel::LL_Info, "mmmmmmmmmmmm\n", quantized_vector_size);
+ } else {
+ #pragma omp parallel for
+      for (int j = 0; j < set->Count(); j++)
+         {
+-            quantizer->QuantizeVector(set->GetVector(j), (uint8_t*)quantized_vectors->GetVector(j));
++            quantizer->QuantizeVector(set->GetVector(j), (uint8_t*)quantized_vectors->GetVector(j), false);
+         }
+ }
+ 
+@@ -97,6 +136,8 @@ if (!(quantizer->isPQ()) && options->m_inputValueType == SPTAG::VectorValueType:
+         }
+         //break;
+     }
++
++    ValidateUInt8VectorFile(options->m_outputFile, vectorReader->GetVectorCount(), quantizer->QuantizeSize());
+ }
+ 
+ int main(int argc, char* argv[])
+@@ -233,12 +274,16 @@ int main(int argc, char* argv[])
+         {
+             SPTAGLIB_LOG(Helper::LogLevel::LL_Info, "Quantizer Does not exist. Training a new one.\n");
+             auto set = vectorReader->GetVectorSet(0, options->m_trainingSamples);
++            if (options->m_normalized)
++            {
++                set->Normalize(options->m_threadNum);
++            }
+             
+             switch (options->m_inputValueType)
+             {
+ #define DefineVectorValueType(Name, Type) \
+                 case VectorValueType::Name: \
+-                    quantizer = TrainRaBitQQuantizer<Type>(options, set, set->Count()); \
++                    quantizer = TrainRaBitQQuantizer<Type>(options, set, vectorReader->GetVectorCount()); \
+                     break;
+ 
+ #include "inc/Core/DefinitionList.h"
+@@ -264,6 +309,13 @@ int main(int argc, char* argv[])
+                 exit(1);
+             }
+             quantizer->SetEnableADC(false);
++            auto rabitq = std::dynamic_pointer_cast<SPTAG::COMMON::RaBitQQuantizer>(quantizer);
++            if (!rabitq || rabitq->GetNumPoints() != vectorReader->GetVectorCount())
++            {
++                SPTAGLIB_LOG(Helper::LogLevel::LL_Error,
++                    "RaBitQ quantizer vector-count mismatch; rebuild the quantizer.\n");
++                exit(1);
++            }
+         }
+ 
+         QuantizeAndSave(vectorReader, options, quantizer);
+@@ -369,4 +421,4 @@ int main(int argc, char* argv[])
+         exit(1);
+     }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/SPANN-ext/AnnService/src/SSDServing/main.cpp b/src/SPANN-ext/AnnService/src/SSDServing/main.cpp
+index 6a41475..16f3893 100644
+--- a/src/SPANN-ext/AnnService/src/SSDServing/main.cpp
++++ b/src/SPANN-ext/AnnService/src/SSDServing/main.cpp
+@@ -123,6 +123,18 @@ namespace SPTAG {
+ 				exit(1);
+ 			}
+ 
++				// Persist the top-level SPANN loader and quantizer so a separate
++				// benchmark process can reopen the completed SSD index safely.
++				if (!QuantizerFilePath.empty()) {
++					size_t separator = QuantizerFilePath.find_last_of("/\\");
++					index->SetQuantizerFileName(
++						separator == std::string::npos ? QuantizerFilePath : QuantizerFilePath.substr(separator + 1));
++				}
++				if (index->SaveIndex(opts->m_indexDirectory) != ErrorCode::Success) {
++					SPTAGLIB_LOG(Helper::LogLevel::LL_Error, "Failed to persist SPANN index.\n");
++					exit(1);
++				}
++
+ 			if (opts->m_generateTruth)
+ 			{
+ 				SPTAGLIB_LOG(Helper::LogLevel::LL_Info, "Start generating truth. It's maybe a long time.\n");
+diff --git a/src/SPANN-ext/CMakeLists.txt b/src/SPANN-ext/CMakeLists.txt
+index e3097ee..f33d409 100644
+--- a/src/SPANN-ext/CMakeLists.txt
++++ b/src/SPANN-ext/CMakeLists.txt
+@@ -3,7 +3,7 @@
+ set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ cmake_minimum_required (VERSION 3.12)
+-set(FAISS_ROOT /usr/local)
++set(FAISS_ROOT /usr/local CACHE PATH "FAISS installation prefix")
+ include_directories(${FAISS_ROOT}/include)
+ 
+ project (SPTAGLib)

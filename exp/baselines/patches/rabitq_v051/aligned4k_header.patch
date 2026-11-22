@@ -1,0 +1,45 @@
+--- a/python_bindings/hnsw_bindings.cpp
++++ b/python_bindings/hnsw_bindings.cpp
+@@
+ #include <fcntl.h>
++#include <sys/stat.h>
+ #include <unistd.h>
+@@
+     int32_t d = 0;
+     size_t row_bytes = 0;
++    uint64_t data_offset = 0;
+@@
+-        ::close(header_fd);
+         n = header[0];
+         d = header[1];
+         if (n <= 0 || d <= 0) {
++            ::close(header_fd);
+             throw std::runtime_error("invalid fbin shape: " + path);
+         }
+         row_bytes = static_cast<size_t>(d) * sizeof(float);
++        struct stat st {};
++        if (::fstat(header_fd, &st) != 0 || st.st_size < 0) {
++            ::close(header_fd);
++            throw std::runtime_error("fstat failed: " + path + ": " + std::strerror(errno));
++        }
++        const uint64_t payload_bytes =
++            static_cast<uint64_t>(n) * static_cast<uint64_t>(row_bytes);
++        const uint64_t file_bytes = static_cast<uint64_t>(st.st_size);
++        if (file_bytes == 4096ULL + payload_bytes) {
++            data_offset = 4096ULL;
++        } else if (file_bytes == 8ULL + payload_bytes) {
++            data_offset = 8ULL;
++        } else {
++            ::close(header_fd);
++            throw std::runtime_error("unexpected fbin size: " + path);
++        }
++        ::close(header_fd);
+@@
+-        const uint64_t offset = 8ULL + label * row_bytes;
++        const uint64_t offset = data_offset + label * row_bytes;
+@@
+         stats["odirect_read_requests"] = py::int_(
+             reader.read_requests.load(std::memory_order_relaxed)
+         );
++        stats["fbin_data_offset"] = py::int_(reader.data_offset);
+         return py::make_tuple(ids, dists, stats);

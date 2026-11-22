@@ -1,0 +1,9 @@
+dataset,target_recall,adcbq_reached,adcbq_efSearch,adcbq_recall,adcbq_qps,adcbq_rerank_mean,fp_hnsw_reached,fp_hnsw_efSearch,fp_hnsw_recall,fp_hnsw_qps,adcbq_over_fp_qps
+msmarco_qwen1024,0.95,True,40,0.956371,5976.17,31.0435,True,32,0.958796,3005.42,1.9884641747243315
+msmarco_qwen1024,0.98,True,96,0.980385,3091.69,46.1803,True,80,0.980635,1410.04,2.1926257411137273
+msmarco_qwen1024,0.99,True,320,0.990836,1062.37,54.4492,True,256,0.990635,493.061,2.154642123388384
+msmarco_qwen1024,0.995,False,,,,,True,1024,0.995301,134.273,
+dbpedia_qwen1024,0.95,True,40,0.958,5541.82,33.4933,True,32,0.964667,2450.49,2.2615150439299896
+dbpedia_qwen1024,0.98,True,96,0.981667,2786.64,48.9233,True,72,0.982,1231.85,2.2621585420302797
+dbpedia_qwen1024,0.99,True,256,0.992333,1174.09,53.7,True,192,0.991667,504.848,2.325630684879409
+dbpedia_qwen1024,0.995,False,,,,,True,512,0.995667,197.486,

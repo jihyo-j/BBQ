@@ -1,0 +1,6 @@
+nrows = 1
+ytop = 10.5
+scale = 0.93
+ls=1 | BBQ-Sequential | lp
+ls=2 | BBQ-Async Batch | lp
+ls=3 | BBQ-Async Batch + Overlap | lp

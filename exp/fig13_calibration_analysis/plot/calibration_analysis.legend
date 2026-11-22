@@ -1,0 +1,4 @@
+nrows = 1
+ytop = 10.5
+ls=1 | FP reads / query | box
+ls=2 | Latency | lp

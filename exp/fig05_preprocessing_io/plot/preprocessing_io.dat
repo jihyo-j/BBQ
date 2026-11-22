@@ -1,0 +1,18 @@
+# from ../results/qwen1024_five_method_recall099_timing_t1.csv
+# x prep_ms total_ms(prep+io_wait) label method prep_label
+
+
+# bars_a  (msmarco_qwen1024)
+1 0.004745 0.522364 0.52 "ADC-BQ" "4.7µs"
+2 0.009561 0.289497 0.29 "TurboQuant1" "9.6µs"
+3 0.022988 10.007820 10.0 "HNSW-RaBitQ1" "23µs"
+4 0.124230 35.930580 35.9 "DiskANN PQ128" "124µs"
+5 13.971187 50.067500 50.1 "DiskANN OPQ128" "14ms"
+
+
+# bars_b  (nq_qwen1024)
+1 0.004673 0.254192 0.25 "ADC-BQ" "4.7µs"
+2 0.009969 0.217237 0.22 "TurboQuant1" "10µs"
+3 0.022943 9.397072 9.4 "HNSW-RaBitQ1" "23µs"
+4 0.120566 18.789650 18.8 "DiskANN PQ128" "121µs"
+5 11.781900 23.770080 23.8 "DiskANN OPQ128" "12ms"

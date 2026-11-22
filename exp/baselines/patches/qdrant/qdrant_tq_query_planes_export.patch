@@ -1,0 +1,49 @@
+diff --git a/lib/quantization/src/turboquant/simd/query/mod.rs b/lib/quantization/src/turboquant/simd/query/mod.rs
+--- a/lib/quantization/src/turboquant/simd/query/mod.rs
++++ b/lib/quantization/src/turboquant/simd/query/mod.rs
+@@ -301,6 +301,16 @@ impl<const PLANES: usize, const QUERY_BYTES: usize> QuerySimd<PLANES, QUERY_BYTE
+         self.bias_correction
+     }
+ 
++    /// Export the SIMD query planes in their native contiguous layout.
++    pub fn export_planes_i8(&self, output: &mut [i8]) -> bool {
++        if output.len() != self.planes.data.len() {
++            return false;
++        }
++        output.copy_from_slice(&self.planes.data);
++        true
++    }
++
+     /// Packed bytes per encoded vector: `dim / PLANES`.
+     #[inline]
+     pub fn vector_bytes(&self) -> usize {
+diff --git a/lib/quantization/src/turboquant/mod.rs b/lib/quantization/src/turboquant/mod.rs
+--- a/lib/quantization/src/turboquant/mod.rs
++++ b/lib/quantization/src/turboquant/mod.rs
+@@ -176,6 +176,24 @@ impl EncodedQueryTQ {
+             l2_norm: self.l2_norm,
+         })
+     }
++
++    /// Export the native two-byte, eight-plane layout used by the AVX-512
++    /// Bits1Wide scorer.
++    pub fn export_bits1_wide_planes(
++        &self,
++        output: &mut [i8],
++    ) -> Option<Bits1WideQueryExport> {
++        let EncodedQueryTQData::Bits1Wide(query) = &self.data else {
++            return None;
++        };
++        if !query.export_planes_i8(output) {
++            return None;
++        }
++        Some(Bits1WideQueryExport {
++            postprocess_scale: query.postprocess_scale(),
++            bias_correction: query.bias_correction(),
++            ec_correction: self.ec_correction,
++            l2_norm: self.l2_norm,
++        })
++    }
+ }
+ 
+ /// SIMD-ready encoded query, one variant per supported bit-width.  Each
