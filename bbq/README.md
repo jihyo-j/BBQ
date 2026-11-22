@@ -19,7 +19,7 @@ bbq/
 ## Build
 
 ```bash
-export FAISS_ROOT=/path/to/faiss            # FAISS 1.14.x, built with AVX2 (libfaiss_avx2)
+export FAISS_ROOT=/path/to/faiss            # upstream facebookresearch/faiss 46def469, built with AVX2 (libfaiss_avx2)
 export FAISS_BUILD=$FAISS_ROOT/build/faiss  # directory holding libfaiss_avx2.so
 export BLAS_LIB=/path/to/openblas/lib       # optional
 ./bbq/build.sh            # -> build/bbq_hnsw
@@ -27,7 +27,9 @@ export BLAS_LIB=/path/to/openblas/lib       # optional
 ./bbq/build.sh dynamic    # -> build/bbq_dynamic_insert (also builds the TurboQuant FFI via cargo)
 ```
 
-Needs g++ ≥ 11, OpenMP, liburing, OpenBLAS, and an AVX-512 CPU (`-march=native`). `PAGE_BYTES=8192|16384` changes
+Needs g++ ≥ 11, OpenMP, liburing, OpenBLAS, and an AVX-512 CPU (`-march=native`). No FAISS fork is required: the
+exact upstream commit and cmake line are in `exp/baselines/patches/faiss/README.md`. All three targets build
+against it (checked with the static `libfaiss_avx2.a`). `PAGE_BYTES=8192|16384` changes
 the graph page size of the memory-constrained mode (Fig. 20). `make smoke` at the repo root runs the whole path on
 synthetic data in about a minute.
 

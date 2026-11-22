@@ -5,6 +5,7 @@
 //
 // Exit status: 0 if every claim passes, 1 otherwise.
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -27,16 +28,28 @@ int main(int argc, char** argv) {
     std::string err;
     if (!bbq::verify::load_claims(claims_path, claims, err)) { std::cerr << err << "\n"; return 2; }
 
+    // Which manuscript the "paper" column was transcribed from (one line, optional).
+    std::ifstream src(root + "/claims.source");
+    std::string manuscript;
+    if (src) std::getline(src, manuscript);
+
     bbq::verify::Checker checker(root);
+    auto outcomes = checker.run(claims);  // all claims: derived ones may reference claims outside --only
     int pass = 0, fail = 0;
-    for (auto& c : claims) {
+    for (size_t i = 0; i < claims.size(); ++i) {
+        const auto& c = claims[i];
+        const auto& o = outcomes[i];
         if (!only.empty() && c.id.rfind(only, 0) != 0) continue;
-        auto o = checker.check(c);
+        if (c.reference) {  // operating points used only inside derived claims
+            if (!o.reason.empty()) { ++fail; std::printf("FAIL %-7s reference row: %s\n", c.id.c_str(), o.reason.c_str()); }
+            continue;
+        }
         o.pass ? ++pass : ++fail;
         if (quiet && o.pass) continue;
         std::printf("%-4s %-7s %-9s %-58.58s paper=%-9g measured=%-12.6g %s\n", o.pass ? "PASS" : "FAIL",
                     c.id.c_str(), c.section.c_str(), c.text.c_str(), c.expected, o.measured, o.reason.c_str());
     }
-    std::printf("\n%d/%d claims verified%s\n", pass, pass + fail, fail ? "" : " — all paper numbers reproduce from results/");
+    if (!manuscript.empty()) std::printf("\nexpected values transcribed from: %s\n", manuscript.c_str());
+    std::printf("%d/%d claims verified%s\n", pass, pass + fail, fail ? "" : " — all checked numbers reproduce from results/");
     return fail ? 1 : 0;
 }

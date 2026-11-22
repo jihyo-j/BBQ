@@ -2345,6 +2345,8 @@ void dynamic_search_rows(
                         false,
                         0,
                         false,
+                        candidate_k,  // fixed_rerank_n (added to the core on 2026-11-19): min(candidate_k,
+                                      // candidate_k) keeps the 2026-11-18 behaviour of the Fig. 19 binary
                         calibrated,
                         calibration.tau,
                         args.io_queue_depth,

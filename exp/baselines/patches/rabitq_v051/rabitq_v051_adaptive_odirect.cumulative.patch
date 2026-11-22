@@ -1,0 +1,935 @@
+diff --git a/include/rabitqlib/index/hnsw/hnsw.hpp b/include/rabitqlib/index/hnsw/hnsw.hpp
+index 5c778f4..96a0eae 100644
+--- a/include/rabitqlib/index/hnsw/hnsw.hpp
++++ b/include/rabitqlib/index/hnsw/hnsw.hpp
+@@ -4,6 +4,7 @@
+ #include <algorithm>
+ #include <atomic>
+ #include <cassert>
++#include <chrono>
+ #include <cmath>
+ #include <cstddef>
+ #include <cstdint>
+@@ -46,6 +47,12 @@ using maxheap = std::priority_queue<T>;
+ template <typename T>
+ using minheap = std::priority_queue<T, std::vector<T>, std::greater<T>>;
+ 
++struct AdaptiveFpSearchResult {
++    std::vector<std::vector<std::pair<float, PID>>> results;
++    std::vector<size_t> fp_read_count;
++    std::vector<uint64_t> query_latency_ns;
++};
++
+ class HierarchicalNSW {
+    public:
+     explicit HierarchicalNSW(){};
+@@ -66,9 +73,22 @@ class HierarchicalNSW {
+     void load(const char*);
+ 
+     void construct(size_t, const float*, size_t, const float*, PID*, size_t, bool);
++    void add_points(size_t, const float*, size_t, PID*, PID*, size_t, bool);
+     std::vector<std::vector<std::pair<float, PID>>> search(
+         const float*, size_t, size_t, size_t, size_t
+     );
++    AdaptiveFpSearchResult search_1bit_adaptive_fp(
++        const float*, const float*, size_t, size_t, size_t, size_t, size_t
++    );
++    AdaptiveFpSearchResult search_1bit_adaptive_fp_callback(
++        const float*,
++        size_t,
++        size_t,
++        size_t,
++        size_t,
++        size_t,
++        const std::function<float(size_t, PID)>&
++    );
+ 
+     const float* rawDataPtr_{nullptr};
+ 
+@@ -327,8 +347,19 @@ class HierarchicalNSW {
+     get_full_est_direct(std::vector<float>&, SplitSingleQuery<float>&, PID, HierarchicalNSW::EstimateRecord&)
+         const;
+ 
++    void get_bin_est_runtime(
++        std::vector<float>&,
++        SplitSingleQuery<float>&,
++        PID,
++        HierarchicalNSW::EstimateRecord&
++    );
++
+     maxheap<std::pair<float, PID>> search_knn(const float*, size_t);
+ 
++    maxheap<std::pair<float, PID>> search_knn_1bit_adaptive_fp(
++        const float*, size_t, const std::function<float(PID)>&, size_t&
++    );
++
+     template <class Kernel>
+     maxheap<std::pair<float, PID>> search_knn_direct(const float*, size_t);
+ 
+@@ -343,6 +374,17 @@ class HierarchicalNSW {
+         BoundedKNN& boundedKNN
+     );
+ 
++    void search_base_layer_1bit_adaptive_fp(
++        PID,
++        size_t,
++        size_t,
++        SplitSingleQuery<float>&,
++        std::vector<float>&,
++        const std::function<float(PID)>&,
++        BoundedKNN&,
++        size_t&
++    );
++
+     // Construction
+     // Currently only support index construction with non-quantized vectors
+     float get_data_dist(PID obj1, PID obj2) {
+@@ -864,6 +906,45 @@ inline void HierarchicalNSW::construct(
+     );
+ }
+ 
++inline void HierarchicalNSW::add_points(
++    size_t raw_data_num,
++    const float* raw_data,
++    size_t add_num,
++    PID* labels,
++    PID* cluster_ids,
++    size_t num_threads = 0,
++    bool faster = false
++) {
++    if (centroids_memory_ == nullptr || num_cluster_ == 0) {
++        throw std::runtime_error("HNSW add_points requires a constructed index");
++    }
++    if (raw_data == nullptr || labels == nullptr || cluster_ids == nullptr) {
++        throw std::invalid_argument("HNSW add_points received a null input");
++    }
++    for (size_t i = 0; i < add_num; ++i) {
++        if (labels[i] >= raw_data_num) {
++            throw std::invalid_argument("HNSW add_points label exceeds raw data row count");
++        }
++        if (cluster_ids[i] >= num_cluster_) {
++            throw std::invalid_argument("HNSW add_points cluster id exceeds centroid count");
++        }
++    }
++
++    quant::RabitqConfig config;
++    if (faster) {
++        config = quant::faster_config(padded_dim_, ex_bits_ + 1);
++    }
++    rawDataPtr_ = raw_data;
++    rabitqlib::ivf::parallel_for(
++        0,
++        add_num,
++        num_threads,
++        [&](size_t idx, size_t /*threadId*/) {
++            add_point(labels[idx], cluster_ids[idx], config);
++        }
++    );
++}
++
+ inline void HierarchicalNSW::add_point(
+     PID label, PID cluster_id, const quant::RabitqConfig& config
+ ) {
+@@ -1293,6 +1374,41 @@ inline void HierarchicalNSW::get_full_est_direct(
+     }
+ }
+ 
++inline void HierarchicalNSW::get_bin_est_runtime(
++    std::vector<float>& q_to_centroids,
++    SplitSingleQuery<float>& query_wrapper,
++    PID curr_obj,
++    HierarchicalNSW::EstimateRecord& res
++) {
++    if (metric_type_ == METRIC_IP) {
++        const float norm = q_to_centroids[get_clusterid_by_internalid(curr_obj)];
++        const float error =
++            q_to_centroids[get_clusterid_by_internalid(curr_obj) + num_cluster_];
++        split_single_estdist(
++            get_bindata_by_internalid(curr_obj),
++            query_wrapper,
++            padded_dim_,
++            res.ip_x0_qr,
++            res.est_dist,
++            res.low_dist,
++            -norm,
++            error
++        );
++    } else {
++        const float norm = q_to_centroids[get_clusterid_by_internalid(curr_obj)];
++        split_single_estdist(
++            get_bindata_by_internalid(curr_obj),
++            query_wrapper,
++            padded_dim_,
++            res.ip_x0_qr,
++            res.est_dist,
++            res.low_dist,
++            norm * norm,
++            norm
++        );
++    }
++}
++
+ inline std::vector<std::vector<std::pair<float, PID>>> HierarchicalNSW::search(
+     const float* queries, size_t query_num, size_t TOPK, size_t efSearch, size_t thread_num
+ ) {
+@@ -1316,6 +1432,307 @@ inline std::vector<std::vector<std::pair<float, PID>>> HierarchicalNSW::search(
+     return results;
+ }
+ 
++inline AdaptiveFpSearchResult HierarchicalNSW::search_1bit_adaptive_fp(
++    const float* queries,
++    const float* raw_data,
++    size_t raw_data_rows,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num
++) {
++    if (ex_bits_ != 0) {
++        throw std::invalid_argument(
++            "search_1bit_adaptive_fp requires a 1-bit RaBitQ index"
++        );
++    }
++    if (queries == nullptr || raw_data == nullptr) {
++        throw std::invalid_argument("adaptive FP search received null input");
++    }
++    if (TOPK == 0 || TOPK > cur_element_count_) {
++        throw std::invalid_argument("invalid top-k for adaptive FP search");
++    }
++
++    set_ef(efSearch);
++    AdaptiveFpSearchResult output;
++    output.results.resize(query_num);
++    output.fp_read_count.resize(query_num, 0);
++    output.query_latency_ns.resize(query_num, 0);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*thread_id*/) {
++            const auto query_start = std::chrono::steady_clock::now();
++            const float* raw_query = queries + (idx * dim_);
++            std::vector<float> rotated_query(padded_dim_);
++            rotator_->rotate(raw_query, rotated_query.data());
++            size_t fp_reads = 0;
++            const std::function<float(PID)> exact_distance = [&](PID label) {
++                if (label >= raw_data_rows) {
++                    throw std::runtime_error("RaBitQ label exceeds FP rerank rows");
++                }
++                return raw_dist_func_(
++                    raw_query,
++                    raw_data + (static_cast<size_t>(label) * dim_),
++                    dim_
++                );
++            };
++            maxheap<std::pair<float, PID>> knn = search_knn_1bit_adaptive_fp(
++                rotated_query.data(),
++                TOPK,
++                exact_distance,
++                fp_reads
++            );
++            while (!knn.empty()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++            output.fp_read_count[idx] = fp_reads;
++            output.query_latency_ns[idx] = static_cast<uint64_t>(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(
++                    std::chrono::steady_clock::now() - query_start
++                ).count()
++            );
++        }
++    );
++    return output;
++}
++
++inline AdaptiveFpSearchResult HierarchicalNSW::search_1bit_adaptive_fp_callback(
++    const float* queries,
++    size_t raw_data_rows,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    const std::function<float(size_t, PID)>& raw_label_distance
++) {
++    if (ex_bits_ != 0) {
++        throw std::invalid_argument(
++            "search_1bit_adaptive_fp_callback requires a 1-bit RaBitQ index"
++        );
++    }
++    if (queries == nullptr || !raw_label_distance) {
++        throw std::invalid_argument("adaptive FP callback search received null input");
++    }
++    if (TOPK == 0 || TOPK > cur_element_count_) {
++        throw std::invalid_argument("invalid top-k for adaptive FP callback search");
++    }
++
++    set_ef(efSearch);
++    AdaptiveFpSearchResult output;
++    output.results.resize(query_num);
++    output.fp_read_count.resize(query_num, 0);
++    output.query_latency_ns.resize(query_num, 0);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*thread_id*/) {
++            const auto query_start = std::chrono::steady_clock::now();
++            const float* raw_query = queries + (idx * dim_);
++            std::vector<float> rotated_query(padded_dim_);
++            rotator_->rotate(raw_query, rotated_query.data());
++            size_t fp_reads = 0;
++            const std::function<float(PID)> exact_distance = [&](PID label) {
++                if (label >= raw_data_rows) {
++                    throw std::runtime_error("RaBitQ label exceeds FP callback rows");
++                }
++                return raw_label_distance(idx, label);
++            };
++            maxheap<std::pair<float, PID>> knn = search_knn_1bit_adaptive_fp(
++                rotated_query.data(), TOPK, exact_distance, fp_reads
++            );
++            while (!knn.empty()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++            output.fp_read_count[idx] = fp_reads;
++            output.query_latency_ns[idx] = static_cast<uint64_t>(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(
++                    std::chrono::steady_clock::now() - query_start
++                ).count()
++            );
++        }
++    );
++    return output;
++}
++
++inline maxheap<std::pair<float, PID>>
++HierarchicalNSW::search_knn_1bit_adaptive_fp(
++    const float* rotated_query,
++    size_t TOPK,
++    const std::function<float(PID)>& exact_distance,
++    size_t& fp_reads
++) {
++    maxheap<std::pair<float, PID>> result;
++    if (cur_element_count_ == 0) {
++        return result;
++    }
++
++    SplitSingleQuery<float> query_wrapper(
++        rotated_query, padded_dim_, ex_bits_, query_config_, metric_type_
++    );
++
++    std::vector<float> q_to_centroids(num_cluster_);
++    if (metric_type_ == METRIC_L2) {
++        for (size_t i = 0; i < num_cluster_; ++i) {
++            q_to_centroids[i] = std::sqrt(raw_dist_func_(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            ));
++        }
++    } else {
++        q_to_centroids.resize(2 * num_cluster_);
++        for (size_t i = 0; i < num_cluster_; ++i) {
++            q_to_centroids[i] = dot_product(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            );
++            q_to_centroids[i + num_cluster_] = std::sqrt(euclidean_sqr(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            ));
++        }
++    }
++
++    PID curr_obj = enterpoint_node_;
++    EstimateRecord current_estimate;
++    get_bin_est_runtime(q_to_centroids, query_wrapper, curr_obj, current_estimate);
++
++    for (int level = maxlevel_; level > 0; --level) {
++        bool changed = true;
++        while (changed) {
++            changed = false;
++            unsigned int* data =
++                static_cast<unsigned int*>(get_linklist(curr_obj, level));
++            const int size = get_list_count(data);
++            PID* labels = static_cast<PID*>(data + 1);
++            for (int i = 0; i < size; ++i) {
++                const PID candidate = labels[i];
++                if (candidate >= cur_element_count_) {
++                    throw std::runtime_error("corrupt HNSW upper-layer candidate");
++                }
++                EstimateRecord candidate_estimate;
++                get_bin_est_runtime(
++                    q_to_centroids, query_wrapper, candidate, candidate_estimate
++                );
++                if (candidate_estimate.est_dist < current_estimate.est_dist) {
++                    current_estimate = candidate_estimate;
++                    curr_obj = candidate;
++                    changed = true;
++                }
++            }
++        }
++    }
++
++    BoundedKNN bounded_knn(TOPK);
++    search_base_layer_1bit_adaptive_fp(
++        curr_obj,
++        std::max(ef_, TOPK),
++        TOPK,
++        query_wrapper,
++        q_to_centroids,
++        exact_distance,
++        bounded_knn,
++        fp_reads
++    );
++    for (const auto& candidate : bounded_knn.candidates()) {
++        result.emplace(candidate.record.est_dist, get_external_label(candidate.id));
++    }
++    return result;
++}
++
++inline void HierarchicalNSW::search_base_layer_1bit_adaptive_fp(
++    PID ep_id,
++    size_t ef,
++    size_t TOPK,
++    SplitSingleQuery<float>& query_wrapper,
++    std::vector<float>& q_to_centroids,
++    const std::function<float(PID)>& exact_distance_external,
++    BoundedKNN& bounded_knn,
++    size_t& fp_reads
++) {
++    VisitedSet* visited = visited_list_pool_->get_free_vislist();
++    buffer::SearchBuffer<float> candidate_set(ef);
++
++    auto exact_distance = [&](PID internal_id) -> float {
++        const PID label = get_external_label(internal_id);
++        ++fp_reads;
++        return exact_distance_external(label);
++    };
++
++    EstimateRecord entry_estimate;
++    get_bin_est_runtime(q_to_centroids, query_wrapper, ep_id, entry_estimate);
++    const float entry_queue_distance = entry_estimate.est_dist;
++    const float entry_exact_distance = exact_distance(ep_id);
++    bounded_knn.insert(
++        {ResultRecord(entry_exact_distance, entry_exact_distance), ep_id}
++    );
++    candidate_set.insert(ep_id, entry_queue_distance);
++    float dist_k = entry_exact_distance;
++    visited->set(ep_id);
++
++    const size_t prefetch_size = (((padded_dim_ / 8) + 63) / 64) + 1;
++    constexpr size_t kPrefetchLookahead = 4;
++
++    while (candidate_set.has_next()) {
++        const PID current_node = candidate_set.pop();
++        int* links = reinterpret_cast<int*>(get_linklist0(current_node));
++        const size_t size = get_list_count(reinterpret_cast<PID*>(links));
++
++        for (size_t p = 0; p < std::min(kPrefetchLookahead, size); ++p) {
++            rabitqlib::memory::mem_prefetch_l1(
++                get_bindata_by_internalid(*(links + 1 + p)), prefetch_size
++            );
++        }
++
++        for (size_t j = 1; j <= size; ++j) {
++            const PID candidate_id = static_cast<PID>(*(links + j));
++            if (j + kPrefetchLookahead <= size) {
++                rabitqlib::memory::mem_prefetch_l1(
++                    get_bindata_by_internalid(*(links + j + kPrefetchLookahead)),
++                    prefetch_size
++                );
++            }
++            if (visited->get(candidate_id)) {
++                continue;
++            }
++            visited->set(candidate_id);
++
++            EstimateRecord estimate;
++            get_bin_est_runtime(q_to_centroids, query_wrapper, candidate_id, estimate);
++            const float queue_distance = estimate.est_dist;
++            const bool promising =
++                bounded_knn.size() < TOPK || estimate.low_dist < dist_k;
++            if (promising) {
++                const float fp_distance = exact_distance(candidate_id);
++                bounded_knn.insert(
++                    {ResultRecord(fp_distance, fp_distance), candidate_id}
++                );
++                dist_k = bounded_knn.worst().record.est_dist;
++            }
++
++            if (!candidate_set.is_full(queue_distance)) {
++                candidate_set.insert(candidate_id, queue_distance);
++            }
++            if (candidate_set.has_next()) {
++                rabitqlib::memory::mem_prefetch_l2(
++                    reinterpret_cast<char*>(get_linklist0(candidate_set.next_id())), 2
++                );
++            }
++        }
++    }
++
++    visited_list_pool_->release_vis_list(visited);
++}
++
+ inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn(
+     const float* rotated_query, size_t TOPK
+ ) {
+diff --git a/python_bindings/hnsw_bindings.cpp b/python_bindings/hnsw_bindings.cpp
+index 559237d..7ec7372 100644
+--- a/python_bindings/hnsw_bindings.cpp
++++ b/python_bindings/hnsw_bindings.cpp
+@@ -5,6 +5,11 @@
+ #include <pybind11/pytypes.h>
+ 
+ #include <algorithm>
++#include <atomic>
++#include <chrono>
++#include <cerrno>
++#include <cmath>
++#include <cstdlib>
+ #include <cstring>
+ #include <limits>
+ #include <memory>
+@@ -13,6 +18,14 @@
+ #include <utility>
+ #include <vector>
+ 
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++#ifndef O_DIRECT
++#define O_DIRECT 0
++#endif
++
+ #include "bindings_common.hpp"
+ #include "rabitqlib/defines.hpp"
+ #include "rabitqlib/index/hnsw/hnsw.hpp"
+@@ -21,6 +34,151 @@ namespace py = pybind11;
+ 
+ namespace rabitqlib::python_bindings {
+ 
++struct FbinODirectReader {
++    int fd = -1;
++    int32_t n = 0;
++    int32_t d = 0;
++    size_t row_bytes = 0;
++    uint64_t data_offset = 0;
++    mutable std::atomic<uint64_t> read_bytes{0};
++    mutable std::atomic<uint64_t> read_requests{0};
++    mutable std::atomic<uint64_t> read_ns{0};
++
++    explicit FbinODirectReader(const std::string& path) {
++        const int header_fd = ::open(path.c_str(), O_RDONLY);
++        if (header_fd < 0) {
++            throw std::runtime_error("open failed: " + path + ": " + std::strerror(errno));
++        }
++        int32_t header[2];
++        if (::pread(header_fd, header, sizeof(header), 0) !=
++            static_cast<ssize_t>(sizeof(header))) {
++            ::close(header_fd);
++            throw std::runtime_error("bad fbin header: " + path);
++        }
++        n = header[0];
++        d = header[1];
++        if (n <= 0 || d <= 0) {
++            ::close(header_fd);
++            throw std::runtime_error("invalid fbin shape: " + path);
++        }
++        row_bytes = static_cast<size_t>(d) * sizeof(float);
++        struct stat st {};
++        if (::fstat(header_fd, &st) != 0 || st.st_size < 0) {
++            ::close(header_fd);
++            throw std::runtime_error("fstat failed: " + path + ": " + std::strerror(errno));
++        }
++        const uint64_t payload_bytes =
++            static_cast<uint64_t>(n) * static_cast<uint64_t>(row_bytes);
++        const uint64_t file_bytes = static_cast<uint64_t>(st.st_size);
++        if (file_bytes == 4096ULL + payload_bytes) {
++            data_offset = 4096ULL;
++        } else if (file_bytes == 8ULL + payload_bytes) {
++            data_offset = 8ULL;
++        } else {
++            ::close(header_fd);
++            throw std::runtime_error("unexpected fbin size: " + path);
++        }
++        ::close(header_fd);
++        fd = ::open(path.c_str(), O_RDONLY | O_DIRECT);
++        if (fd < 0) {
++            throw std::runtime_error(
++                "O_DIRECT open failed: " + path + ": " + std::strerror(errno)
++            );
++        }
++    }
++
++    FbinODirectReader(const FbinODirectReader&) = delete;
++    FbinODirectReader& operator=(const FbinODirectReader&) = delete;
++
++    ~FbinODirectReader() {
++        if (fd >= 0) {
++            ::close(fd);
++        }
++    }
++
++    static size_t round_up(size_t value, size_t alignment) {
++        return ((value + alignment - 1) / alignment) * alignment;
++    }
++
++    struct ThreadBuffer {
++        void* ptr = nullptr;
++        size_t capacity = 0;
++
++        ~ThreadBuffer() {
++            std::free(ptr);
++        }
++
++        void ensure(size_t bytes) {
++            bytes = FbinODirectReader::round_up(bytes, 4096);
++            if (capacity >= bytes) {
++                return;
++            }
++            std::free(ptr);
++            ptr = nullptr;
++            capacity = 0;
++            if (::posix_memalign(&ptr, 4096, bytes) != 0) {
++                throw std::runtime_error("posix_memalign failed for O_DIRECT buffer");
++            }
++            capacity = bytes;
++        }
++    };
++
++    const float* read_row(size_t label, ThreadBuffer& buffer) const {
++        if (label >= static_cast<size_t>(n)) {
++            throw std::runtime_error("label exceeds fbin rows");
++        }
++        constexpr size_t kAlignment = 4096;
++        const uint64_t offset = data_offset + label * row_bytes;
++        const uint64_t aligned_offset = (offset / kAlignment) * kAlignment;
++        const size_t delta = static_cast<size_t>(offset - aligned_offset);
++        const size_t required = delta + row_bytes;
++        const size_t direct_bytes = round_up(required, kAlignment);
++        buffer.ensure(direct_bytes);
++
++        char* output = static_cast<char*>(buffer.ptr);
++        size_t done = 0;
++        while (done < direct_bytes) {
++            const auto read_start = std::chrono::steady_clock::now();
++            const ssize_t got = ::pread(
++                fd,
++                output + done,
++                direct_bytes - done,
++                static_cast<off_t>(aligned_offset + done)
++            );
++            const auto read_stop = std::chrono::steady_clock::now();
++            read_ns.fetch_add(
++                static_cast<uint64_t>(
++                    std::chrono::duration_cast<std::chrono::nanoseconds>(
++                        read_stop - read_start
++                    ).count()
++                ),
++                std::memory_order_relaxed
++            );
++            if (got < 0) {
++                if (errno == EINTR) {
++                    continue;
++                }
++                throw std::runtime_error(
++                    std::string("O_DIRECT pread failed: ") + std::strerror(errno)
++                );
++            }
++            if (got == 0) {
++                break;
++            }
++            done += static_cast<size_t>(got);
++            if (done >= required) {
++                break;
++            }
++        }
++        if (done < required) {
++            throw std::runtime_error("short O_DIRECT pread");
++        }
++        read_bytes.fetch_add(direct_bytes, std::memory_order_relaxed);
++        read_requests.fetch_add(1, std::memory_order_relaxed);
++        return reinterpret_cast<const float*>(output + delta);
++    }
++};
++
+ class HnswIndex {
+    public:
+     HnswIndex(
+@@ -107,6 +265,48 @@ class HnswIndex {
+         built_ = true;
+     }
+ 
++    void add(
++        py::handle raw_data,
++        py::handle labels,
++        py::handle cluster_ids,
++        size_t num_threads = 1,
++        bool fast_quantization = false
++    ) {
++        if (!built_) {
++            throw std::runtime_error("HnswIndex must be built before add");
++        }
++        auto data_array = ensure_2d_array<float>(raw_data, "raw_data");
++        auto labels_array = ensure_1d_array<rabitqlib::PID>(labels, "labels");
++        auto cluster_ids_array =
++            ensure_1d_array<rabitqlib::PID>(cluster_ids, "cluster_ids");
++        if (static_cast<size_t>(data_array.shape(1)) != dim_) {
++            throw std::invalid_argument("raw_data dimension does not match index dim");
++        }
++        const size_t add_count = static_cast<size_t>(labels_array.shape(0));
++        if (static_cast<size_t>(cluster_ids_array.shape(0)) != add_count) {
++            throw std::invalid_argument("cluster_ids length must match labels length");
++        }
++        std::vector<rabitqlib::PID> labels_vec(add_count);
++        std::vector<rabitqlib::PID> cluster_ids_vec(add_count);
++        std::memcpy(
++            labels_vec.data(), labels_array.data(), add_count * sizeof(rabitqlib::PID)
++        );
++        std::memcpy(
++            cluster_ids_vec.data(),
++            cluster_ids_array.data(),
++            add_count * sizeof(rabitqlib::PID)
++        );
++        index_->add_points(
++            static_cast<size_t>(data_array.shape(0)),
++            data_array.data(),
++            add_count,
++            labels_vec.data(),
++            cluster_ids_vec.data(),
++            num_threads,
++            fast_quantization
++        );
++    }
++
+     py::tuple search(py::handle queries, size_t k, size_t ef = 0, size_t num_threads = 1) {
+         auto query_array = ensure_2d_array<float>(queries, "queries");
+         if (!built_) {
+@@ -157,6 +357,179 @@ class HnswIndex {
+         return py::make_tuple(ids, dists);
+     }
+ 
++    py::tuple search_1bit_adaptive_fp(
++        py::handle queries,
++        py::handle raw_data,
++        size_t k,
++        size_t ef = 0,
++        size_t num_threads = 1
++    ) {
++        auto query_array = ensure_2d_array<float>(queries, "queries");
++        auto data_array = ensure_2d_array<float>(raw_data, "raw_data");
++        if (!built_) {
++            throw std::runtime_error("HnswIndex must be built or loaded before search");
++        }
++        if (nbits_ != 1) {
++            throw std::invalid_argument(
++                "search_1bit_adaptive_fp requires an index with nbits=1"
++            );
++        }
++        if (static_cast<size_t>(query_array.shape(1)) != dim_ ||
++            static_cast<size_t>(data_array.shape(1)) != dim_) {
++            throw std::invalid_argument("query/raw-data dimension does not match index");
++        }
++        if (ef == 0) {
++            ef = std::max<size_t>(k, 10);
++        }
++        if (k == 0 || k > max_elements_) {
++            throw std::invalid_argument("k must be between 1 and max_elements");
++        }
++
++        const size_t nq = static_cast<size_t>(query_array.shape(0));
++        const auto shape = std::vector<py::ssize_t>{
++            static_cast<py::ssize_t>(nq), static_cast<py::ssize_t>(k)};
++        auto ids = py::array_t<rabitqlib::PID>(shape);
++        auto dists = py::array_t<float>(shape);
++        auto fp_read_count = py::array_t<uint64_t>(nq);
++        std::fill(ids.mutable_data(), ids.mutable_data() + ids.size(), rabitqlib::kPidMax);
++        std::fill(
++            dists.mutable_data(),
++            dists.mutable_data() + dists.size(),
++            std::numeric_limits<float>::infinity()
++        );
++
++        auto output = index_->search_1bit_adaptive_fp(
++            query_array.data(),
++            data_array.data(),
++            static_cast<size_t>(data_array.shape(0)),
++            nq,
++            k,
++            ef,
++            num_threads
++        );
++        auto ids_buf = ids.mutable_unchecked<2>();
++        auto dists_buf = dists.mutable_unchecked<2>();
++        for (py::ssize_t i = 0; i < static_cast<py::ssize_t>(output.results.size()); ++i) {
++            const auto& row = output.results[static_cast<size_t>(i)];
++            for (py::ssize_t j = 0;
++                 j < static_cast<py::ssize_t>(std::min<size_t>(k, row.size()));
++                 ++j) {
++                ids_buf(i, j) = row[static_cast<size_t>(j)].second;
++                dists_buf(i, j) = row[static_cast<size_t>(j)].first;
++            }
++            fp_read_count.mutable_data()[i] = static_cast<uint64_t>(
++                output.fp_read_count[static_cast<size_t>(i)]
++            );
++        }
++        return py::make_tuple(ids, dists, fp_read_count);
++    }
++
++    py::tuple search_1bit_adaptive_fp_odirect(
++        py::handle queries,
++        const std::string& raw_fbin_path,
++        size_t k,
++        size_t ef = 0,
++        size_t num_threads = 1
++    ) {
++        auto query_array = ensure_2d_array<float>(queries, "queries");
++        if (!built_) {
++            throw std::runtime_error("HnswIndex must be built or loaded before search");
++        }
++        if (nbits_ != 1) {
++            throw std::invalid_argument(
++                "search_1bit_adaptive_fp_odirect requires an index with nbits=1"
++            );
++        }
++        if (metric_ != rabitqlib::METRIC_IP) {
++            throw std::invalid_argument(
++                "search_1bit_adaptive_fp_odirect currently supports IP/cosine only"
++            );
++        }
++        if (static_cast<size_t>(query_array.shape(1)) != dim_) {
++            throw std::invalid_argument("query dimension does not match index");
++        }
++        if (ef == 0) {
++            ef = std::max<size_t>(k, 10);
++        }
++        if (k == 0 || k > max_elements_) {
++            throw std::invalid_argument("k must be between 1 and max_elements");
++        }
++
++        FbinODirectReader reader(raw_fbin_path);
++        if (static_cast<size_t>(reader.d) != dim_) {
++            throw std::invalid_argument("raw fbin dimension does not match index");
++        }
++        const size_t nq = static_cast<size_t>(query_array.shape(0));
++        const float* query_data = query_array.data();
++        const std::function<float(size_t, rabitqlib::PID)> distance =
++            [&](size_t query_id, rabitqlib::PID label) -> float {
++                thread_local FbinODirectReader::ThreadBuffer buffer;
++                const float* vector = reader.read_row(static_cast<size_t>(label), buffer);
++                const float* query = query_data + query_id * dim_;
++                double dot = 0.0;
++                double norm_sq = 0.0;
++                for (size_t j = 0; j < dim_; ++j) {
++                    const double value = static_cast<double>(vector[j]);
++                    dot += value * static_cast<double>(query[j]);
++                    norm_sq += value * value;
++                }
++                return static_cast<float>(1.0 - dot / std::sqrt(std::max(norm_sq, 1e-30)));
++            };
++
++        auto output = index_->search_1bit_adaptive_fp_callback(
++            query_data,
++            static_cast<size_t>(reader.n),
++            nq,
++            k,
++            ef,
++            num_threads,
++            distance
++        );
++
++        const auto shape = std::vector<py::ssize_t>{
++            static_cast<py::ssize_t>(nq), static_cast<py::ssize_t>(k)};
++        auto ids = py::array_t<rabitqlib::PID>(shape);
++        auto dists = py::array_t<float>(shape);
++        auto fp_read_count = py::array_t<uint64_t>(nq);
++        auto query_latency_ns = py::array_t<uint64_t>(nq);
++        std::fill(ids.mutable_data(), ids.mutable_data() + ids.size(), rabitqlib::kPidMax);
++        std::fill(
++            dists.mutable_data(),
++            dists.mutable_data() + dists.size(),
++            std::numeric_limits<float>::infinity()
++        );
++        auto ids_buf = ids.mutable_unchecked<2>();
++        auto dists_buf = dists.mutable_unchecked<2>();
++        for (py::ssize_t i = 0; i < static_cast<py::ssize_t>(output.results.size()); ++i) {
++            const auto& row = output.results[static_cast<size_t>(i)];
++            for (py::ssize_t j = 0;
++                 j < static_cast<py::ssize_t>(std::min<size_t>(k, row.size()));
++                 ++j) {
++                ids_buf(i, j) = row[static_cast<size_t>(j)].second;
++                dists_buf(i, j) = row[static_cast<size_t>(j)].first;
++            }
++            fp_read_count.mutable_data()[i] = static_cast<uint64_t>(
++                output.fp_read_count[static_cast<size_t>(i)]
++            );
++            query_latency_ns.mutable_data()[i] =
++                output.query_latency_ns[static_cast<size_t>(i)];
++        }
++        py::dict stats;
++        stats["fp_read_count"] = fp_read_count;
++        stats["query_latency_ns"] = query_latency_ns;
++        stats["odirect_read_bytes"] = py::int_(
++            reader.read_bytes.load(std::memory_order_relaxed)
++        );
++        stats["odirect_read_requests"] = py::int_(
++            reader.read_requests.load(std::memory_order_relaxed)
++        );
++        stats["odirect_read_ns"] = py::int_(
++            reader.read_ns.load(std::memory_order_relaxed)
++        );
++        stats["fbin_data_offset"] = py::int_(reader.data_offset);
++        return py::make_tuple(ids, dists, stats);
++    }
++
+     void save(const std::string& path) const {
+         if (!built_) {
+             throw std::runtime_error("HnswIndex must be built or loaded before save");
+@@ -227,6 +600,15 @@ void register_hnsw(py::module_& m) {
+             py::arg("num_threads") = 1,
+             py::arg("fast_quantization") = false
+         )
++        .def(
++            "add",
++            &HnswIndex::add,
++            py::arg("raw_data"),
++            py::arg("labels"),
++            py::arg("cluster_ids"),
++            py::arg("num_threads") = 1,
++            py::arg("fast_quantization") = false
++        )
+         .def(
+             "search",
+             &HnswIndex::search,
+@@ -235,6 +617,24 @@ void register_hnsw(py::module_& m) {
+             py::arg("ef") = 0,
+             py::arg("num_threads") = 1
+         )
++        .def(
++            "search_1bit_adaptive_fp",
++            &HnswIndex::search_1bit_adaptive_fp,
++            py::arg("queries"),
++            py::arg("raw_data"),
++            py::arg("k"),
++            py::arg("ef") = 0,
++            py::arg("num_threads") = 1
++        )
++        .def(
++            "search_1bit_adaptive_fp_odirect",
++            &HnswIndex::search_1bit_adaptive_fp_odirect,
++            py::arg("queries"),
++            py::arg("raw_fbin_path"),
++            py::arg("k"),
++            py::arg("ef") = 0,
++            py::arg("num_threads") = 1
++        )
+         .def("save", &HnswIndex::save, py::arg("path"))
+         .def_static("load", &HnswIndex::load, py::arg("path"))
+         .def_property_readonly("dim", &HnswIndex::dim)

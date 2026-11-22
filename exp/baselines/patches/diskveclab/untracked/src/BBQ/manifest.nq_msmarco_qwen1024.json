@@ -1,0 +1,29 @@
+{
+  "output_root": "/home/jihyo/workspace/DiskVecLab/results/nq_msmarco_qwen1024/bbq",
+  "datasets": [
+    {
+      "key": "nq_qwen06_1024",
+      "corpus": "NQ",
+      "model": "Qwen3-Embedding-0.6B",
+      "metric": "cosine",
+      "base": "/home/smrc/samsung-nvme/jihyo/nq_sieun_adcbq_rabitq/nq_vanilla-qw06_train.fbin",
+      "query": "/home/smrc/samsung-nvme/jihyo/nq_sieun_adcbq_rabitq/nq_vanilla-qw06_query.fbin",
+      "groundtruth": "/home/smrc/samsung-nvme/jihyo/nq_sieun_adcbq_rabitq/nq_vanilla-qw06_neighbors_top100.ibin",
+      "index": "/home/smrc/samsung-nvme/jihyo/rabitq_v051_ssd_multidataset_indexes/nq_qwen06_1024/nq_qwen06_1024.fpgraph_adcbq.d1024.M24.efC200.faiss",
+      "output_dir": "/home/jihyo/workspace/DiskVecLab/results/nq_msmarco_qwen1024/bbq/nq_qwen06_1024",
+      "fp_sidecar": "/home/smrc/samsung-nvme/jihyo/diskveclab_nq_msmarco_qwen1024/nq_qwen06_1024/bbq/nq_qwen06_1024.fp32.aligned4k.fbin"
+    },
+    {
+      "key": "msmarco_qwen1024",
+      "corpus": "MSMARCO",
+      "model": "Qwen-1024",
+      "metric": "cosine",
+      "base": "/home/smrc/samsung-nvme/jihyo/qwen/msmarco-1m__vanilla-qwen06b_train.fbin",
+      "query": "/home/smrc/samsung-nvme/jihyo/qwen/msmarco-1m__vanilla-qwen06b_query.fbin",
+      "groundtruth": "/home/smrc/samsung-nvme/jihyo/qwen/msmarco-1m__vanilla-qwen06b_neighbors.ibin",
+      "index": "/home/smrc/samsung-nvme/jihyo/msmarco_qwen1024_scale_v014/indexes/faiss_adcbq/msmarco-qwen1024-1m.fpgraph_pgbit_binary_hnsw.n1000000.d1024.M24.efC200.faiss",
+      "output_dir": "/home/jihyo/workspace/DiskVecLab/results/nq_msmarco_qwen1024/bbq/msmarco_qwen1024",
+      "fp_sidecar": "/home/smrc/samsung-nvme/jihyo/diskveclab_nq_msmarco_qwen1024/msmarco_qwen1024/bbq/msmarco_qwen1024.fp32.aligned4k.fbin"
+    }
+  ]
+}

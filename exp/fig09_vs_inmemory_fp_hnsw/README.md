@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F9.`  (6 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F9.`  (9 claims) |
 | Re-plot | `./exp/fig09_vs_inmemory_fp_hnsw/plot/regen.sh` |
 | Paper figure | `plot/comparision_hnsw.paper.pdf` |
 
@@ -56,6 +56,9 @@ Result files behind the figure (copied verbatim from the original run):
 | F9.4 | in-memory FP32 HNSW QPS, DBpedia @0.9875 | 727 |
 | F9.5 | BBQ distance evals, DBpedia ef=1024 | 22977 |
 | F9.6 | FP32 HNSW distance evals, DBpedia ef=256 | 6834 |
+| D9.1 | BBQ / FP32 HNSW QPS, MS MARCO (= `F9.1/F9.2`) | 1.90 |
+| D9.2 | BBQ / FP32 HNSW QPS, DBpedia (= `F9.3/F9.4`) | 2.13 |
+| D9.3 | BBQ / FP32 HNSW distance evals, DBpedia (= `F9.5/F9.6`) | 3.36 |
 
 ## Notes
 

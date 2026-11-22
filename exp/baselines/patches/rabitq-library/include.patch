@@ -1,0 +1,2214 @@
+diff --git a/include/rabitqlib/fastscan/highacc_fastscan.hpp b/include/rabitqlib/fastscan/highacc_fastscan.hpp
+index 033694e..eb9661d 100644
+--- a/include/rabitqlib/fastscan/highacc_fastscan.hpp
++++ b/include/rabitqlib/fastscan/highacc_fastscan.hpp
+@@ -66,6 +66,32 @@ inline void accumulate_hacc(
+     int32_t* accu_res,
+     size_t dim
+ ) {
++    // The SIMD kernel uses 16-bit lanes for each LUT byte.  At most 1024
++    // dimensions (256 codebooks) can be accumulated without overflowing a
++    // lane, so widen and combine larger vectors block by block.
++    if (dim > 1024) {
++        for (size_t i = 0; i < 32; ++i) {
++            accu_res[i] = 0;
++        }
++        size_t consumed_dim = 0;
++        while (consumed_dim < dim) {
++            const size_t remaining = dim - consumed_dim;
++            const size_t block_dim = remaining > 1024 ? 1024 : remaining;
++            alignas(64) int32_t block_res[32];
++            accumulate_hacc(
++                codes + consumed_dim * 4,
++                hc_lut + consumed_dim * 8,
++                block_res,
++                block_dim
++            );
++            for (size_t i = 0; i < 32; ++i) {
++                accu_res[i] += block_res[i];
++            }
++            consumed_dim += block_dim;
++        }
++        return;
++    }
++
+ #if defined(__AVX512BW__)
+     __m512i low_mask = _mm512_set1_epi8(0xf);
+     __m512i accu[2][4];
+@@ -219,4 +245,4 @@ inline void accumulate_hacc(
+     exit(1);
+ #endif
+ }
+-}  // namespace rabitqlib::fastscan
+\ No newline at end of file
++}  // namespace rabitqlib::fastscan
+diff --git a/include/rabitqlib/index/hnsw/hnsw.hpp b/include/rabitqlib/index/hnsw/hnsw.hpp
+index 4951e9e..e78df23 100644
+--- a/include/rabitqlib/index/hnsw/hnsw.hpp
++++ b/include/rabitqlib/index/hnsw/hnsw.hpp
+@@ -4,12 +4,17 @@
+ #include <immintrin.h>
+ #include <omp.h>
+ 
++#include <array>
+ #include <atomic>
+ #include <cassert>
++#include <chrono>
+ #include <cstddef>
++#include <cstdint>
+ #include <cstdlib>
+ #include <fstream>
++#include <functional>
+ #include <iostream>
++#include <limits>
+ #include <memory>
+ #include <mutex>
+ #include <unordered_map>
+@@ -35,8 +40,119 @@ using maxheap = std::priority_queue<T>;
+ template <typename T>
+ using minheap = std::priority_queue<T, std::vector<T>, std::greater<T>>;
+ 
++struct AdaptiveLightConfig {
++    bool enable_stop = true;
++    size_t ef_max = 1024;
++    int tmin_pops = 25;
++    float early_stop_ratio = 0.6F;
++    float super_easy_gamma_ratio = std::numeric_limits<float>::quiet_NaN();
++    float mid_easy_upper_gamma_ratio = std::numeric_limits<float>::quiet_NaN();
++    bool paper_bucket_mode = false;
++    int paper_bucket_count = 4;
++    std::array<float, 7> bucket_gamma_ratios = {
++        std::numeric_limits<float>::quiet_NaN(),
++        std::numeric_limits<float>::quiet_NaN(),
++        std::numeric_limits<float>::quiet_NaN(),
++        std::numeric_limits<float>::quiet_NaN(),
++        std::numeric_limits<float>::quiet_NaN(),
++        std::numeric_limits<float>::quiet_NaN(),
++        std::numeric_limits<float>::quiet_NaN()
++    };
++};
++
++struct AdaptiveLightStats {
++    static constexpr int kClassifyTraceStart = 4;
++    static constexpr int kClassifyTraceEnd = 16;
++    static constexpr int kClassifyTraceLen =
++        kClassifyTraceEnd - kClassifyTraceStart + 1;
++
++    size_t initial_ef = 0;
++    size_t effective_ef = 0;
++    size_t full_pop_count = 0;
++    size_t base_bin_est_count = 0;
++    size_t base_full_est_count = 0;
++    size_t entry_full_est_count = 0;
++    size_t upper_bin_est_count = 0;
++    size_t upper_link_scan_count = 0;
++    size_t base_pop_count = 0;
++    size_t base_neighbor_scan_count = 0;
++    size_t base_visited_count = 0;
++    size_t base_candidate_insert_count = 0;
++    size_t base_result_insert_count = 0;
++    uint64_t total_time_ns = 0;
++    uint64_t preprocess_time_ns = 0;
++    uint64_t upper_layer_time_ns = 0;
++    uint64_t base_layer_time_ns = 0;
++    uint64_t upper_bin_est_time_ns = 0;
++    uint64_t base_bin_est_time_ns = 0;
++    uint64_t base_full_est_time_ns = 0;
++    bool classified = false;
++    bool easy_query = false;
++    bool super_easy_query = false;
++    bool mid_easy_query = false;
++    bool ef_shrunk = false;
++    bool early_stopped = false;
++    float classify_chr_mean = std::numeric_limits<float>::quiet_NaN();
++    std::array<float, kClassifyTraceLen> classify_popped_dist{};
++    std::array<float, kClassifyTraceLen> classify_furthest_dist{};
++    std::array<float, kClassifyTraceLen> classify_chr{};
++    std::array<float, kClassifyTraceLen> classify_smoothed_chr{};
++};
++
++struct AdaptiveLightSearchResult {
++    std::vector<std::vector<std::pair<float, PID>>> results;
++    std::vector<AdaptiveLightStats> stats;
++};
++
++struct RoutingStats {
++    size_t upper_bin_est_count = 0;
++    size_t upper_link_scan_count = 0;
++    size_t entry_full_est_count = 0;
++    size_t base_bin_est_count = 0;
++    size_t base_full_est_count = 0;
++    size_t base_pop_count = 0;
++    size_t base_neighbor_scan_count = 0;
++    size_t base_visited_count = 0;
++    size_t base_candidate_insert_count = 0;
++    size_t base_result_insert_count = 0;
++    size_t base_duplicate_visit_count = 0;
++    uint64_t total_time_ns = 0;
++    uint64_t preprocess_time_ns = 0;
++    uint64_t upper_layer_time_ns = 0;
++    uint64_t base_layer_time_ns = 0;
++    uint64_t upper_bin_est_time_ns = 0;
++    uint64_t base_bin_est_time_ns = 0;
++    uint64_t base_full_est_time_ns = 0;
++    std::vector<PID> base_best_labels;
++    std::vector<PID> base_second_labels;
++    std::vector<PID> base_visited_labels;
++    std::vector<float> base_best_est_dist;
++    std::vector<float> base_second_est_dist;
++    std::vector<float> base_frontier_margin_est;
++};
++
++struct RoutingSearchResult {
++    std::vector<std::vector<std::pair<float, PID>>> results;
++    std::vector<RoutingStats> stats;
++};
++
+ class HierarchicalNSW {
+    public:
++
++    std::vector<float> pairwise_est_dist(
++        const float* queries,
++        size_t num_queries
++    );
++
++    std::vector<float> estimate_dist_for_labels(
++        const float* queries,
++        const PID* labels,
++        size_t num_queries,
++        size_t labels_per_query,
++        size_t thread_num
++    );
++
++
+     explicit HierarchicalNSW() {};
+     explicit HierarchicalNSW(
+         size_t, size_t, size_t, size_t, size_t, size_t = 100, MetricType = METRIC_L2
+@@ -50,15 +166,60 @@ class HierarchicalNSW {
+     [[nodiscard]] size_t ef_construction() const { return ef_construction_; }
+     [[nodiscard]] MetricType metric_type() const { return metric_type_; }
+     [[nodiscard]] size_t max_elements() const { return max_elements_; }
++    [[nodiscard]] size_t current_count() const { return cur_element_count_.load(); }
++    [[nodiscard]] PID internal_id_for_label(PID label) const {
++        std::unique_lock<std::mutex> lock_table(label_lookup_lock_);
++        auto found = label_lookup_.find(label);
++        if (found == label_lookup_.end()) {
++            return kPidMax;
++        }
++        return found->second;
++    }
+ 
+     void save(const char*) const;
+     void load(const char*);
+ 
+     void construct(size_t, const float*, size_t, const float*, PID*, size_t, bool);
++    void add_points(size_t, const float*, size_t, PID*, PID*, size_t, bool);
+     std::vector<std::vector<std::pair<float, PID>>> search(
+         const float*, size_t, size_t, size_t, size_t
+     );
+ 
++    std::vector<std::vector<std::pair<float, PID>>> search_1bit_fp_rerank(
++        const float*, const float*, size_t, size_t, size_t, size_t, size_t
++    );
++
++    RoutingSearchResult search_1bit_fp_rerank_with_stats(
++        const float*, const float*, size_t, size_t, size_t, size_t, size_t, size_t
++    );
++
++    RoutingSearchResult search_1bit_fp_rerank_with_stats_callback(
++        const float*, size_t, size_t, size_t, size_t, size_t, size_t,
++        const std::function<float(size_t, PID)>&
++    );
++
++    std::vector<std::vector<std::pair<float, PID>>> search_centroid_only(
++        const float*, size_t, size_t, size_t, size_t
++    );
++
++    RoutingSearchResult search_with_routing_stats(
++        const float*, size_t, size_t, size_t, size_t, size_t
++    );
++
++    RoutingSearchResult search_fp_with_routing_stats(
++        const float*, const float*, size_t, size_t, size_t, size_t, size_t, size_t
++    );
++
++    std::vector<std::vector<std::pair<float, PID>>> search_adaptive_light(
++        const float*, size_t, size_t, size_t, size_t, const AdaptiveLightConfig&,
++        const PID* = nullptr
++    );
++
++    AdaptiveLightSearchResult search_adaptive_light_with_stats(
++        const float*, size_t, size_t, size_t, size_t, const AdaptiveLightConfig&,
++        const PID* = nullptr
++    );
++
+     const float* rawDataPtr_{nullptr};
+ 
+     struct ResultRecord {
+@@ -301,7 +462,34 @@ class HierarchicalNSW {
+         std::vector<float>&, SplitSingleQuery<float>&, PID, HierarchicalNSW::EstimateRecord&
+     ) const;
+ 
+-    maxheap<std::pair<float, PID>> search_knn(const float*, size_t);
++    maxheap<std::pair<float, PID>> search_knn(
++        const float*,
++        size_t,
++        RoutingStats* = nullptr,
++        size_t = 0,
++        const float* raw_query_for_rerank = nullptr,
++        const float* raw_data_for_rerank = nullptr,
++        size_t raw_data_rows_for_rerank = 0,
++        const std::function<float(PID)>* raw_label_dist_for_rerank = nullptr
++    );
++
++    maxheap<std::pair<float, PID>> search_knn_centroid_only(
++        const float*, size_t
++    );
++
++    maxheap<std::pair<float, PID>> search_knn_fp(
++        const float*, const float*, size_t, size_t, RoutingStats* = nullptr, size_t = 0
++    );
++
++    PID resolve_entry_point_for_hidden_node(PID hidden_internal_id) const;
++
++    maxheap<std::pair<float, PID>> search_knn_adaptive_light(
++        const float*,
++        size_t,
++        const AdaptiveLightConfig&,
++        AdaptiveLightStats* = nullptr,
++        PID hidden_internal_id = kPidMax
++    );
+ 
+     void searchBaseLayerST_AdaptiveRerankOpt(
+         PID ep_id,
+@@ -310,7 +498,16 @@ class HierarchicalNSW {
+         SplitSingleQuery<float>& query_wrapper,
+         std::vector<float>& q_to_centroids,  // preprocess
+         const float* query,
+-        BoundedKNN& boundedKNN
++        BoundedKNN& boundedKNN,
++        const AdaptiveLightConfig* adaptive_config = nullptr,
++        AdaptiveLightStats* adaptive_stats = nullptr,
++        PID hidden_internal_id = kPidMax,
++        RoutingStats* routing_stats = nullptr,
++        size_t routing_trace_max = 0,
++        const float* raw_query_for_rerank = nullptr,
++        const float* raw_data_for_rerank = nullptr,
++        size_t raw_data_rows_for_rerank = 0,
++        const std::function<float(PID)>* raw_label_dist_for_rerank = nullptr
+     );
+ 
+     // Construction
+@@ -324,6 +521,7 @@ class HierarchicalNSW {
+     }
+ 
+     void add_point(PID, PID, const quant::RabitqConfig&);
++    void add_point_from_vector(PID, PID, const float*, const quant::RabitqConfig&);
+ 
+     maxheap<std::pair<float, PID>> search_base_layer(PID, PID, int);
+ 
+@@ -625,6 +823,55 @@ inline void HierarchicalNSW::construct(
+ 
+ inline void HierarchicalNSW::add_point(
+     PID label, PID cluster_id, const quant::RabitqConfig& config
++) {
++    add_point_from_vector(label, cluster_id, rawDataPtr_ + (label * dim_), config);
++}
++
++inline void HierarchicalNSW::add_points(
++    size_t raw_data_num,
++    const float* raw_data,
++    size_t add_num,
++    PID* labels,
++    PID* cluster_ids,
++    size_t num_threads = 0,
++    bool faster = false
++) {
++    if (centroids_memory_ == nullptr || num_cluster_ == 0) {
++        throw std::runtime_error("HNSW add_points requires a constructed index");
++    }
++    if (raw_data == nullptr) {
++        throw std::invalid_argument("HNSW add_points received null raw data");
++    }
++    for (size_t i = 0; i < add_num; ++i) {
++        if (labels[i] >= raw_data_num) {
++            throw std::invalid_argument("HNSW add_points label exceeds raw data row count");
++        }
++        if (cluster_ids[i] >= num_cluster_) {
++            throw std::invalid_argument("HNSW add_points cluster id exceeds centroid count");
++        }
++    }
++
++    quant::RabitqConfig config;
++    if (faster) {
++        config = quant::faster_config(padded_dim_, ex_bits_ + 1);
++    }
++
++    rawDataPtr_ = raw_data;
++    rabitqlib::ivf::parallel_for(
++        0,
++        add_num,
++        num_threads,
++        [&](size_t idx, size_t /*threadId*/) {
++            add_point(labels[idx], cluster_ids[idx], config);
++        }
++    );
++}
++
++inline void HierarchicalNSW::add_point_from_vector(
++    PID label,
++    PID cluster_id,
++    const float* vector_data,
++    const quant::RabitqConfig& config
+ ) {
+     std::unique_lock<std::mutex> lock_label(get_lable_op_mutex(label));
+ 
+@@ -673,7 +920,7 @@ inline void HierarchicalNSW::add_point(
+ 
+     // Quantize raw data and initialize quantized data
+     std::vector<float> rotated_data(padded_dim_);
+-    rotator_->rotate(rawDataPtr_ + (label * dim_), rotated_data.data());
++    rotator_->rotate(vector_data, rotated_data.data());
+     quant::quantize_split_single(
+         rotated_data.data(),
+         reinterpret_cast<float*>(centroids_memory_) + (cluster_id * padded_dim_),
+@@ -1093,14 +1340,329 @@ inline std::vector<std::vector<std::pair<float, PID>>> HierarchicalNSW::search(
+     return results;
+ }
+ 
++
++
++inline std::vector<std::vector<std::pair<float, PID>>> HierarchicalNSW::search_1bit_fp_rerank(
++    const float* queries,
++    const float* raw_data,
++    size_t raw_data_rows,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num
++) {
++    set_ef(efSearch);
++    std::vector<std::vector<std::pair<float, PID>>> results(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            const float* raw_query = queries + (idx * dim_);
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(raw_query, rotated_query.data());
++            maxheap<std::pair<float, PID>> knn = search_knn(
++                rotated_query.data(),
++                TOPK,
++                nullptr,
++                0,
++                raw_query,
++                raw_data,
++                raw_data_rows
++            );
++            while (knn.size()) {
++                results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(results[idx].begin(), results[idx].end());
++        }
++    );
++    return results;
++}
++
++
++
++
++inline RoutingSearchResult HierarchicalNSW::search_1bit_fp_rerank_with_stats(
++    const float* queries,
++    const float* raw_data,
++    size_t raw_data_rows,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    size_t routing_trace_max
++) {
++    set_ef(efSearch);
++    RoutingSearchResult output;
++    output.results.resize(query_num);
++    output.stats.resize(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            const float* raw_query = queries + (idx * dim_);
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(raw_query, rotated_query.data());
++            maxheap<std::pair<float, PID>> knn = search_knn(
++                rotated_query.data(),
++                TOPK,
++                &output.stats[idx],
++                routing_trace_max,
++                raw_query,
++                raw_data,
++                raw_data_rows
++            );
++            while (knn.size()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++        }
++    );
++    return output;
++}
++
++
++inline RoutingSearchResult HierarchicalNSW::search_1bit_fp_rerank_with_stats_callback(
++    const float* queries,
++    size_t raw_data_rows,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    size_t routing_trace_max,
++    const std::function<float(size_t, PID)>& raw_label_distance
++) {
++    set_ef(efSearch);
++    RoutingSearchResult output;
++    output.results.resize(query_num);
++    output.stats.resize(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            const float* raw_query = queries + (idx * dim_);
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(raw_query, rotated_query.data());
++            const std::function<float(PID)> query_distance = [&](PID label) -> float {
++                return raw_label_distance(idx, label);
++            };
++            maxheap<std::pair<float, PID>> knn = search_knn(
++                rotated_query.data(),
++                TOPK,
++                &output.stats[idx],
++                routing_trace_max,
++                raw_query,
++                nullptr,
++                raw_data_rows,
++                &query_distance
++            );
++            while (knn.size()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++        }
++    );
++    return output;
++}
++
++
++inline std::vector<std::vector<std::pair<float, PID>>> HierarchicalNSW::search_centroid_only(
++    const float* queries,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num
++) {
++    set_ef(efSearch);
++    std::vector<std::vector<std::pair<float, PID>>> results(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(queries + (idx * dim_), rotated_query.data());
++            maxheap<std::pair<float, PID>> knn = search_knn_centroid_only(
++                rotated_query.data(), TOPK
++            );
++            while (knn.size()) {
++                results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(results[idx].begin(), results[idx].end());
++        }
++    );
++    return results;
++}
++
++
++inline RoutingSearchResult HierarchicalNSW::search_with_routing_stats(
++    const float* queries,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    size_t routing_trace_max
++) {
++    set_ef(efSearch);
++    RoutingSearchResult output;
++    output.results.resize(query_num);
++    output.stats.resize(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(queries + (idx * dim_), rotated_query.data());
++            maxheap<std::pair<float, PID>> knn = search_knn(
++                rotated_query.data(), TOPK, &output.stats[idx], routing_trace_max
++            );
++            while (knn.size()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++        }
++    );
++    return output;
++}
++
++
++inline RoutingSearchResult HierarchicalNSW::search_fp_with_routing_stats(
++    const float* queries,
++    const float* data,
++    size_t data_rows,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    size_t routing_trace_max
++) {
++    set_ef(efSearch);
++    RoutingSearchResult output;
++    output.results.resize(query_num);
++    output.stats.resize(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            maxheap<std::pair<float, PID>> knn = search_knn_fp(
++                queries + (idx * dim_), data, data_rows, TOPK, &output.stats[idx], routing_trace_max
++            );
++            while (knn.size()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++        }
++    );
++    return output;
++}
++
++inline std::vector<std::vector<std::pair<float, PID>>> HierarchicalNSW::search_adaptive_light(
++    const float* queries,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    const AdaptiveLightConfig& config,
++    const PID* hidden_internal_ids
++) {
++    set_ef(efSearch);
++    std::vector<std::vector<std::pair<float, PID>>> results(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(queries + (idx * dim_), rotated_query.data());
++            const PID hidden_internal_id = hidden_internal_ids == nullptr ? kPidMax : hidden_internal_ids[idx];
++            maxheap<std::pair<float, PID>> knn = search_knn_adaptive_light(
++                rotated_query.data(), TOPK, config, nullptr, hidden_internal_id
++            );
++            while (knn.size()) {
++                results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(results[idx].begin(), results[idx].end());
++        }
++    );
++    return results;
++}
++
++inline AdaptiveLightSearchResult HierarchicalNSW::search_adaptive_light_with_stats(
++    const float* queries,
++    size_t query_num,
++    size_t TOPK,
++    size_t efSearch,
++    size_t thread_num,
++    const AdaptiveLightConfig& config,
++    const PID* hidden_internal_ids
++) {
++    set_ef(efSearch);
++    AdaptiveLightSearchResult output;
++    output.results.resize(query_num);
++    output.stats.resize(query_num);
++    rabitqlib::ivf::parallel_for(
++        0,
++        query_num,
++        thread_num,
++        [&](size_t idx, size_t /*threadId*/) {
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(queries + (idx * dim_), rotated_query.data());
++            const PID hidden_internal_id = hidden_internal_ids == nullptr ? kPidMax : hidden_internal_ids[idx];
++            maxheap<std::pair<float, PID>> knn = search_knn_adaptive_light(
++                rotated_query.data(), TOPK, config, &output.stats[idx], hidden_internal_id
++            );
++            while (knn.size()) {
++                output.results[idx].emplace_back(knn.top());
++                knn.pop();
++            }
++            std::reverse(output.results[idx].begin(), output.results[idx].end());
++        }
++    );
++    return output;
++}
++
+ inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn(
+-    const float* rotated_query, size_t TOPK
++    const float* rotated_query,
++    size_t TOPK,
++    RoutingStats* routing_stats,
++    size_t routing_trace_max,
++    const float* raw_query_for_rerank,
++    const float* raw_data_for_rerank,
++    size_t raw_data_rows_for_rerank,
++    const std::function<float(PID)>* raw_label_dist_for_rerank
+ ) {
++    using Clock = std::chrono::steady_clock;
++    const bool collect_routing_stats = routing_stats != nullptr;
++    Clock::time_point query_start_time;
++    if (collect_routing_stats) {
++        query_start_time = Clock::now();
++    }
++    const auto ns_between = [](Clock::time_point start, Clock::time_point end) -> uint64_t {
++        return static_cast<uint64_t>(
++            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()
++        );
++    };
++
+     maxheap<std::pair<float, PID>> result;
+     if (cur_element_count_ == 0) {
+         return result;
+     }
+ 
++    Clock::time_point preprocess_start_time;
++    if (collect_routing_stats) {
++        preprocess_start_time = Clock::now();
++    }
+     SplitSingleQuery<float> query_wrapper(
+         rotated_query, padded_dim_, ex_bits_, query_config_, metric_type_
+     );
+@@ -1132,11 +1694,29 @@ inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn(
+             ));
+         }
+     }
++    if (collect_routing_stats) {
++        const auto preprocess_end_time = Clock::now();
++        routing_stats->preprocess_time_ns =
++            ns_between(preprocess_start_time, preprocess_end_time);
++    }
++
+ 
+     PID curr_obj = enterpoint_node_;
+     EstimateRecord curest;
+ 
++    uint64_t upper_bin_est_time_ns = 0;
++    Clock::time_point upper_start_time;
++    Clock::time_point dist_start_time;
++    if (collect_routing_stats) {
++        upper_start_time = Clock::now();
++        dist_start_time = Clock::now();
++    }
+     get_bin_est(q_to_centroids, query_wrapper, curr_obj, curest);
++    if (collect_routing_stats) {
++        auto dist_end_time = Clock::now();
++        upper_bin_est_time_ns += ns_between(dist_start_time, dist_end_time);
++        routing_stats->upper_bin_est_count++;
++    }
+ 
+     for (int level = maxlevel_; level > 0; level--) {
+         bool changed = true;
+@@ -1155,7 +1735,16 @@ inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn(
+                 }
+ 
+                 EstimateRecord candest;
++                if (collect_routing_stats) {
++                    dist_start_time = Clock::now();
++                }
+                 get_bin_est(q_to_centroids, query_wrapper, cand, candest);
++                if (collect_routing_stats) {
++                    auto dist_end_time = Clock::now();
++                    upper_bin_est_time_ns += ns_between(dist_start_time, dist_end_time);
++                    routing_stats->upper_link_scan_count++;
++                    routing_stats->upper_bin_est_count++;
++                }
+ 
+                 if (candest.est_dist < curest.est_dist) {
+                     curest = candest;
+@@ -1165,6 +1754,12 @@ inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn(
+             }
+         }
+     }
++    if (collect_routing_stats) {
++        const auto upper_end_time = Clock::now();
++        routing_stats->upper_layer_time_ns = ns_between(upper_start_time, upper_end_time);
++        routing_stats->upper_bin_est_time_ns = upper_bin_est_time_ns;
++    }
++
+ 
+     BoundedKNN boundedKnn(TOPK);
+     searchBaseLayerST_AdaptiveRerankOpt(
+@@ -1174,60 +1769,909 @@ inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn(
+         query_wrapper,
+         q_to_centroids,
+         rotated_query,
+-        boundedKnn
++        boundedKnn,
++        nullptr,
++        nullptr,
++        kPidMax,
++        routing_stats,
++        routing_trace_max,
++        raw_query_for_rerank,
++        raw_data_for_rerank,
++        raw_data_rows_for_rerank,
++        raw_label_dist_for_rerank
+     );
+     for (auto& candidate : boundedKnn.candidates()) {
+         result.emplace(candidate.record.est_dist, get_external_label(candidate.id));
+     }
++    if (collect_routing_stats) {
++        routing_stats->total_time_ns = ns_between(query_start_time, Clock::now());
++    }
+     return result;
+ }
+ 
+-struct EstimateRecord {
+-    float est_dist;
+-    float low_dist;
+-};
+ 
+-// Optimized search function.
+-void HierarchicalNSW::searchBaseLayerST_AdaptiveRerankOpt(
+-    PID ep_id,
+-    size_t ef,
+-    size_t TOPK,
++inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn_centroid_only(
++    const float* rotated_query,
++    size_t TOPK
++) {
++    maxheap<std::pair<float, PID>> result;
++    if (cur_element_count_ == 0) {
++        return result;
++    }
++
++    std::vector<float> q_to_centroids(num_cluster_);
++    if (metric_type_ == METRIC_L2) {
++        for (size_t i = 0; i < num_cluster_; i++) {
++            q_to_centroids[i] = std::sqrt(raw_dist_func_(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            ));
++        }
++    } else if (metric_type_ == METRIC_IP) {
++        for (size_t i = 0; i < num_cluster_; i++) {
++            q_to_centroids[i] = dot_product(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            );
++        }
++    }
++
++    auto centroid_dist = [&](PID internal_id) -> float {
++        const PID cid = get_clusterid_by_internalid(internal_id);
++        if (metric_type_ == METRIC_L2) {
++            const float norm = q_to_centroids[cid];
++            return norm * norm;
++        }
++        return -q_to_centroids[cid];
++    };
++
++    PID curr_obj = enterpoint_node_;
++    float curdist = centroid_dist(curr_obj);
++
++    for (int level = maxlevel_; level > 0; level--) {
++        bool changed = true;
++        while (changed) {
++            changed = false;
++            unsigned int* data_link = static_cast<unsigned int*>(get_linklist(curr_obj, level));
++            int size = get_list_count(data_link);
++            PID* datal = static_cast<PID*>(data_link + 1);
++            for (int i = 0; i < size; i++) {
++                PID cand = datal[i];
++                if (cand > max_elements_) {
++                    throw std::runtime_error("cand error");
++                }
++                float cand_dist = centroid_dist(cand);
++                if (cand_dist < curdist) {
++                    curdist = cand_dist;
++                    curr_obj = cand;
++                    changed = true;
++                }
++            }
++        }
++    }
++
++    const size_t effective_ef = std::max(ef_, TOPK);
++    buffer::SearchBuffer<float> candidate_set(effective_ef);
++    BoundedKNN boundedKnn(TOPK);
++    HashBasedBooleanSet* vl = visited_list_pool_->get_free_vislist();
++
++    boundedKnn.insert({ResultRecord(curdist, curdist), curr_obj});
++    candidate_set.insert(curr_obj, curdist);
++    float distk = boundedKnn.worst().record.est_dist;
++    vl->set(curr_obj);
++
++    while (candidate_set.has_next()) {
++        PID current_node_id = candidate_set.pop();
++        int* data = (int*)get_linklist0(current_node_id);
++        size_t size = get_list_count((PID*)data);
++
++        for (size_t j = 1; j <= size; j++) {
++            int candidate_id = *(data + j);
++            if (vl->get(candidate_id)) {
++                continue;
++            }
++            vl->set(candidate_id);
++
++            const float cand_dist = centroid_dist(static_cast<PID>(candidate_id));
++            if (boundedKnn.size() < TOPK || cand_dist < distk) {
++                boundedKnn.insert(
++                    {ResultRecord(cand_dist, cand_dist), static_cast<PID>(candidate_id)}
++                );
++                distk = boundedKnn.worst().record.est_dist;
++            }
++            if (!candidate_set.is_full(cand_dist)) {
++                candidate_set.insert(static_cast<PID>(candidate_id), cand_dist);
++            }
++        }
++    }
++
++    visited_list_pool_->release_vis_list(vl);
++
++    for (auto& candidate : boundedKnn.candidates()) {
++        result.emplace(candidate.record.est_dist, get_external_label(candidate.id));
++    }
++    return result;
++}
++
++inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn_fp(
++    const float* query,
++    const float* data,
++    size_t data_rows,
++    size_t TOPK,
++    RoutingStats* routing_stats,
++    size_t routing_trace_max
++) {
++    maxheap<std::pair<float, PID>> result;
++    if (cur_element_count_ == 0) {
++        return result;
++    }
++
++    auto exact_dist = [&](PID internal_id) -> float {
++        PID label = get_external_label(internal_id);
++        if (label >= data_rows) {
++            throw std::runtime_error("external label exceeds provided data rows");
++        }
++        return raw_dist_func_(query, data + (static_cast<size_t>(label) * dim_), dim_);
++    };
++
++    PID curr_obj = enterpoint_node_;
++    float curdist = exact_dist(curr_obj);
++
++    for (int level = maxlevel_; level > 0; level--) {
++        bool changed = true;
++        while (changed) {
++            changed = false;
++            unsigned int* data_link = static_cast<unsigned int*>(get_linklist(curr_obj, level));
++            int size = get_list_count(data_link);
++            PID* datal = static_cast<PID*>(data_link + 1);
++            for (int i = 0; i < size; i++) {
++                PID cand = datal[i];
++                if (cand > max_elements_) {
++                    throw std::runtime_error("cand error");
++                }
++                float cand_dist = exact_dist(cand);
++                if (cand_dist < curdist) {
++                    curdist = cand_dist;
++                    curr_obj = cand;
++                    changed = true;
++                }
++            }
++        }
++    }
++
++    const size_t effective_ef = std::max(ef_, TOPK);
++    BoundedKNN boundedKnn(TOPK);
++    buffer::SearchBuffer<float> candidate_set(effective_ef);
++    HashBasedBooleanSet* vl = visited_list_pool_->get_free_vislist();
++
++    boundedKnn.insert({ResultRecord(curdist, curdist), curr_obj});
++    candidate_set.insert(curr_obj, curdist);
++    vl->set(curr_obj);
++    if (routing_stats != nullptr) {
++        routing_stats->base_visited_count++;
++        if (routing_trace_max > 0) {
++            routing_stats->base_visited_labels.push_back(get_external_label(curr_obj));
++        }
++    }
++
++    float distk = boundedKnn.worst().record.est_dist;
++    while (candidate_set.has_next()) {
++        const float current_candidate_dist = candidate_set.next_dist();
++        const PID current_node_id_before_pop = candidate_set.next_id();
++        if (routing_stats != nullptr) {
++            routing_stats->base_pop_count++;
++            if (routing_stats->base_best_est_dist.size() < routing_trace_max) {
++                PID second_node_id = kPidMax;
++                float second_candidate_dist = std::numeric_limits<float>::quiet_NaN();
++                const bool has_second = candidate_set.next_unchecked_after_current(
++                    second_node_id, second_candidate_dist
++                );
++                routing_stats->base_best_labels.push_back(
++                    get_external_label(current_node_id_before_pop)
++                );
++                routing_stats->base_best_est_dist.push_back(current_candidate_dist);
++                if (has_second) {
++                    routing_stats->base_second_labels.push_back(get_external_label(second_node_id));
++                    routing_stats->base_second_est_dist.push_back(second_candidate_dist);
++                    routing_stats->base_frontier_margin_est.push_back(
++                        second_candidate_dist - current_candidate_dist
++                    );
++                } else {
++                    routing_stats->base_second_labels.push_back(kPidMax);
++                    routing_stats->base_second_est_dist.push_back(
++                        std::numeric_limits<float>::quiet_NaN()
++                    );
++                    routing_stats->base_frontier_margin_est.push_back(
++                        std::numeric_limits<float>::quiet_NaN()
++                    );
++                }
++            }
++        }
++
++        PID current_node_id = candidate_set.pop();
++        int* link_data = reinterpret_cast<int*>(get_linklist0(current_node_id));
++        size_t size = get_list_count(reinterpret_cast<PID*>(link_data));
++        if (routing_stats != nullptr) {
++            routing_stats->base_neighbor_scan_count += size;
++        }
++
++        for (size_t j = 1; j <= size; j++) {
++            int candidate_id = *(link_data + j);
++            if (vl->get(candidate_id)) {
++                continue;
++            }
++            vl->set(candidate_id);
++            if (routing_stats != nullptr) {
++                routing_stats->base_visited_count++;
++                if (routing_trace_max > 0) {
++                    routing_stats->base_visited_labels.push_back(get_external_label(candidate_id));
++                }
++            }
++
++            float cand_dist = exact_dist(static_cast<PID>(candidate_id));
++            bool flag_update_KNNs = boundedKnn.size() < TOPK || cand_dist < distk;
++            if (flag_update_KNNs) {
++                boundedKnn.insert({ResultRecord(cand_dist, cand_dist), static_cast<PID>(candidate_id)});
++                distk = boundedKnn.worst().record.est_dist;
++            }
++            if (!candidate_set.is_full(cand_dist)) {
++                candidate_set.insert(static_cast<PID>(candidate_id), cand_dist);
++            }
++        }
++    }
++
++    if (routing_stats != nullptr && routing_trace_max > 0) {
++        routing_stats->base_visited_count = routing_stats->base_visited_labels.size();
++    }
++    visited_list_pool_->release_vis_list(vl);
++
++    for (auto& candidate : boundedKnn.candidates()) {
++        result.emplace(candidate.record.est_dist, get_external_label(candidate.id));
++    }
++    return result;
++}
++
++inline PID HierarchicalNSW::resolve_entry_point_for_hidden_node(PID hidden_internal_id) const {
++    if (cur_element_count_ == 0 || enterpoint_node_ == kPidMax) {
++        return kPidMax;
++    }
++    if (hidden_internal_id == kPidMax || enterpoint_node_ != hidden_internal_id) {
++        return enterpoint_node_;
++    }
++
++    PID fallback = kPidMax;
++    int fallback_level = -1;
++    const size_t current_count = cur_element_count_.load();
++    for (PID node_id = 0; node_id < current_count; ++node_id) {
++        if (node_id == hidden_internal_id) {
++            continue;
++        }
++        const int node_level = element_levels_[node_id];
++        if (node_level > fallback_level) {
++            fallback = node_id;
++            fallback_level = node_level;
++        }
++    }
++    return fallback;
++}
++
++inline maxheap<std::pair<float, PID>> HierarchicalNSW::search_knn_adaptive_light(
++    const float* rotated_query,
++    size_t TOPK,
++    const AdaptiveLightConfig& config,
++    AdaptiveLightStats* adaptive_stats,
++    PID hidden_internal_id
++) {
++    using Clock = std::chrono::steady_clock;
++    const bool collect_adaptive_stats = adaptive_stats != nullptr;
++    Clock::time_point query_start_time;
++    if (collect_adaptive_stats) {
++        query_start_time = Clock::now();
++    }
++    const auto ns_between = [](Clock::time_point start, Clock::time_point end) -> uint64_t {
++        return static_cast<uint64_t>(
++            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()
++        );
++    };
++
++    maxheap<std::pair<float, PID>> result;
++    if (cur_element_count_ == 0) {
++        return result;
++    }
++
++    Clock::time_point preprocess_start_time;
++    if (collect_adaptive_stats) {
++        preprocess_start_time = Clock::now();
++    }
++    SplitSingleQuery<float> query_wrapper(
++        rotated_query, padded_dim_, ex_bits_, query_config_, metric_type_
++    );
++
++    std::vector<float> q_to_centroids(num_cluster_);
++
++    if (metric_type_ == METRIC_L2) {
++        for (size_t i = 0; i < num_cluster_; i++) {
++            q_to_centroids[i] = std::sqrt(raw_dist_func_(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            ));
++        }
++    } else if (metric_type_ == METRIC_IP) {
++        q_to_centroids.resize(2 * num_cluster_);
++        for (size_t i = 0; i < num_cluster_; i++) {
++            q_to_centroids[i] = dot_product(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            );
++            q_to_centroids[i + num_cluster_] = std::sqrt(euclidean_sqr(
++                rotated_query,
++                reinterpret_cast<float*>(centroids_memory_) + (i * padded_dim_),
++                padded_dim_
++            ));
++        }
++    }
++
++    Clock::time_point preprocess_end_time;
++    if (collect_adaptive_stats) {
++        preprocess_end_time = Clock::now();
++    }
++
++    PID curr_obj = resolve_entry_point_for_hidden_node(hidden_internal_id);
++    if (curr_obj == kPidMax) {
++        return result;
++    }
++    EstimateRecord curest;
++
++    size_t upper_bin_est_count = 0;
++    size_t upper_link_scan_count = 0;
++    uint64_t upper_bin_est_time_ns = 0;
++    Clock::time_point upper_start_time;
++    Clock::time_point bin_start_time;
++    if (collect_adaptive_stats) {
++        upper_start_time = Clock::now();
++        bin_start_time = Clock::now();
++    }
++    get_bin_est(q_to_centroids, query_wrapper, curr_obj, curest);
++    if (collect_adaptive_stats) {
++        auto bin_end_time = Clock::now();
++        upper_bin_est_count++;
++        upper_bin_est_time_ns += ns_between(bin_start_time, bin_end_time);
++    }
++
++    for (int level = maxlevel_; level > 0; level--) {
++        bool changed = true;
++        while (changed) {
++            changed = false;
++            unsigned int* data = static_cast<unsigned int*>(get_linklist(curr_obj, level));
++            int size = get_list_count(data);
++            PID* datal = static_cast<PID*>(data + 1);
++            for (int i = 0; i < size; i++) {
++                PID cand = datal[i];
++                if (cand == hidden_internal_id) {
++                    continue;
++                }
++                if (cand > max_elements_) {
++                    throw std::runtime_error("cand error");
++                }
++
++                EstimateRecord candest;
++                if (collect_adaptive_stats) {
++                    upper_link_scan_count++;
++                    bin_start_time = Clock::now();
++                }
++                get_bin_est(q_to_centroids, query_wrapper, cand, candest);
++                if (collect_adaptive_stats) {
++                    auto bin_end_time = Clock::now();
++                    upper_bin_est_count++;
++                    upper_bin_est_time_ns += ns_between(bin_start_time, bin_end_time);
++                }
++
++                if (candest.est_dist < curest.est_dist) {
++                    curest = candest;
++                    curr_obj = cand;
++                    changed = true;
++                }
++            }
++        }
++    }
++
++    Clock::time_point upper_end_time;
++    if (collect_adaptive_stats) {
++        upper_end_time = Clock::now();
++    }
++
++    BoundedKNN boundedKnn(TOPK);
++    searchBaseLayerST_AdaptiveRerankOpt(
++        curr_obj,
++        std::max(ef_, TOPK),
++        TOPK,
++        query_wrapper,
++        q_to_centroids,
++        rotated_query,
++        boundedKnn,
++        &config,
++        adaptive_stats,
++        hidden_internal_id
++    );
++    for (auto& candidate : boundedKnn.candidates()) {
++        result.emplace(candidate.record.est_dist, get_external_label(candidate.id));
++    }
++    if (adaptive_stats != nullptr) {
++        adaptive_stats->preprocess_time_ns = ns_between(preprocess_start_time, preprocess_end_time);
++        adaptive_stats->upper_layer_time_ns = ns_between(upper_start_time, upper_end_time);
++        adaptive_stats->upper_bin_est_count = upper_bin_est_count;
++        adaptive_stats->upper_link_scan_count = upper_link_scan_count;
++        adaptive_stats->upper_bin_est_time_ns = upper_bin_est_time_ns;
++        adaptive_stats->total_time_ns = ns_between(query_start_time, Clock::now());
++    }
++    return result;
++}
++
++struct EstimateRecord {
++    float est_dist;
++    float low_dist;
++};
++
++// Optimized search function.
++
++inline std::vector<float> HierarchicalNSW::pairwise_est_dist(
++    const float* queries,
++    size_t num_queries
++) {
++    std::vector<float> result(num_queries * cur_element_count_);
++
++    for (size_t qi = 0; qi < num_queries; ++qi) {
++        std::vector<float> rotated_query(padded_dim_);
++        this->rotator_->rotate(
++            queries + (qi * dim_),
++            rotated_query.data()
++        );
++
++        SplitSingleQuery<float> query_wrapper(
++            rotated_query.data(),
++            padded_dim_,
++            ex_bits_,
++            query_config_,
++            metric_type_
++        );
++
++        std::vector<float> q_to_centroids(num_cluster_);
++
++        if (metric_type_ == METRIC_L2) {
++            for (size_t c = 0; c < num_cluster_; ++c) {
++                q_to_centroids[c] = std::sqrt(raw_dist_func_(
++                    rotated_query.data(),
++                    reinterpret_cast<float*>(centroids_memory_) + (c * padded_dim_),
++                    padded_dim_
++                ));
++            }
++        } else if (metric_type_ == METRIC_IP) {
++            q_to_centroids.resize(2 * num_cluster_);
++
++            for (size_t c = 0; c < num_cluster_; ++c) {
++                q_to_centroids[c] = dot_product(
++                    rotated_query.data(),
++                    reinterpret_cast<float*>(centroids_memory_) + (c * padded_dim_),
++                    padded_dim_
++                );
++
++                q_to_centroids[c + num_cluster_] =
++                    std::sqrt(euclidean_sqr(
++                        rotated_query.data(),
++                        reinterpret_cast<float*>(centroids_memory_) + (c * padded_dim_),
++                        padded_dim_
++                    ));
++            }
++        }
++
++        for (PID obj = 0; obj < cur_element_count_; ++obj) {
++            EstimateRecord rec;
++
++            if (ex_bits_ > 0) {
++                get_full_est(q_to_centroids, query_wrapper, obj, rec);
++            } else {
++                get_bin_est(q_to_centroids, query_wrapper, obj, rec);
++            }
++
++            result[qi * cur_element_count_ + obj] =
++                rec.est_dist;
++        }
++    }
++
++    return result;
++}
++
++inline std::vector<float> HierarchicalNSW::estimate_dist_for_labels(
++    const float* queries,
++    const PID* labels,
++    size_t num_queries,
++    size_t labels_per_query,
++    size_t thread_num
++) {
++    std::vector<float> result(
++        num_queries * labels_per_query,
++        std::numeric_limits<float>::infinity()
++    );
++
++    rabitqlib::ivf::parallel_for(
++        0,
++        num_queries,
++        thread_num,
++        [&](size_t qi, size_t /*thread_id*/) {
++            std::vector<float> rotated_query(padded_dim_);
++            this->rotator_->rotate(
++                queries + (qi * dim_),
++                rotated_query.data()
++            );
++
++            SplitSingleQuery<float> query_wrapper(
++                rotated_query.data(),
++                padded_dim_,
++                ex_bits_,
++                query_config_,
++                metric_type_
++            );
++
++            std::vector<float> q_to_centroids(num_cluster_);
++
++            if (metric_type_ == METRIC_L2) {
++                for (size_t c = 0; c < num_cluster_; ++c) {
++                    q_to_centroids[c] = std::sqrt(raw_dist_func_(
++                        rotated_query.data(),
++                        reinterpret_cast<float*>(centroids_memory_) + (c * padded_dim_),
++                        padded_dim_
++                    ));
++                }
++            } else if (metric_type_ == METRIC_IP) {
++                q_to_centroids.resize(2 * num_cluster_);
++
++                for (size_t c = 0; c < num_cluster_; ++c) {
++                    q_to_centroids[c] = dot_product(
++                        rotated_query.data(),
++                        reinterpret_cast<float*>(centroids_memory_) + (c * padded_dim_),
++                        padded_dim_
++                    );
++
++                    q_to_centroids[c + num_cluster_] =
++                        std::sqrt(euclidean_sqr(
++                            rotated_query.data(),
++                            reinterpret_cast<float*>(centroids_memory_) + (c * padded_dim_),
++                            padded_dim_
++                        ));
++                }
++            }
++
++            for (size_t j = 0; j < labels_per_query; ++j) {
++                const PID label = labels[qi * labels_per_query + j];
++                const PID internal_id = internal_id_for_label(label);
++                if (internal_id == kPidMax) {
++                    continue;
++                }
++
++                EstimateRecord rec;
++                if (ex_bits_ > 0) {
++                    get_full_est(q_to_centroids, query_wrapper, internal_id, rec);
++                } else {
++                    get_bin_est(q_to_centroids, query_wrapper, internal_id, rec);
++                }
++
++                result[qi * labels_per_query + j] = rec.est_dist;
++            }
++        }
++    );
++
++    return result;
++}
++
++
++
++inline float adaptive_light_ratio_distance(float raw_distance, MetricType metric_type) {
++    return metric_type == METRIC_IP ? 1.0F + raw_distance : raw_distance;
++}
++
++inline size_t resolve_adaptive_scaled_ef(
++    size_t configured_ef, double scale, size_t min_ef, size_t topk
++) {
++    const size_t raw_ef =
++        static_cast<size_t>(std::llround(static_cast<double>(configured_ef) * scale));
++    return std::min(configured_ef, std::max(std::max(min_ef, topk), raw_ef));
++}
++
++inline float adaptive_bucket_gamma_ratio(
++    const AdaptiveLightConfig& config, size_t index
++) {
++    return index < config.bucket_gamma_ratios.size()
++               ? config.bucket_gamma_ratios[index]
++               : std::numeric_limits<float>::quiet_NaN();
++}
++
++inline void validate_adaptive_bucket_config(const AdaptiveLightConfig& config) {
++    if (config.paper_bucket_count < 2 || config.paper_bucket_count > 8) {
++        throw std::runtime_error("paper_bucket_count must be in [2, 8]");
++    }
++
++    float prev_gamma = -std::numeric_limits<float>::infinity();
++    for (int i = 0; i < config.paper_bucket_count - 1; ++i) {
++        const float gamma = adaptive_bucket_gamma_ratio(config, static_cast<size_t>(i));
++        if (!std::isfinite(gamma)) {
++            throw std::runtime_error("bucket_gamma_ratios must be finite");
++        }
++        if (gamma < 0.0F || gamma > 1.0F) {
++            throw std::runtime_error("bucket_gamma_ratios must lie in [0, 1]");
++        }
++        if (gamma < prev_gamma) {
++            throw std::runtime_error("bucket_gamma_ratios must be monotone nondecreasing");
++        }
++        prev_gamma = gamma;
++    }
++}
++
++inline size_t resolve_adaptive_bucket_index(
++    const AdaptiveLightConfig& config,
++    float classify_chr_ratio
++) {
++    const size_t bucket_count = static_cast<size_t>(config.paper_bucket_count);
++    size_t selected_bucket_index = bucket_count - 1;
++    for (size_t i = 0; i + 1 < bucket_count; ++i) {
++        if (classify_chr_ratio <= adaptive_bucket_gamma_ratio(config, i)) {
++            selected_bucket_index = i;
++            break;
++        }
++    }
++    return selected_bucket_index;
++}
++
++inline size_t resolve_adaptive_bucket_ef(
++    size_t configured_ef,
++    size_t topk,
++    const AdaptiveLightConfig& config,
++    float classify_chr_ratio
++) {
++    validate_adaptive_bucket_config(config);
++
++    const size_t bucket_count = static_cast<size_t>(config.paper_bucket_count);
++    const size_t selected_bucket_index =
++        resolve_adaptive_bucket_index(config, classify_chr_ratio);
++
++    if (selected_bucket_index + 1 >= bucket_count) {
++        return configured_ef;
++    }
++
++    size_t routed_ef = (configured_ef * (selected_bucket_index + 1)) / bucket_count;
++    routed_ef = std::max<size_t>(1, routed_ef);
++    routed_ef = std::min(configured_ef, routed_ef);
++    return std::max(routed_ef, topk);
++}
++
++void HierarchicalNSW::searchBaseLayerST_AdaptiveRerankOpt(
++    PID ep_id,
++    size_t ef,
++    size_t TOPK,
+     SplitSingleQuery<float>& query_wrapper,
+     std::vector<float>& q_to_centroids,  // preprocess
+     [[maybe_unused]] const float* query,
+-    BoundedKNN& boundedKNN
++    BoundedKNN& boundedKNN,
++    const AdaptiveLightConfig* adaptive_config,
++    AdaptiveLightStats* adaptive_stats,
++    PID hidden_internal_id,
++    RoutingStats* routing_stats,
++    size_t routing_trace_max,
++    const float* raw_query_for_rerank,
++    const float* raw_data_for_rerank,
++    size_t raw_data_rows_for_rerank,
++    const std::function<float(PID)>* raw_label_dist_for_rerank
+ ) {
++    using Clock = std::chrono::steady_clock;
++    const bool collect_search_stats = adaptive_stats != nullptr || routing_stats != nullptr;
++    Clock::time_point base_start_time;
++    if (collect_search_stats) {
++        base_start_time = Clock::now();
++    }
++    const auto ns_between = [](Clock::time_point start, Clock::time_point end) -> uint64_t {
++        return static_cast<uint64_t>(
++            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()
++        );
++    };
++
+     HashBasedBooleanSet* vl = visited_list_pool_->get_free_vislist();
+ 
++    const bool adaptive_enabled = adaptive_config != nullptr;
++    size_t effective_ef = std::max(ef, TOPK);
++    if (adaptive_enabled) {
++        const size_t effective_ef_max = std::max(adaptive_config->ef_max, TOPK);
++        effective_ef = std::min(effective_ef, effective_ef_max);
++        if (adaptive_config->paper_bucket_mode) {
++            validate_adaptive_bucket_config(*adaptive_config);
++        }
++    }
++    const size_t configured_ef = effective_ef;
++    if (adaptive_stats != nullptr) {
++        *adaptive_stats = AdaptiveLightStats{};
++        adaptive_stats->initial_ef = configured_ef;
++        adaptive_stats->effective_ef = effective_ef;
++        for (int trace_i = 0; trace_i < AdaptiveLightStats::kClassifyTraceLen; ++trace_i) {
++            adaptive_stats->classify_popped_dist[static_cast<size_t>(trace_i)] =
++                std::numeric_limits<float>::quiet_NaN();
++            adaptive_stats->classify_furthest_dist[static_cast<size_t>(trace_i)] =
++                std::numeric_limits<float>::quiet_NaN();
++            adaptive_stats->classify_chr[static_cast<size_t>(trace_i)] =
++                std::numeric_limits<float>::quiet_NaN();
++            adaptive_stats->classify_smoothed_chr[static_cast<size_t>(trace_i)] =
++                std::numeric_limits<float>::quiet_NaN();
++        }
++    }
++
+     // Use our bounded priority queue instead of the maxheap.
+-    buffer::SearchBuffer<float> candidate_set(ef);
++    buffer::SearchBuffer<float> candidate_set(effective_ef);
++
++    static constexpr size_t kHardOnlyStagLimit = 20;
++    static constexpr int kClassifyStart = 4;
++    static constexpr int kClassifyEnd = 16;
++    static constexpr float kChrEmaDecay = 0.8F;
++    static constexpr float kChrEmaUpdate = 1.0F - kChrEmaDecay;
++
++    bool is_easy_query = false;
++    bool is_super_easy_query = false;
++    bool is_mid_easy_query = false;
++    bool classification_evaluated = false;
++    bool effective_ef_shrink_applied = false;
++    bool ef_was_shrunk = false;
++    bool early_stopped = false;
++    int full_pop_count = 0;
++    int stagnation_count = 0;
++    float prev_furthest = std::numeric_limits<float>::max();
++    float smoothed_chr_ema = std::numeric_limits<float>::quiet_NaN();
++    float classify_smoothed_chr_sum = 0.0F;
++    int classify_smoothed_chr_count = 0;
++    float classify_chr_mean = std::numeric_limits<float>::quiet_NaN();
++    const bool direct_classifier_threshold_enabled =
++        adaptive_enabled && std::isfinite(adaptive_config->early_stop_ratio);
++    const bool super_easy_policy_enabled =
++        direct_classifier_threshold_enabled && !adaptive_config->paper_bucket_mode &&
++        std::isfinite(adaptive_config->super_easy_gamma_ratio);
++    const bool mid_easy_bucket_policy_enabled =
++        direct_classifier_threshold_enabled && !adaptive_config->paper_bucket_mode &&
++        std::isfinite(adaptive_config->mid_easy_upper_gamma_ratio);
++    const int effective_tmin_pops = direct_classifier_threshold_enabled
++                                        ? std::max(adaptive_config->tmin_pops, kClassifyEnd)
++                                        : 0;
++
++    const bool use_raw_fp_rerank =
++        (raw_query_for_rerank != nullptr && raw_data_for_rerank != nullptr) ||
++        raw_label_dist_for_rerank != nullptr;
++    auto raw_fp_dist = [&](PID internal_id) -> float {
++        PID label = get_external_label(internal_id);
++        if (label >= raw_data_rows_for_rerank) {
++            throw std::runtime_error("external label exceeds raw rerank data rows");
++        }
++        if (raw_label_dist_for_rerank != nullptr) {
++            return (*raw_label_dist_for_rerank)(label);
++        }
++        return raw_dist_func_(
++            raw_query_for_rerank,
++            raw_data_for_rerank + (static_cast<size_t>(label) * dim_),
++            dim_
++        );
++    };
+ 
+     float distk = 1e10;
+ 
+     EstimateRecord start_estimate_record;
++    Clock::time_point dist_start_time;
++    if (collect_search_stats) {
++        dist_start_time = Clock::now();
++    }
+     get_full_est(q_to_centroids, query_wrapper, ep_id, start_estimate_record);
++    uint64_t dist_elapsed_ns = 0;
++    if (collect_search_stats) {
++        dist_elapsed_ns = ns_between(dist_start_time, Clock::now());
++    }
++    if (adaptive_stats != nullptr) {
++        adaptive_stats->entry_full_est_count++;
++        adaptive_stats->base_full_est_time_ns += dist_elapsed_ns;
++    }
++    if (routing_stats != nullptr) {
++        routing_stats->entry_full_est_count++;
++        routing_stats->base_full_est_time_ns += dist_elapsed_ns;
++    }
+     float est_dist = start_estimate_record.est_dist;
+     float low_dist = start_estimate_record.low_dist;
++    const float queue_est_dist = est_dist;
++    if (use_raw_fp_rerank) {
++        est_dist = raw_fp_dist(ep_id);
++        low_dist = est_dist;
++    }
+ 
+     // Insert initial candidate.
+-    boundedKNN.insert({ResultRecord(est_dist, low_dist), ep_id});
+-    candidate_set.insert(ep_id, est_dist);
++    if (ep_id != hidden_internal_id) {
++        boundedKNN.insert({ResultRecord(est_dist, low_dist), ep_id});
++        if (adaptive_stats != nullptr) {
++            adaptive_stats->base_result_insert_count++;
++        }
++        if (routing_stats != nullptr) {
++            routing_stats->base_result_insert_count++;
++        }
++    }
++    candidate_set.insert(ep_id, queue_est_dist);
++    if (adaptive_stats != nullptr) {
++        adaptive_stats->base_candidate_insert_count++;
++    }
++    if (routing_stats != nullptr) {
++        routing_stats->base_candidate_insert_count++;
++    }
+ 
+-    distk = est_dist;
++    distk = boundedKNN.size() > 0 ? boundedKNN.worst().record.est_dist : est_dist;
+ 
+     vl->set(ep_id);
++    if (routing_stats != nullptr) {
++        routing_stats->base_visited_count++;
++        if (routing_trace_max > 0) {
++            routing_stats->base_visited_labels.push_back(get_external_label(ep_id));
++        }
++    }
++    if (hidden_internal_id != kPidMax && hidden_internal_id < max_elements_) {
++        vl->set(hidden_internal_id);
++    }
+ 
+     const size_t prefetch_size = (((padded_dim_ / 8) + 63) / 64) + 1;
+     const size_t prefetch_lookahead = 4;  // Number of neighbors to prefetch in advance.
+ 
+     while (candidate_set.has_next()) {
+         // Step 1 - get the next node to explore.
++        const float current_candidate_dist = candidate_set.next_dist();
++        const PID current_node_id_before_pop = candidate_set.next_id();
++        if (routing_stats != nullptr) {
++            routing_stats->base_pop_count++;
++            if (routing_stats->base_best_est_dist.size() < routing_trace_max) {
++                PID second_node_id = kPidMax;
++                float second_candidate_dist = std::numeric_limits<float>::quiet_NaN();
++                const bool has_second = candidate_set.next_unchecked_after_current(
++                    second_node_id, second_candidate_dist
++                );
++                routing_stats->base_best_labels.push_back(
++                    get_external_label(current_node_id_before_pop)
++                );
++                routing_stats->base_best_est_dist.push_back(current_candidate_dist);
++                if (has_second) {
++                    routing_stats->base_second_labels.push_back(
++                        get_external_label(second_node_id)
++                    );
++                    routing_stats->base_second_est_dist.push_back(second_candidate_dist);
++                    routing_stats->base_frontier_margin_est.push_back(
++                        second_candidate_dist - current_candidate_dist
++                    );
++                } else {
++                    routing_stats->base_second_labels.push_back(kPidMax);
++                    routing_stats->base_second_est_dist.push_back(
++                        std::numeric_limits<float>::quiet_NaN()
++                    );
++                    routing_stats->base_frontier_margin_est.push_back(
++                        std::numeric_limits<float>::quiet_NaN()
++                    );
++                }
++            }
++        }
+         PID current_node_id = candidate_set.pop();
++        if (adaptive_stats != nullptr) {
++            adaptive_stats->base_pop_count++;
++        }
+         int* data = (int*)get_linklist0(current_node_id);
+         size_t size = get_list_count((PID*)data);
++        if (adaptive_stats != nullptr) {
++            adaptive_stats->base_neighbor_scan_count += size;
++        }
++        if (routing_stats != nullptr) {
++            routing_stats->base_neighbor_scan_count += size;
++        }
+ 
+-        for (size_t p = 0; p < prefetch_lookahead; ++p) {
+-            rabitqlib::memory::mem_prefetch_l1(get_bindata_by_internalid(*(data + 1 + p)), prefetch_size);
++        for (size_t p = 0; p < std::min(prefetch_lookahead, size); ++p) {
++            rabitqlib::memory::mem_prefetch_l1(
++                get_bindata_by_internalid(*(data + 1 + p)), prefetch_size
++            );
+         }
+         // Iterate over neighbors. (List starts at index 1.)
+         for (size_t j = 1; j <= size; j++) {
+@@ -1237,39 +2681,277 @@ void HierarchicalNSW::searchBaseLayerST_AdaptiveRerankOpt(
+                 rabitqlib::memory::mem_prefetch_l1(get_bindata_by_internalid(*(data + j + prefetch_lookahead)), prefetch_size);
+             }
+ 
++            if (static_cast<PID>(candidate_id) == hidden_internal_id) {
++                continue;
++            }
+             if(vl->get(candidate_id)) {
++                if (routing_stats != nullptr) {
++                    routing_stats->base_duplicate_visit_count++;
++                }
+                 continue;
+             }
+             vl->set(candidate_id);
++            if (adaptive_stats != nullptr) {
++                adaptive_stats->base_visited_count++;
++            }
++            if (routing_stats != nullptr) {
++                routing_stats->base_visited_count++;
++                if (routing_trace_max > 0) {
++                    routing_stats->base_visited_labels.push_back(get_external_label(candidate_id));
++                }
++            }
+ 
+             EstimateRecord candest;
++            if (collect_search_stats) {
++                dist_start_time = Clock::now();
++            }
+             get_bin_est(q_to_centroids, query_wrapper, candidate_id, candest);
++            dist_elapsed_ns = 0;
++            if (collect_search_stats) {
++                dist_elapsed_ns = ns_between(dist_start_time, Clock::now());
++            }
++            if (adaptive_stats != nullptr) {
++                adaptive_stats->base_bin_est_count++;
++                adaptive_stats->base_bin_est_time_ns += dist_elapsed_ns;
++            }
++            if (routing_stats != nullptr) {
++                routing_stats->base_bin_est_count++;
++                routing_stats->base_bin_est_time_ns += dist_elapsed_ns;
++            }
+ 
++            const float queue_cand_dist = candest.est_dist;
+             bool flag_update_KNNs = boundedKNN.size() < TOPK || candest.low_dist < distk;
+ 
+             if (flag_update_KNNs) {
+-                // Compute the full estimate if promising.
+-                if (ex_bits_ > 0) {
++                // Compute the exact/raw rerank distance, or the full RaBitQ estimate, if promising.
++                if (use_raw_fp_rerank) {
++                    if (collect_search_stats) {
++                        dist_start_time = Clock::now();
++                    }
++                    candest.est_dist = raw_fp_dist(static_cast<PID>(candidate_id));
++                    candest.low_dist = candest.est_dist;
++                    dist_elapsed_ns = 0;
++                    if (collect_search_stats) {
++                        dist_elapsed_ns = ns_between(dist_start_time, Clock::now());
++                    }
++                    if (adaptive_stats != nullptr) {
++                        adaptive_stats->base_full_est_count++;
++                        adaptive_stats->base_full_est_time_ns += dist_elapsed_ns;
++                    }
++                    if (routing_stats != nullptr) {
++                        routing_stats->base_full_est_count++;
++                        routing_stats->base_full_est_time_ns += dist_elapsed_ns;
++                    }
++                } else if (ex_bits_ > 0) {
++                    if (collect_search_stats) {
++                        dist_start_time = Clock::now();
++                    }
+                     get_full_est(q_to_centroids, query_wrapper, candidate_id, candest);
++                    dist_elapsed_ns = 0;
++                    if (collect_search_stats) {
++                        dist_elapsed_ns = ns_between(dist_start_time, Clock::now());
++                    }
++                    if (adaptive_stats != nullptr) {
++                        adaptive_stats->base_full_est_count++;
++                        adaptive_stats->base_full_est_time_ns += dist_elapsed_ns;
++                    }
++                    if (routing_stats != nullptr) {
++                        routing_stats->base_full_est_count++;
++                        routing_stats->base_full_est_time_ns += dist_elapsed_ns;
++                    }
+                 }
+                 Candidate cand{
+                     ResultRecord(candest.est_dist, candest.low_dist),
+                     static_cast<PID>(candidate_id)
+                 };
+                 boundedKNN.insert(cand);
++                if (adaptive_stats != nullptr) {
++                    adaptive_stats->base_result_insert_count++;
++                }
++                if (routing_stats != nullptr) {
++                    routing_stats->base_result_insert_count++;
++                }
+                 distk = boundedKNN.worst().record.est_dist;
+             }
+ 
+-            if (!candidate_set.is_full(candest.est_dist)) {
+-                candidate_set.insert(candidate_id, candest.est_dist);
++            if (!candidate_set.is_full(queue_cand_dist)) {
++                candidate_set.insert(candidate_id, queue_cand_dist);
++                if (adaptive_stats != nullptr) {
++                    adaptive_stats->base_candidate_insert_count++;
++                }
++                if (routing_stats != nullptr) {
++                    routing_stats->base_candidate_insert_count++;
++                }
+             }
+ 
+-            rabitqlib::memory::mem_prefetch_l2(
+-                (char*)get_linklist0(candidate_set.next_id()), 2
++            if (candidate_set.has_next()) {
++                rabitqlib::memory::mem_prefetch_l2(
++                    (char*)get_linklist0(candidate_set.next_id()), 2
++                );
++            }
++        }
++
++        bool stop_search = false;
++        if (adaptive_enabled && candidate_set.is_full()) {
++            full_pop_count++;
++            float furthest_dist = adaptive_light_ratio_distance(
++                candidate_set.top_dist(), metric_type_
+             );
++            const float current_dist_for_ratio = adaptive_light_ratio_distance(
++                current_candidate_dist, metric_type_
++            );
++            const float chr =
++                current_dist_for_ratio / std::max(furthest_dist, 1e-6F);
++            bool rebased_after_shrink = false;
++
++            if (std::isnan(smoothed_chr_ema)) {
++                smoothed_chr_ema = chr;
++            } else {
++                smoothed_chr_ema =
++                    kChrEmaDecay * smoothed_chr_ema + kChrEmaUpdate * chr;
++            }
++
++            if (full_pop_count >= kClassifyStart && full_pop_count <= kClassifyEnd) {
++                if (adaptive_stats != nullptr) {
++                    const int trace_idx = full_pop_count - kClassifyStart;
++                    adaptive_stats->classify_popped_dist[static_cast<size_t>(trace_idx)] =
++                        current_dist_for_ratio;
++                    adaptive_stats->classify_furthest_dist[static_cast<size_t>(trace_idx)] =
++                        furthest_dist;
++                    adaptive_stats->classify_chr[static_cast<size_t>(trace_idx)] = chr;
++                    adaptive_stats->classify_smoothed_chr[static_cast<size_t>(trace_idx)] =
++                        smoothed_chr_ema;
++                }
++                classify_smoothed_chr_sum += smoothed_chr_ema;
++                classify_smoothed_chr_count++;
++
++                if (!classification_evaluated && full_pop_count == kClassifyEnd) {
++                    classification_evaluated = true;
++                    if (direct_classifier_threshold_enabled) {
++                        classify_chr_mean = classify_smoothed_chr_sum /
++                                            static_cast<float>(classify_smoothed_chr_count);
++                        is_easy_query =
++                            classify_chr_mean <= adaptive_config->early_stop_ratio;
++                        if (is_easy_query) {
++                            const float classify_chr_ratio =
++                                classify_chr_mean /
++                                std::max(adaptive_config->early_stop_ratio, 1e-6F);
++                            if (super_easy_policy_enabled) {
++                                is_super_easy_query = classify_chr_ratio <=
++                                                      adaptive_config->super_easy_gamma_ratio;
++                            }
++                            if (mid_easy_bucket_policy_enabled) {
++                                is_mid_easy_query = classify_chr_ratio <=
++                                                    adaptive_config->mid_easy_upper_gamma_ratio;
++                            }
++                        }
++                    }
++
++                    if (!effective_ef_shrink_applied) {
++                        size_t shrunk_ef = configured_ef;
++                        if (adaptive_config->paper_bucket_mode) {
++                            if (is_easy_query) {
++                                const float classify_chr_ratio =
++                                    classify_chr_mean /
++                                    std::max(adaptive_config->early_stop_ratio, 1e-6F);
++                                const size_t selected_bucket_index =
++                                    resolve_adaptive_bucket_index(*adaptive_config, classify_chr_ratio);
++                                is_super_easy_query = selected_bucket_index == 0;
++                                is_mid_easy_query = selected_bucket_index <= 1;
++                                shrunk_ef = resolve_adaptive_bucket_ef(
++                                    configured_ef, TOPK, *adaptive_config, classify_chr_ratio
++                                );
++                            }
++                        } else {
++                            const size_t shrink_super_easy_ef =
++                                resolve_adaptive_scaled_ef(configured_ef, 0.25, 1, TOPK);
++                            const size_t shrink_easy_ef =
++                                std::max<size_t>(TOPK, configured_ef / 2);
++                            const size_t shrink_mid_easy_ef =
++                                resolve_adaptive_scaled_ef(configured_ef, 0.50, 1, TOPK);
++                            const size_t shrink_edge_easy_ef =
++                                resolve_adaptive_scaled_ef(configured_ef, 0.75, 1, TOPK);
++
++                            if (super_easy_policy_enabled && is_super_easy_query) {
++                                shrunk_ef = shrink_super_easy_ef;
++                            } else if (is_easy_query) {
++                                if (mid_easy_bucket_policy_enabled) {
++                                    shrunk_ef = is_mid_easy_query ? shrink_mid_easy_ef
++                                                                  : shrink_edge_easy_ef;
++                                } else {
++                                    shrunk_ef = shrink_easy_ef;
++                                }
++                            }
++                        }
++
++                        if (shrunk_ef < effective_ef) {
++                            effective_ef = shrunk_ef;
++                            ef_was_shrunk = true;
++                            candidate_set.shrink_capacity(effective_ef);
++                            if (candidate_set.is_full()) {
++                                furthest_dist = adaptive_light_ratio_distance(
++                                    candidate_set.top_dist(), metric_type_
++                                );
++                            }
++                            prev_furthest = furthest_dist;
++                            stagnation_count = 0;
++                            rebased_after_shrink = true;
++                        }
++                        effective_ef_shrink_applied = true;
++                    }
++                }
++            }
++
++            const bool hard_stop_enabled =
++                adaptive_config->enable_stop && direct_classifier_threshold_enabled &&
++                classification_evaluated && !is_easy_query &&
++                full_pop_count >= effective_tmin_pops && !rebased_after_shrink;
++            if (hard_stop_enabled) {
++                if (furthest_dist >= prev_furthest) {
++                    stagnation_count++;
++                } else {
++                    stagnation_count = 0;
++                }
++
++                if (static_cast<size_t>(std::max(stagnation_count, 0)) >=
++                    kHardOnlyStagLimit) {
++                    stop_search = true;
++                    early_stopped = true;
++                }
++            }
++
++            prev_furthest = furthest_dist;
++        }
++
++        if (stop_search) {
++            break;
+         }
+     }
+ 
++    uint64_t base_layer_time_ns = 0;
++    if (collect_search_stats) {
++        base_layer_time_ns = ns_between(base_start_time, Clock::now());
++    }
++    if (routing_stats != nullptr) {
++        routing_stats->base_layer_time_ns = base_layer_time_ns;
++    }
++
++    if (adaptive_stats != nullptr) {
++        adaptive_stats->effective_ef = effective_ef;
++        adaptive_stats->full_pop_count = static_cast<size_t>(std::max(full_pop_count, 0));
++        adaptive_stats->classified = classification_evaluated;
++        adaptive_stats->easy_query = is_easy_query;
++        adaptive_stats->super_easy_query = is_super_easy_query;
++        adaptive_stats->mid_easy_query = is_mid_easy_query;
++        adaptive_stats->ef_shrunk = ef_was_shrunk;
++        adaptive_stats->early_stopped = early_stopped;
++        adaptive_stats->classify_chr_mean = classify_chr_mean;
++        adaptive_stats->base_layer_time_ns = base_layer_time_ns;
++    }
++    if (routing_stats != nullptr && routing_trace_max > 0) {
++        routing_stats->base_visited_count = routing_stats->base_visited_labels.size();
++    }
++
+     visited_list_pool_->release_vis_list(vl);
+ }
+ 
+diff --git a/include/rabitqlib/index/ivf/ivf.hpp b/include/rabitqlib/index/ivf/ivf.hpp
+index 4d010bd..8a4f586 100644
+--- a/include/rabitqlib/index/ivf/ivf.hpp
++++ b/include/rabitqlib/index/ivf/ivf.hpp
+@@ -7,6 +7,7 @@
+ #include <cassert>
+ #include <cmath>
+ #include <cstddef>
++#include <cstdint>
+ #include <fstream>
+ #include <iostream>
+ #include <vector>
+@@ -25,6 +26,11 @@
+ #include "rabitqlib/utils/space.hpp"
+ 
+ namespace rabitqlib::ivf {
++struct IVFSearchStats {
++    uint64_t scanned_points = 0;
++    uint64_t extra_bit_reads = 0;
++};
++
+ class IVF {
+    private:
+     Initializer* initer_ = nullptr;      // initializer for find candidate cluster
+@@ -79,7 +85,11 @@ class IVF {
+     }
+ 
+     void search_cluster(
+-        const Cluster&, const SplitBatchQuery<float>&, buffer::SearchBuffer<float>&, bool
++        const Cluster&,
++        const SplitBatchQuery<float>&,
++        buffer::SearchBuffer<float>&,
++        bool,
++        IVFSearchStats*
+     ) const;
+ 
+     void scan_one_batch(
+@@ -89,7 +99,8 @@ class IVF {
+         const SplitBatchQuery<float>& q_obj,
+         buffer::SearchBuffer<float>& knns,
+         size_t num_points,
+-        bool
++        bool,
++        IVFSearchStats*
+     ) const;
+ 
+    public:
+@@ -121,6 +132,10 @@ class IVF {
+ 
+     void search(const float*, size_t, size_t, PID*, float*, bool) const;
+ 
++    void search_with_stats(
++        const float*, size_t, size_t, PID*, float*, bool, IVFSearchStats*
++    ) const;
++
+     [[nodiscard]] size_t padded_dim() const { return this->padded_dim_; }
+ 
+     [[nodiscard]] size_t num_clusters() const { return this->num_cluster_; }
+@@ -414,6 +429,21 @@ inline void IVF::search(
+     float* __restrict__ dists,
+     bool use_hacc
+ ) const {
++    search_with_stats(query, k, nprobe, results, dists, use_hacc, nullptr);
++}
++
++inline void IVF::search_with_stats(
++    const float* __restrict__ query,
++    size_t k,
++    size_t nprobe,
++    PID* __restrict__ results,
++    float* __restrict__ dists,
++    bool use_hacc,
++    IVFSearchStats* stats
++) const {
++    if (stats != nullptr) {
++        *stats = {};
++    }
+     nprobe = std::min(nprobe, num_cluster_);  // corner case
+     std::vector<float> rotated_query(padded_dim_);
+     this->rotator_->rotate(query, rotated_query.data());
+@@ -447,7 +477,7 @@ inline void IVF::search(
+             return;
+         }
+         // q_obj.set_g_add(dist);
+-        search_cluster(cur_cluster, q_obj, knns, use_hacc);
++        search_cluster(cur_cluster, q_obj, knns, use_hacc, stats);
+     }
+ 
+     if (dists != nullptr) {
+@@ -461,7 +491,8 @@ inline void IVF::search_cluster(
+     const Cluster& cur_cluster,
+     const SplitBatchQuery<float>& q_obj,
+     buffer::SearchBuffer<float>& knns,
+-    bool use_hacc
++    bool use_hacc,
++    IVFSearchStats* stats
+ ) const {
+     size_t iter = cur_cluster.num() / fastscan::kBatchSize;
+     size_t remain = cur_cluster.num() - (iter * fastscan::kBatchSize);
+@@ -473,7 +504,14 @@ inline void IVF::search_cluster(
+     /* Compute distances block by block */
+     for (size_t i = 0; i < iter; ++i) {
+         scan_one_batch(
+-            batch_data, ex_data, ids, q_obj, knns, fastscan::kBatchSize, use_hacc
++            batch_data,
++            ex_data,
++            ids,
++            q_obj,
++            knns,
++            fastscan::kBatchSize,
++            use_hacc,
++            stats
+         );
+ 
+         batch_data += BatchDataMap<float>::data_bytes(padded_dim_);
+@@ -484,7 +522,7 @@ inline void IVF::search_cluster(
+ 
+     if (remain > 0) {
+         // scan the last block
+-        scan_one_batch(batch_data, ex_data, ids, q_obj, knns, remain, use_hacc);
++        scan_one_batch(batch_data, ex_data, ids, q_obj, knns, remain, use_hacc, stats);
+     }
+ }
+ 
+@@ -495,7 +533,8 @@ inline void IVF::scan_one_batch(
+     const SplitBatchQuery<float>& q_obj,
+     buffer::SearchBuffer<float>& knns,
+     size_t num_points,
+-    bool use_hacc
++    bool use_hacc,
++    IVFSearchStats* stats
+ ) const {
+     std::array<float, fastscan::kBatchSize> est_distance;  // estimated distance
+     std::array<float, fastscan::kBatchSize> low_distance;  // lower distance
+@@ -511,6 +550,10 @@ inline void IVF::scan_one_batch(
+         use_hacc
+     );
+ 
++    if (stats != nullptr) {
++        stats->scanned_points += num_points;
++    }
++
+     float distk = knns.top_dist();
+ 
+     // if only use 1-bit code, directly return
+@@ -528,6 +571,9 @@ inline void IVF::scan_one_batch(
+     for (size_t i = 0; i < num_points; ++i) {
+         float lower_dist = low_distance[i];
+         if (lower_dist < distk) {
++            if (stats != nullptr) {
++                ++stats->extra_bit_reads;
++            }
+             PID id = ids[i];
+             ConstExDataMap<float> cur_ex(ex_data, padded_dim_, ex_bits_);
+             float ex_dist = split_distance_boosting(
+@@ -539,4 +585,4 @@ inline void IVF::scan_one_batch(
+         ex_data += ExDataMap<float>::data_bytes(padded_dim_, ex_bits_);
+     }
+ }
+-}  // namespace rabitqlib::ivf
+\ No newline at end of file
++}  // namespace rabitqlib::ivf
+diff --git a/include/rabitqlib/utils/buffer.hpp b/include/rabitqlib/utils/buffer.hpp
+index f4daaad..acf92d6 100644
+--- a/include/rabitqlib/utils/buffer.hpp
++++ b/include/rabitqlib/utils/buffer.hpp
+@@ -74,8 +74,24 @@ class SearchBuffer {
+     // return candidate id for next pop()
+     [[nodiscard]] auto next_id() const { return data_[cur_].id; }
+ 
++    [[nodiscard]] auto next_dist() const { return data_[cur_].distance; }
++
+     [[nodiscard]] auto has_next() const -> bool { return cur_ < size_; }
+ 
++    [[nodiscard]] auto next_unchecked_after_current(PID& data_id, T& dist) const -> bool {
++        if (!has_next()) {
++            return false;
++        }
++        for (size_t i = cur_ + 1; i < size_; ++i) {
++            if (!is_checked(data_[i].id)) {
++                data_id = data_[i].id;
++                dist = data_[i].distance;
++                return true;
++            }
++        }
++        return false;
++    }
++
+     void resize(size_t new_size) {
+         this->capacity_ = new_size;
+         data_ = std::vector<AnnCandidate<T>, memory::AlignedAllocator<AnnCandidate<T>>>(
+@@ -83,6 +99,22 @@ class SearchBuffer {
+         );
+     }
+ 
++    void shrink_capacity(size_t new_capacity) {
++        if (new_capacity >= capacity_) {
++            return;
++        }
++        capacity_ = new_capacity;
++        if (size_ > capacity_) {
++            size_ = capacity_;
++        }
++        if (cur_ > size_) {
++            cur_ = size_;
++        }
++        while (cur_ < size_ && is_checked(data_[cur_].id)) {
++            ++cur_;
++        }
++    }
++
+     void copy_results(PID* knn) const {
+         for (size_t i = 0; i < size_; ++i) {
+             knn[i] = data_[i].id;
+@@ -97,7 +129,8 @@ class SearchBuffer {
+     }
+ 
+     T top_dist() const {
+-        return is_full() ? data_[size_ - 1].distance : std::numeric_limits<T>::max();
++        return (size_ > 0 && is_full()) ? data_[size_ - 1].distance
++                                        : std::numeric_limits<T>::max();
+     }
+ 
+     [[nodiscard]] auto is_full() const -> bool { return size_ == capacity_; }
+diff --git a/include/rabitqlib/utils/rotator.hpp b/include/rabitqlib/utils/rotator.hpp
+index d9b1c9d..b329f2d 100644
+--- a/include/rabitqlib/utils/rotator.hpp
++++ b/include/rabitqlib/utils/rotator.hpp
+@@ -237,6 +237,9 @@ class FhtKacRotator : public Rotator<float> {
+             case 11:
+                 this->fht_float_ = helper_float_11;
+                 break;
++            case 12:
++                this->fht_float_ = helper_float_12;
++                break;
+             default:
+                 // TODO(lib): should we do more?
+                 std::cerr << "dimension of vector is too big\n";

@@ -1,2 +1,2 @@
-repo: https://github.com/jihyo-j/faiss.git
-commit: b675ef5e4b7e7acc610e8ae158355e2cc29d8c8e
+repo: https://github.com/facebookresearch/faiss.git
+commit: 46def46902231ed57552ddbcfd751e17720c6d32

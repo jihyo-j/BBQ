@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F15.`  (11 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F15.`  (24 claims) |
 | Re-plot | `./exp/fig15_page_io/plot/regen.sh` |
 | Paper figure | `plot/page_io.paper.pdf` |
 
@@ -39,6 +39,19 @@ Result files behind the figure (copied verbatim from the original run):
 | F15.9 | BBQ pages/query, Qwen-1024 @0.99 | 54.3 |
 | F15.10 | DiskANN-RaBitQ pages/query, Qwen-1024 @0.99 | 913.6 |
 | F15.11 | DiskANN pages/query, Qwen-1024 @0.99 | 1042.0 |
+| F15.12 | DiskANN-RaBitQ pages/query, Qwen-1024 @0.98 | 341.0 |
+| F15.13 | DiskANN pages/query, Qwen-1024 @0.98 | 373.2 |
+| I.1 | page-read reduction vs DiskANN-RaBitQ, Qwen-1024 @0.99 (= `F15.10/F15.9`) | 16.8 |
+| I.2 | page-read reduction vs DiskANN, Qwen-1024 @0.99 (= `F15.11/F15.9`) | 38.0 |
+| D15.1 | TurboQuant / BBQ pages, OpenAI-1536 @0.98 (= `F15.2/F15.1`) | 1.86 |
+| D15.2 | DiskANN-RaBitQ / BBQ pages, OpenAI-1536 @0.98 (= `F15.3/F15.1`) | 2.86 |
+| D15.3 | DiskANN / BBQ pages, OpenAI-1536 @0.98 (= `F15.4/F15.1`) | 2.86 |
+| D15.4 | BBQ page growth 0.98->0.99, OpenAI-1536 (= `F15.5/F15.1`) | 1.05 |
+| D15.5 | DiskANN-RaBitQ page growth 0.98->0.99, OpenAI-1536 (= `F15.6/F15.3`) | 1.86 |
+| D15.6 | DiskANN page growth 0.98->0.99, OpenAI-1536 (= `F15.7/F15.4`) | 2.03 |
+| D15.7 | BBQ page growth 0.98->0.99, Qwen-1024 (= `F15.9/F15.8`) | 1.18 |
+| D15.8 | DiskANN-RaBitQ page growth 0.98->0.99, Qwen-1024 (= `F15.10/F15.12`) | 2.68 |
+| D15.9 | DiskANN page growth 0.98->0.99, Qwen-1024 (= `F15.11/F15.13`) | 2.79 |
 
 ## Notes
 

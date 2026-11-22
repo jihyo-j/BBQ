@@ -74,7 +74,8 @@ C = [
    ("BBQ pages/query, OpenAI-1536 @0.99", 10, "67.6"), ("DiskANN-RaBitQ pages/query, OpenAI-1536 @0.99", 12, "342.4"),
    ("DiskANN pages/query, OpenAI-1536 @0.99", 13, "373.9"), ("BBQ pages/query, Qwen-1024 @0.98", 6, "46.2"),
    ("BBQ pages/query, Qwen-1024 @0.99", 14, "54.3"), ("DiskANN-RaBitQ pages/query, Qwen-1024 @0.99", 16, "913.6"),
-   ("DiskANN pages/query, Qwen-1024 @0.99", 17, "1042.0")])],
+   ("DiskANN pages/query, Qwen-1024 @0.99", 17, "1042.0"), ("DiskANN-RaBitQ pages/query, Qwen-1024 @0.98", 8, "341.0"),
+   ("DiskANN pages/query, Qwen-1024 @0.98", 9, "373.2")])],
  # ---- Fig 16
  *[(f"F16.{i+1}", "Fig 16", t, "fig16_io_modes/results/qwen1024_summary_t1.csv", ln, "qps", v) for i, (t, ln, v) in enumerate([
    ("Sequential QPS, Qwen-1024", 53, "222.0"), ("Async Batch QPS, Qwen-1024", 54, "928.0"),
@@ -111,6 +112,53 @@ C = [
  ("F20.4", "Fig 20", "16KB colocated graph page hit ratio at 50% DRAM", "fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv", 23, "graph_page_hit_ratio", "0.751"),
 ]
 
+# Reference rows: operating points the paper uses only inside a derived number (no printed value of their own).
+REF = [
+ ("R14.1", "Fig 14", "TurboQuant QPS, NQ @0.9973 (ef=1024)", "fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv", 41, "qps"),
+ ("R14.2", "Fig 14", "BBQ first-stage distance evals, NQ @0.9976", "fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv", 20, "first_stage_distance_evaluations_per_query"),
+ ("R14.3", "Fig 14", "TurboQuant first-stage distance evals, NQ @0.9973", "fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv", 41, "first_stage_distance_evaluations_per_query"),
+ ("R18.1", "Fig 18", "TurboQuant best QPS @>=0.99, 100M", "fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv", 41, "qps"),
+ ("R18.2", "Fig 18", "RaBitQ-1bit best QPS @>=0.99, 100M", "fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv", 61, "qps"),
+ ("R19.1", "Intro", "RaBitQ-7bit cumulative insertion time, 10M (s)", "fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv", 14, "rabitq_online_add_seconds"),
+ ("R19.2", "Intro", "RaBitQ-7bit cumulative insertion time, 100M (s)", "fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv", 44, "rabitq_online_add_seconds"),
+ ("R19.3", "Intro", "BBQ cumulative insertion time, 10M (s), ef=256 row", "fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv", 14, "adc_online_add_seconds"),
+]
+
+# Derived claims: ratios / percentages the text states, computed from *measured* values of the claims above.
+DERIVED = [
+ ("I.1", "Intro", "page-read reduction vs DiskANN-RaBitQ, Qwen-1024 @0.99", "F15.10/F15.9", "16.8"),
+ ("I.2", "Intro", "page-read reduction vs DiskANN, Qwen-1024 @0.99", "F15.11/F15.9", "38.0"),
+ ("I.3", "Intro", "insertion speedup vs RaBitQ-7bit, 100M (low end of 1.8-2.2x)", "R19.2/F19.2", "1.8"),
+ ("I.4", "Intro", "insertion speedup vs RaBitQ-7bit, 10M (high end of 1.8-2.2x)", "R19.1/R19.3", "2.2"),
+ ("D9.1", "Sec 6.2", "BBQ / FP32 HNSW QPS, MS MARCO", "F9.1/F9.2", "1.90"),
+ ("D9.2", "Sec 6.2", "BBQ / FP32 HNSW QPS, DBpedia", "F9.3/F9.4", "2.13"),
+ ("D9.3", "Sec 6.2", "BBQ / FP32 HNSW distance evals, DBpedia", "F9.5/F9.6", "3.36"),
+ ("D12.1", "Sec 6.4", "calibrated reads fewer than fixed R=75 (%)", "(75-F12.5)/75*100", "28.0"),
+ ("D12.2", "Sec 6.4", "calibrated QPS gain over fixed R=75 (%)", "(F12.7/F12.6-1)*100", "7.4"),
+ ("D14.1", "Sec 6.5", "TurboQuant / BBQ QPS under same calibration, MS MARCO", "F14.1/F14.2", "1.14"),
+ ("D14.2", "Sec 6.5", "BBQ / TurboQuant QPS under same calibration, NQ", "F14.3/R14.1", "2.01"),
+ ("D14.3", "Sec 6.5", "TurboQuant / BBQ distance evals, NQ", "R14.3/R14.2", "1.77"),
+ ("D15.1", "Sec 6.6", "TurboQuant / BBQ pages, OpenAI-1536 @0.98", "F15.2/F15.1", "1.86"),
+ ("D15.2", "Sec 6.6", "DiskANN-RaBitQ / BBQ pages, OpenAI-1536 @0.98", "F15.3/F15.1", "2.86"),
+ ("D15.3", "Sec 6.6", "DiskANN / BBQ pages, OpenAI-1536 @0.98", "F15.4/F15.1", "2.86"),
+ ("D15.4", "Sec 6.6", "BBQ page growth 0.98->0.99, OpenAI-1536", "F15.5/F15.1", "1.05"),
+ ("D15.5", "Sec 6.6", "DiskANN-RaBitQ page growth 0.98->0.99, OpenAI-1536", "F15.6/F15.3", "1.86"),
+ ("D15.6", "Sec 6.6", "DiskANN page growth 0.98->0.99, OpenAI-1536", "F15.7/F15.4", "2.03"),
+ ("D15.7", "Sec 6.6", "BBQ page growth 0.98->0.99, Qwen-1024", "F15.9/F15.8", "1.18"),
+ ("D15.8", "Sec 6.6", "DiskANN-RaBitQ page growth 0.98->0.99, Qwen-1024", "F15.10/F15.12", "2.68"),
+ ("D15.9", "Sec 6.6", "DiskANN page growth 0.98->0.99, Qwen-1024", "F15.11/F15.13", "2.79"),
+ ("D16.1", "Sec 6.6", "Async Batch / Sequential QPS, Qwen-1024", "F16.2/F16.1", "4.18"),
+ ("D16.2", "Sec 6.6", "Async Batch / Sequential QPS, OpenAI-1536", "F16.5/F16.4", "5.04"),
+ ("D16.3", "Sec 6.6", "overlap gain over Async Batch, Qwen-1024 (%)", "(F16.3/F16.2-1)*100", "7.1"),
+ ("D16.4", "Sec 6.6", "overlap gain over Async Batch, OpenAI-1536 (%)", "(F16.6/F16.5-1)*100", "22.4"),
+ ("D18.1", "Sec 6.7", "BBQ QPS drop 10M->100M (%)", "(1-F18.3/F18.1)*100", "4.3"),
+ ("D18.2", "Sec 6.7", "BBQ / TurboQuant QPS @>=0.99, 100M", "F18.3/R18.1", "1.98"),
+ ("D18.3", "Sec 6.7", "BBQ / RaBitQ-1bit QPS @>=0.99, 100M", "F18.3/R18.2", "9.59"),
+ ("D19.1", "Sec 6.8", "RaBitQ-1bit / BBQ insertion time, 10M", "F19.3/F19.1", "2.06"),
+ ("D19.2", "Sec 6.8", "RaBitQ-1bit / BBQ insertion time, 100M", "F19.4/F19.2", "1.49"),
+ ("D20.1", "Sec 6.9", "colocation QPS gain, 16KB @50% DRAM (%)", "(F20.2/F20.1-1)*100", "52.0"),
+]
+
 KEYS = ["dataset", "dataset_key", "dataset_title", "dataset_label", "method_key", "method", "family", "series", "mode",
         "io_mode", "stage", "policy", "rerank_policy", "layout", "page_size", "page_bytes", "page_kb", "memory_ratio",
         "memory_percent", "target", "target_recall", "calibration_target", "k", "efSearch", "calibration_reference_ef", "ef_search", "rerank_n",
@@ -143,6 +191,16 @@ for cid, sec, text, f, line, col, printed in C:
         raise SystemExit(f"{cid}: column {col} missing in {f}")
     tol = 10 ** -(len(printed.split(".")[1]) if "." in printed else 0)  # one unit of the printed last digit
     out.append(dict(id=cid, section=sec, claim=text, file=f, select=selector(rows, line - 2), column=col,
+                    derive="", expected=printed, tolerance=f"{tol:g}"))
+for cid, sec, text, f, line, col in REF:
+    rows = list(csv.DictReader(open(EXP / f, newline="")))
+    if col not in rows[line - 2]:
+        raise SystemExit(f"{cid}: column {col} missing in {f}")
+    out.append(dict(id=cid, section=sec, claim=text, file=f, select=selector(rows, line - 2), column=col,
+                    derive="", expected="", tolerance=""))
+for cid, sec, text, expr, printed in DERIVED:
+    tol = 10 ** -(len(printed.split(".")[1]) if "." in printed else 0)
+    out.append(dict(id=cid, section=sec, claim=text, file="", select="", column="", derive=expr,
                     expected=printed, tolerance=f"{tol:g}"))
 with open(EXP / "claims.csv", "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=list(out[0]), quoting=csv.QUOTE_MINIMAL)

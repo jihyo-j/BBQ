@@ -9,7 +9,9 @@
 #include <atomic>
 #include <list>
 #include <mutex>
+#include <type_traits>
 #include <unordered_map>
+#include <utility>
 
 constexpr size_t kCodePageBytes = 4096;
 
@@ -1920,12 +1922,26 @@ double percentile_us(std::vector<double> values, double percentile) {
     return values[lower] + (values[upper] - values[lower]) * fraction;
 }
 
+template <class T, class = void>
+struct has_fork_payloads : std::false_type {};
+template <class T>
+struct has_fork_payloads<T, std::void_t<decltype(std::declval<T&>().xflags),
+                                        decltype(std::declval<T&>().block_scales)>> : std::true_type {};
+template <class Flat>
+void release_fork_payloads(Flat& flat) {
+    if constexpr (has_fork_payloads<Flat>::value) {
+        flat.xflags = decltype(flat.xflags)();
+        flat.block_scales = decltype(flat.block_scales)();
+    }
+}
+
 void release_graph_codes(faiss::IndexBinaryHNSW& graph) {
     auto* storage = dynamic_cast<faiss::IndexBinaryFlat*>(graph.storage);
     if (!storage) throw std::runtime_error("graph storage is not binary flat");
     storage->xb = faiss::MaybeOwnedVector<uint8_t>();
-    storage->xflags = faiss::MaybeOwnedVector<uint8_t>();
-    storage->block_scales = faiss::MaybeOwnedVector<uint8_t>();
+    // `xflags` / `block_scales` exist only in the development FAISS fork (unused here); clear them when present
+    // so this driver also builds against upstream FAISS. Same helper as bbq/src/bbq_hnsw.cpp.
+    release_fork_payloads(*storage);
 }
 
 void run_benchmark(

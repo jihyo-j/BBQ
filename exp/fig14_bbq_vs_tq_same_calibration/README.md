@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F14.`  (5 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F14.`  (8 claims) |
 | Re-plot | `./exp/fig14_bbq_vs_tq_same_calibration/plot/regen.sh` |
 | Paper figure | `plot/recall_qps_bbq_tq.paper.pdf` |
 
@@ -32,7 +32,11 @@ Result files behind the figure (copied verbatim from the original run):
 | F14.3 | BBQ QPS, NQ @0.9976 | 651 |
 | F14.4 | TurboQuant FP reads/query, NQ | 42.1 |
 | F14.5 | BBQ FP reads/query, NQ | 61.3 |
+| D14.1 | TurboQuant / BBQ QPS under same calibration, MS MARCO (= `F14.1/F14.2`) | 1.14 |
+| D14.2 | BBQ / TurboQuant QPS under same calibration, NQ (= `F14.3/R14.1`) | 2.01 |
+| D14.3 | TurboQuant / BBQ distance evals, NQ (= `R14.3/R14.2`) | 1.77 |
 
 ## Notes
 
+- NQ "2.01x" compares BBQ at ef=512 (651 QPS, Recall@10 0.9976) with TurboQuant at ef=1024 (324 QPS, 0.9973). At the same ef=512, TurboQuant reaches 654 QPS at 0.9963. The reads (61.3 vs 42.1) and distance evaluations (1.77x) compare the same two points.
 - `combine_nq_msmarco_calibrated_adcbq_turboquant.py` merges the four per-method runs into `results/summary_t1.csv`.

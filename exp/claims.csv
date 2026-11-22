@@ -1,97 +1,138 @@
-id,section,claim,file,select,column,expected,tolerance
-F5.1,Fig 5,"ADC-BQ query LUT build, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=adcbq1,query_preprocess_us,4.7,0.1
-F5.2,Fig 5,"TurboQuant query preprocessing, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=qdranttq1,query_preprocess_us,9.6,0.1
-F5.3,Fig 5,"ADC-BQ exact-FP I/O wait (R=120), MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=adcbq1,exact_fp_io_wait_us,517.6,0.1
-F5.4,Fig 5,"TurboQuant exact-FP I/O wait (R=80), MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=qdranttq1,exact_fp_io_wait_us,280,1
-S4.1,Sec 4,"ADC-BQ QPS @R>=0.99, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=adcbq1,qps,349,1
-S4.2,Sec 4,"TurboQuant QPS @R>=0.99, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=qdranttq1,qps,362,1
-S4.3,Sec 4,"ADC-BQ QPS @R>=0.99, NQ",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=nq_qwen1024;method_key=adcbq1,qps,984,1
-S4.4,Sec 4,"TurboQuant QPS @R>=0.99, NQ",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=nq_qwen1024;method_key=qdranttq1,qps,1063,1
-F8.1,Fig 8,"FP32-built graph Recall@10, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,fp_recall_at_10,0.8015,0.0001
-F8.2,Fig 8,"1-bit-built graph Recall@10, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,binary_recall_at_10,0.8010,0.0001
-F8.3,Fig 8,"FP32-built graph QPS, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,fp_qps,2982,1
-F8.4,Fig 8,"1-bit-built graph QPS, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,binary_qps,2715,1
-F8.5,Fig 8,"FP32-built graph QPS, Quora ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=quora;efSearch=128,fp_qps,3744,1
-F8.6,Fig 8,"1-bit-built graph QPS, Quora ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=quora;efSearch=128,binary_qps,3415,1
-T4.1,Table 4,"MS MARCO distance evals ef=256, FP32 graph",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=256,fp_ndis_mean,5221,1
-T4.2,Table 4,"MS MARCO distance evals ef=256, 1-bit graph",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=256,binary_ndis_mean,6136,1
-T4.3,Table 4,"MS MARCO build time, FP32 graph (s)",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_build_times.csv,dataset=msmarco;graph_build=fp,index_build_seconds,141.9,0.1
-T4.4,Table 4,"MS MARCO build time, 1-bit graph (s)",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_build_times.csv,dataset=msmarco;graph_build=binary,index_build_seconds,32.7,0.1
-F9.1,Fig 9,"BBQ QPS, MS MARCO @0.9926",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=msmarco_qwen1024;method=Calibrated ADC-BQ HNSW + SSD FP32 rerank;efSearch=512,qps,635,1
-F9.2,Fig 9,"in-memory FP32 HNSW QPS, MS MARCO @0.9926",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=msmarco_qwen1024;method=Full FP32 HNSW (in-memory);efSearch=384,qps,335,1
-F9.3,Fig 9,"BBQ QPS, DBpedia @0.9875",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=dbpedia_qwen1024;method=Calibrated ADC-BQ HNSW + SSD FP32 rerank;efSearch=128,qps,1547,1
-F9.4,Fig 9,"in-memory FP32 HNSW QPS, DBpedia @0.9875",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=dbpedia_qwen1024;method=Full FP32 HNSW (in-memory);efSearch=128,qps,727,1
-F9.5,Sec 6.2,"BBQ distance evals, DBpedia ef=1024",fig09_vs_inmemory_fp_hnsw/results/rerun_ndis_20261120/dbpedia_matched_recall_summary.csv,method=Calibrated ADC-BQ HNSW + SSD FP32 rerank,distance_evaluations_mean,22977,1
-F9.6,Sec 6.2,"FP32 HNSW distance evals, DBpedia ef=256",fig09_vs_inmemory_fp_hnsw/results/rerun_ndis_20261120/dbpedia_matched_recall_summary.csv,method=In-memory FP32 HNSW,distance_evaluations_mean,6834,1
-F10.1,Sec 6.3,"TurboQuant QPS @>=0.99, DBpedia BGE-1024",fig10_overall_recall_qps/results/recall_qps_12methods_16datasets_t1.csv,dataset=dbpedia_bge1024;method_key=turboquant_tq1_tuned_r;efSearch=160,qps,1869,1
-F10.2,Sec 6.3,"BBQ QPS @>=0.99, DBpedia BGE-1024",fig10_overall_recall_qps/results/recall_qps_12methods_16datasets_t1.csv,dataset=dbpedia_bge1024;method_key=adcbq_pool_top10;efSearch=176,qps,1196,1
-F10.3,Sec 6.3,"MRQ FP reads/query @0.9903, NQ BGE-M3",fig10_overall_recall_qps/results/mrq_nq_bge_m3_C4096_B320_direct.csv,nprobe=1024,ssd_reads_per_query,1657.6,0.1
-F11.1,Fig 11,BBQ QPS @Recall@30>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=adc_bq_calibrated;method=ADC-BQ per-ef pool-top30@0.99;efSearch=248,qps,933,1
-F11.2,Fig 11,TurboQuant QPS @Recall@30>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=turboquant_tq1_fp;method=TurboQuant TQ1+ + FP@160;efSearch=320,qps,841,1
-F11.3,Fig 11,BBQ QPS @Recall@50>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=adc_bq_calibrated;method=ADC-BQ per-ef pool-top50@0.99;efSearch=392,qps,578,1
-F11.4,Fig 11,TurboQuant QPS @Recall@50>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=turboquant_tq1_fp;method=TurboQuant TQ1+ + FP@320;efSearch=368,qps,580,1
-F11.5,Fig 11,BBQ QPS @Recall@100>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=adc_bq_calibrated;method=ADC-BQ per-ef pool-top100@0.99;efSearch=656,qps,303,1
-F12.1,Fig 12a,"sym-BQ Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=Sym-BQ;efSearch=256,recall_at_10,0.7231,0.0001
-F12.2,Fig 12a,"ADC-BQ Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=ADC-BQ;efSearch=240,recall_at_10,0.8030,0.0001
-F12.3,Fig 12a,"ADC-BQ + fixed R=75 Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=ADC-BQ + Fixed R=75;efSearch=256,recall_at_10,0.9893,0.0001
-F12.4,Fig 12a,"BBQ calibrated Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=BBQ + Calibrated R(q);efSearch=256,recall_at_10,0.9897,0.0001
-F12.5,Fig 12a,"BBQ calibrated FP reads/query, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=BBQ + Calibrated R(q);efSearch=256,fp_vectors_per_query_mean,54.0,0.1
-F12.6,Fig 12a,fixed R=75 QPS (equal pool/QD),fig12_ablation/results/equal_pool_qd_ablation/equal_pool_qd_fixed75_vs_calibrated.csv,efSearch=256,fixed_qps_median,1109,1
-F12.7,Fig 12a,calibrated QPS (equal pool/QD),fig12_ablation/results/equal_pool_qd_ablation/equal_pool_qd_fixed75_vs_calibrated.csv,efSearch=256,calibrated_qps_median,1191,1
-F12.8,Fig 12b,share of queries with Recall@10=1.0 (%),fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=1.0,query_percent,91.79,0.01
-F12.9,Fig 12b,"FP reads/query, Recall@10=1.0 group",fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=1.0,mean_fp_reads,51.5,0.1
-F12.10,Fig 12b,"FP reads/query, Recall@10=0.9 group",fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=0.9,mean_fp_reads,75.4,0.1
-F12.11,Fig 12b,"FP reads/query, Recall@10<=0.8 group",fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=<=0.8,mean_fp_reads,119.8,0.1
-F13.1,Fig 13b,mean FP reads at target 0.90,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.9,mean_fp_reads,28.3,0.1
-F13.2,Fig 13b,mean FP reads at target 0.995,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.995,mean_fp_reads,58.6,0.1
-F13.3,Fig 13b,pool top-10 preserved at target 0.90,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.9,test_empirical_pool_top10_coverage,0.9117,0.0001
-F13.4,Fig 13b,pool top-10 preserved at target 0.995,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.995,test_empirical_pool_top10_coverage,0.9953,0.0001
-F13.5,Sec 6.5,queries whose pool misses part of global top-10 (of 5980),fig13_calibration_analysis/results/exact_cosine_aligned/error_decomposition_target099.csv,category=Traversal-limited,queries,307,1
-F14.1,Fig 14,"TurboQuant+calibration QPS, MS MARCO @0.9853",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=msmarco_qwen1024;method_key=turboquant_tq1_calibrated;efSearch=144,qps,2060,1
-F14.2,Fig 14,"BBQ QPS, MS MARCO @0.9853",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=msmarco_qwen1024;method_key=adc_bq_calibrated;efSearch=144,qps,1809,1
-F14.3,Fig 14,"BBQ QPS, NQ @0.9976",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=adc_bq_calibrated;efSearch=512,qps,651,1
-F14.4,Fig 14,"TurboQuant FP reads/query, NQ",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=turboquant_tq1_calibrated;efSearch=1024,fp_reads_per_query,42.1,0.1
-F14.5,Fig 14,"BBQ FP reads/query, NQ",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=adc_bq_calibrated;efSearch=512,fp_reads_per_query,61.3,0.1
-F15.1,Fig 15,"BBQ pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=adcbq;target_recall=0.98,pages_per_query,64.5,0.1
-F15.2,Fig 15,"TurboQuant pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=turboquant;target_recall=0.98,pages_per_query,120.0,0.1
-F15.3,Fig 15,"DiskANN-RaBitQ pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_rabitq;target_recall=0.98,pages_per_query,184.4,0.1
-F15.4,Fig 15,"DiskANN pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_classic;target_recall=0.98,pages_per_query,184.2,0.1
-F15.5,Fig 15,"BBQ pages/query, OpenAI-1536 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=adcbq;target_recall=0.99,pages_per_query,67.6,0.1
-F15.6,Fig 15,"DiskANN-RaBitQ pages/query, OpenAI-1536 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_rabitq;target_recall=0.99,pages_per_query,342.4,0.1
-F15.7,Fig 15,"DiskANN pages/query, OpenAI-1536 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_classic;target_recall=0.99,pages_per_query,373.9,0.1
-F15.8,Fig 15,"BBQ pages/query, Qwen-1024 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=adcbq;target_recall=0.98,pages_per_query,46.2,0.1
-F15.9,Fig 15,"BBQ pages/query, Qwen-1024 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=adcbq;target_recall=0.99,pages_per_query,54.3,0.1
-F15.10,Fig 15,"DiskANN-RaBitQ pages/query, Qwen-1024 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=diskann_rabitq;target_recall=0.99,pages_per_query,913.6,0.1
-F15.11,Fig 15,"DiskANN pages/query, Qwen-1024 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=diskann_classic;target_recall=0.99,pages_per_query,1042.0,0.1
-F16.1,Fig 16,"Sequential QPS, Qwen-1024",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=msmarco_qwen1024;method_key=sequential;efSearch=320,qps,222.0,0.1
-F16.2,Fig 16,"Async Batch QPS, Qwen-1024",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=msmarco_qwen1024;method_key=async_batch;efSearch=320,qps,928.0,0.1
-F16.3,Fig 16,"Async Batch + Overlap QPS, Qwen-1024",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=msmarco_qwen1024;method_key=async_batch_overlap;efSearch=320,qps,993.5,0.1
-F16.4,Fig 16,"Sequential QPS, OpenAI-1536",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=sieun_msmarco_openai1536;method_key=sequential;efSearch=88,qps,376.9,0.1
-F16.5,Fig 16,"Async Batch QPS, OpenAI-1536",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=sieun_msmarco_openai1536;method_key=async_batch;efSearch=88,qps,1898.3,0.1
-F16.6,Fig 16,"Async Batch + Overlap QPS, OpenAI-1536",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=sieun_msmarco_openai1536;method_key=async_batch_overlap;efSearch=88,qps,2322.8,0.1
-F17.1,Fig 17,"BBQ QPS @>=0.995, 512D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl512/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=320,qps,1178,1
-F17.2,Fig 17,"BBQ QPS @>=0.995, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,qps,972,1
-F17.3,Fig 17,"BBQ FP reads/query @>=0.995, 512D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl512/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=320,fp_vectors_per_query,97.5,0.1
-F17.8,Fig 17,"BBQ FP reads/query @>=0.995, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,fp_vectors_per_query,23.4,0.1
-F17.4,Fig 17,"BBQ Recall@10 at ef=128, 512D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl512/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,recall_at_10,0.9868,0.0001
-F17.5,Fig 17,"BBQ Recall@10 at ef=128, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,recall_at_10,0.9952,0.0001
-F17.6,Fig 17,"BBQ max Recall@10, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=1024,recall_at_10,0.9988,0.0001
-F17.7,Fig 17,"TurboQuant max Recall@10, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=turboquant_tq1;efSearch=1024,recall_at_10,0.9990,0.0001
-F18.1,Fig 18,"BBQ QPS @>=0.99, 10M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_10m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,qps,563,1
-F18.2,Fig 18,"BBQ QPS @>=0.99, 50M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_50m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,qps,541,1
-F18.3,Fig 18,"BBQ QPS @>=0.99, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,qps,539,1
-F18.4,Fig 18,"BBQ FP reads/query @>=0.99, 10M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_10m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,fp_vectors_per_query,51.7,0.1
-F18.5,Fig 18,"BBQ FP reads/query @>=0.99, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,fp_vectors_per_query,71.5,0.1
-F18.6,Fig 18,"BBQ max Recall@10, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=1024,recall_at_10,0.9944,0.0001
-F18.7,Fig 18,"RaBitQ-7bit max Recall@10, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=rabitq_b7;efSearch=1024,recall_at_10,0.9849,0.0001
-F19.1,Fig 19,"BBQ cumulative insertion time, 10M (s)",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=10000000,adc_online_add_seconds,521.7,0.1
-F19.2,Fig 19,"BBQ cumulative insertion time, 100M (s)",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=100000000,adc_online_add_seconds,5762.2,0.1
-F19.3,Fig 19,"RaBitQ-1bit cumulative insertion time, 10M (s)",fig19_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=10000000,add_seconds,1073.5,0.1
-F19.4,Fig 19,"RaBitQ-1bit cumulative insertion time, 100M (s)",fig19_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=100000000,add_seconds,8568.5,0.1
-F19.5,Fig 19,BBQ Recall@10 after 100M inserts,fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=100000000,adc_recall_at_10,0.9853,0.0001
-F19.6,Fig 19,RaBitQ-1bit Recall@10 after 100M inserts,fig19_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=100000000,recall_current_at_k,0.9842,0.0001
-F19.7,Fig 19,TurboQuant Recall@10 after 100M inserts,fig19_insertion/results/tq1plus_r60_random_independent_t32.csv,method=fp_base_tq1plus_insert_tq1plus_fp32_rerank60;efSearch=256;insert_size=100000000,recall_current_at_k,0.9766,0.0001
-F20.1,Fig 20,16KB baseline QPS at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,qps,112.2,0.1
-F20.2,Fig 20,16KB colocated QPS at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,qps,170.6,0.1
-F20.3,Fig 20,16KB baseline graph page hit ratio at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,0.576,0.001
-F20.4,Fig 20,16KB colocated graph page hit ratio at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,0.751,0.001
+id,section,claim,file,select,column,derive,expected,tolerance
+F5.1,Fig 5,"ADC-BQ query LUT build, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=adcbq1,query_preprocess_us,,4.7,0.1
+F5.2,Fig 5,"TurboQuant query preprocessing, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=qdranttq1,query_preprocess_us,,9.6,0.1
+F5.3,Fig 5,"ADC-BQ exact-FP I/O wait (R=120), MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=adcbq1,exact_fp_io_wait_us,,517.6,0.1
+F5.4,Fig 5,"TurboQuant exact-FP I/O wait (R=80), MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=qdranttq1,exact_fp_io_wait_us,,280,1
+S4.1,Sec 4,"ADC-BQ QPS @R>=0.99, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=adcbq1,qps,,349,1
+S4.2,Sec 4,"TurboQuant QPS @R>=0.99, MS MARCO",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=msmarco_qwen1024;method_key=qdranttq1,qps,,362,1
+S4.3,Sec 4,"ADC-BQ QPS @R>=0.99, NQ",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=nq_qwen1024;method_key=adcbq1,qps,,984,1
+S4.4,Sec 4,"TurboQuant QPS @R>=0.99, NQ",fig05_preprocessing_io/results/qwen1024_five_method_recall099_timing_t1.csv,dataset=nq_qwen1024;method_key=qdranttq1,qps,,1063,1
+F8.1,Fig 8,"FP32-built graph Recall@10, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,fp_recall_at_10,,0.8015,0.0001
+F8.2,Fig 8,"1-bit-built graph Recall@10, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,binary_recall_at_10,,0.8010,0.0001
+F8.3,Fig 8,"FP32-built graph QPS, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,fp_qps,,2982,1
+F8.4,Fig 8,"1-bit-built graph QPS, MS MARCO ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=128,binary_qps,,2715,1
+F8.5,Fig 8,"FP32-built graph QPS, Quora ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=quora;efSearch=128,fp_qps,,3744,1
+F8.6,Fig 8,"1-bit-built graph QPS, Quora ef=128",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=quora;efSearch=128,binary_qps,,3415,1
+T4.1,Table 4,"MS MARCO distance evals ef=256, FP32 graph",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=256,fp_ndis_mean,,5221,1
+T4.2,Table 4,"MS MARCO distance evals ef=256, 1-bit graph",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_precision_paired.csv,dataset=msmarco;efSearch=256,binary_ndis_mean,,6136,1
+T4.3,Table 4,"MS MARCO build time, FP32 graph (s)",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_build_times.csv,dataset=msmarco;graph_build=fp,index_build_seconds,,141.9,0.1
+T4.4,Table 4,"MS MARCO build time, 1-bit graph (s)",fig08_graph_build_precision/results/graph_construction_precision/msmarco_quora_qwen1024_graph_construction_build_times.csv,dataset=msmarco;graph_build=binary,index_build_seconds,,32.7,0.1
+F9.1,Fig 9,"BBQ QPS, MS MARCO @0.9926",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=msmarco_qwen1024;method=Calibrated ADC-BQ HNSW + SSD FP32 rerank;efSearch=512,qps,,635,1
+F9.2,Fig 9,"in-memory FP32 HNSW QPS, MS MARCO @0.9926",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=msmarco_qwen1024;method=Full FP32 HNSW (in-memory);efSearch=384,qps,,335,1
+F9.3,Fig 9,"BBQ QPS, DBpedia @0.9875",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=dbpedia_qwen1024;method=Calibrated ADC-BQ HNSW + SSD FP32 rerank;efSearch=128,qps,,1547,1
+F9.4,Fig 9,"in-memory FP32 HNSW QPS, DBpedia @0.9875",fig09_vs_inmemory_fp_hnsw/results/paper_run_20261109/recall_qps_t1_from_recall096.csv,dataset=dbpedia_qwen1024;method=Full FP32 HNSW (in-memory);efSearch=128,qps,,727,1
+F9.5,Sec 6.2,"BBQ distance evals, DBpedia ef=1024",fig09_vs_inmemory_fp_hnsw/results/rerun_ndis_20261120/dbpedia_matched_recall_summary.csv,method=Calibrated ADC-BQ HNSW + SSD FP32 rerank,distance_evaluations_mean,,22977,1
+F9.6,Sec 6.2,"FP32 HNSW distance evals, DBpedia ef=256",fig09_vs_inmemory_fp_hnsw/results/rerun_ndis_20261120/dbpedia_matched_recall_summary.csv,method=In-memory FP32 HNSW,distance_evaluations_mean,,6834,1
+F10.1,Sec 6.3,"TurboQuant QPS @>=0.99, DBpedia BGE-1024",fig10_overall_recall_qps/results/recall_qps_12methods_16datasets_t1.csv,dataset=dbpedia_bge1024;method_key=turboquant_tq1_tuned_r;efSearch=160,qps,,1869,1
+F10.2,Sec 6.3,"BBQ QPS @>=0.99, DBpedia BGE-1024",fig10_overall_recall_qps/results/recall_qps_12methods_16datasets_t1.csv,dataset=dbpedia_bge1024;method_key=adcbq_pool_top10;efSearch=176,qps,,1196,1
+F10.3,Sec 6.3,"MRQ FP reads/query @0.9903, NQ BGE-M3",fig10_overall_recall_qps/results/mrq_nq_bge_m3_C4096_B320_direct.csv,nprobe=1024,ssd_reads_per_query,,1657.6,0.1
+F11.1,Fig 11,BBQ QPS @Recall@30>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=adc_bq_calibrated;method=ADC-BQ per-ef pool-top30@0.99;efSearch=248,qps,,933,1
+F11.2,Fig 11,TurboQuant QPS @Recall@30>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=turboquant_tq1_fp;method=TurboQuant TQ1+ + FP@160;efSearch=320,qps,,841,1
+F11.3,Fig 11,BBQ QPS @Recall@50>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=adc_bq_calibrated;method=ADC-BQ per-ef pool-top50@0.99;efSearch=392,qps,,578,1
+F11.4,Fig 11,TurboQuant QPS @Recall@50>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=turboquant_tq1_fp;method=TurboQuant TQ1+ + FP@320;efSearch=368,qps,,580,1
+F11.5,Fig 11,BBQ QPS @Recall@100>=0.99,fig11_recall_at_k/results/nq_qwen1024_recall_k30_50_100_t1.csv,method_key=adc_bq_calibrated;method=ADC-BQ per-ef pool-top100@0.99;efSearch=656,qps,,303,1
+F12.1,Fig 12a,"sym-BQ Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=Sym-BQ;efSearch=256,recall_at_10,,0.7231,0.0001
+F12.2,Fig 12a,"ADC-BQ Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=ADC-BQ;efSearch=240,recall_at_10,,0.8030,0.0001
+F12.3,Fig 12a,"ADC-BQ + fixed R=75 Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=ADC-BQ + Fixed R=75;efSearch=256,recall_at_10,,0.9893,0.0001
+F12.4,Fig 12a,"BBQ calibrated Recall@10, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=BBQ + Calibrated R(q);efSearch=256,recall_at_10,,0.9897,0.0001
+F12.5,Fig 12a,"BBQ calibrated FP reads/query, ef=256",fig12_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv,method=BBQ + Calibrated R(q);efSearch=256,fp_vectors_per_query_mean,,54.0,0.1
+F12.6,Fig 12a,fixed R=75 QPS (equal pool/QD),fig12_ablation/results/equal_pool_qd_ablation/equal_pool_qd_fixed75_vs_calibrated.csv,efSearch=256,fixed_qps_median,,1109,1
+F12.7,Fig 12a,calibrated QPS (equal pool/QD),fig12_ablation/results/equal_pool_qd_ablation/equal_pool_qd_fixed75_vs_calibrated.csv,efSearch=256,calibrated_qps_median,,1191,1
+F12.8,Fig 12b,share of queries with Recall@10=1.0 (%),fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=1.0,query_percent,,91.79,0.01
+F12.9,Fig 12b,"FP reads/query, Recall@10=1.0 group",fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=1.0,mean_fp_reads,,51.5,0.1
+F12.10,Fig 12b,"FP reads/query, Recall@10=0.9 group",fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=0.9,mean_fp_reads,,75.4,0.1
+F12.11,Fig 12b,"FP reads/query, Recall@10<=0.8 group",fig12_ablation/results/per_query_recall_groups_target099.ip_aligned.csv,per_query_recall_at_10=<=0.8,mean_fp_reads,,119.8,0.1
+F13.1,Fig 13b,mean FP reads at target 0.90,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.9,mean_fp_reads,,28.3,0.1
+F13.2,Fig 13b,mean FP reads at target 0.995,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.995,mean_fp_reads,,58.6,0.1
+F13.3,Fig 13b,pool top-10 preserved at target 0.90,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.9,test_empirical_pool_top10_coverage,,0.9117,0.0001
+F13.4,Fig 13b,pool top-10 preserved at target 0.995,fig13_calibration_analysis/results/exact_cosine_aligned/target_sweep.csv,target_pool_top10_coverage=0.995,test_empirical_pool_top10_coverage,,0.9953,0.0001
+F13.5,Sec 6.5,queries whose pool misses part of global top-10 (of 5980),fig13_calibration_analysis/results/exact_cosine_aligned/error_decomposition_target099.csv,category=Traversal-limited,queries,,307,1
+F14.1,Fig 14,"TurboQuant+calibration QPS, MS MARCO @0.9853",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=msmarco_qwen1024;method_key=turboquant_tq1_calibrated;efSearch=144,qps,,2060,1
+F14.2,Fig 14,"BBQ QPS, MS MARCO @0.9853",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=msmarco_qwen1024;method_key=adc_bq_calibrated;efSearch=144,qps,,1809,1
+F14.3,Fig 14,"BBQ QPS, NQ @0.9976",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=adc_bq_calibrated;efSearch=512,qps,,651,1
+F14.4,Fig 14,"TurboQuant FP reads/query, NQ",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=turboquant_tq1_calibrated;efSearch=1024,fp_reads_per_query,,42.1,0.1
+F14.5,Fig 14,"BBQ FP reads/query, NQ",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=adc_bq_calibrated;efSearch=512,fp_reads_per_query,,61.3,0.1
+F15.1,Fig 15,"BBQ pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=adcbq;target_recall=0.98,pages_per_query,,64.5,0.1
+F15.2,Fig 15,"TurboQuant pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=turboquant;target_recall=0.98,pages_per_query,,120.0,0.1
+F15.3,Fig 15,"DiskANN-RaBitQ pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_rabitq;target_recall=0.98,pages_per_query,,184.4,0.1
+F15.4,Fig 15,"DiskANN pages/query, OpenAI-1536 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_classic;target_recall=0.98,pages_per_query,,184.2,0.1
+F15.5,Fig 15,"BBQ pages/query, OpenAI-1536 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=adcbq;target_recall=0.99,pages_per_query,,67.6,0.1
+F15.6,Fig 15,"DiskANN-RaBitQ pages/query, OpenAI-1536 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_rabitq;target_recall=0.99,pages_per_query,,342.4,0.1
+F15.7,Fig 15,"DiskANN pages/query, OpenAI-1536 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=sieun_msmarco_openai1536;method_key=diskann_classic;target_recall=0.99,pages_per_query,,373.9,0.1
+F15.8,Fig 15,"BBQ pages/query, Qwen-1024 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=adcbq;target_recall=0.98,pages_per_query,,46.2,0.1
+F15.9,Fig 15,"BBQ pages/query, Qwen-1024 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=adcbq;target_recall=0.99,pages_per_query,,54.3,0.1
+F15.10,Fig 15,"DiskANN-RaBitQ pages/query, Qwen-1024 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=diskann_rabitq;target_recall=0.99,pages_per_query,,913.6,0.1
+F15.11,Fig 15,"DiskANN pages/query, Qwen-1024 @0.99",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=diskann_classic;target_recall=0.99,pages_per_query,,1042.0,0.1
+F15.12,Fig 15,"DiskANN-RaBitQ pages/query, Qwen-1024 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=diskann_rabitq;target_recall=0.98,pages_per_query,,341.0,0.1
+F15.13,Fig 15,"DiskANN pages/query, Qwen-1024 @0.98",fig15_page_io/results/page_io/operating_points.csv,dataset=msmarco_qwen1024;method_key=diskann_classic;target_recall=0.98,pages_per_query,,373.2,0.1
+F16.1,Fig 16,"Sequential QPS, Qwen-1024",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=msmarco_qwen1024;method_key=sequential;efSearch=320,qps,,222.0,0.1
+F16.2,Fig 16,"Async Batch QPS, Qwen-1024",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=msmarco_qwen1024;method_key=async_batch;efSearch=320,qps,,928.0,0.1
+F16.3,Fig 16,"Async Batch + Overlap QPS, Qwen-1024",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=msmarco_qwen1024;method_key=async_batch_overlap;efSearch=320,qps,,993.5,0.1
+F16.4,Fig 16,"Sequential QPS, OpenAI-1536",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=sieun_msmarco_openai1536;method_key=sequential;efSearch=88,qps,,376.9,0.1
+F16.5,Fig 16,"Async Batch QPS, OpenAI-1536",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=sieun_msmarco_openai1536;method_key=async_batch;efSearch=88,qps,,1898.3,0.1
+F16.6,Fig 16,"Async Batch + Overlap QPS, OpenAI-1536",fig16_io_modes/results/qwen1024_summary_t1.csv,dataset=sieun_msmarco_openai1536;method_key=async_batch_overlap;efSearch=88,qps,,2322.8,0.1
+F17.1,Fig 17,"BBQ QPS @>=0.995, 512D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl512/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=320,qps,,1178,1
+F17.2,Fig 17,"BBQ QPS @>=0.995, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,qps,,972,1
+F17.3,Fig 17,"BBQ FP reads/query @>=0.995, 512D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl512/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=320,fp_vectors_per_query,,97.5,0.1
+F17.8,Fig 17,"BBQ FP reads/query @>=0.995, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,fp_vectors_per_query,,23.4,0.1
+F17.4,Fig 17,"BBQ Recall@10 at ef=128, 512D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl512/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,recall_at_10,,0.9868,0.0001
+F17.5,Fig 17,"BBQ Recall@10 at ef=128, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=128,recall_at_10,,0.9952,0.0001
+F17.6,Fig 17,"BBQ max Recall@10, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=1024,recall_at_10,,0.9988,0.0001
+F17.7,Fig 17,"TurboQuant max Recall@10, 4096D",fig17_18_dimension_scale/results/nq_mrl/nq_qwen8_mrl4096/summary_t1.csv,method_key=turboquant_tq1;efSearch=1024,recall_at_10,,0.9990,0.0001
+F18.1,Fig 18,"BBQ QPS @>=0.99, 10M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_10m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,qps,,563,1
+F18.2,Fig 18,"BBQ QPS @>=0.99, 50M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_50m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,qps,,541,1
+F18.3,Fig 18,"BBQ QPS @>=0.99, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,qps,,539,1
+F18.4,Fig 18,"BBQ FP reads/query @>=0.99, 10M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_10m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,fp_vectors_per_query,,51.7,0.1
+F18.5,Fig 18,"BBQ FP reads/query @>=0.99, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=512,fp_vectors_per_query,,71.5,0.1
+F18.6,Fig 18,"BBQ max Recall@10, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=adc_bq_calibrated;calibration_reference_ef=1024,recall_at_10,,0.9944,0.0001
+F18.7,Fig 18,"RaBitQ-7bit max Recall@10, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=rabitq_b7;efSearch=1024,recall_at_10,,0.9849,0.0001
+F19.1,Fig 19,"BBQ cumulative insertion time, 10M (s)",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=10000000,adc_online_add_seconds,,521.7,0.1
+F19.2,Fig 19,"BBQ cumulative insertion time, 100M (s)",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=100000000,adc_online_add_seconds,,5762.2,0.1
+F19.3,Fig 19,"RaBitQ-1bit cumulative insertion time, 10M (s)",fig19_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=10000000,add_seconds,,1073.5,0.1
+F19.4,Fig 19,"RaBitQ-1bit cumulative insertion time, 100M (s)",fig19_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=64;insert_size=100000000,add_seconds,,8568.5,0.1
+F19.5,Fig 19,BBQ Recall@10 after 100M inserts,fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=100000000,adc_recall_at_10,,0.9853,0.0001
+F19.6,Fig 19,RaBitQ-1bit Recall@10 after 100M inserts,fig19_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=100000000,recall_current_at_k,,0.9842,0.0001
+F19.7,Fig 19,TurboQuant Recall@10 after 100M inserts,fig19_insertion/results/tq1plus_r60_random_independent_t32.csv,method=fp_base_tq1plus_insert_tq1plus_fp32_rerank60;efSearch=256;insert_size=100000000,recall_current_at_k,,0.9766,0.0001
+F20.1,Fig 20,16KB baseline QPS at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,qps,,112.2,0.1
+F20.2,Fig 20,16KB colocated QPS at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,qps,,170.6,0.1
+F20.3,Fig 20,16KB baseline graph page hit ratio at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,,0.576,0.001
+F20.4,Fig 20,16KB colocated graph page hit ratio at 50% DRAM,fig20_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,,0.751,0.001
+R14.1,Fig 14,"TurboQuant QPS, NQ @0.9973 (ef=1024)",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=turboquant_tq1_calibrated;efSearch=1024,qps,,,
+R14.2,Fig 14,"BBQ first-stage distance evals, NQ @0.9976",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=adc_bq_calibrated;efSearch=512,first_stage_distance_evaluations_per_query,,,
+R14.3,Fig 14,"TurboQuant first-stage distance evals, NQ @0.9973",fig14_bbq_vs_tq_same_calibration/results/summary_t1.csv,dataset=nq_qwen06_1024;method_key=turboquant_tq1_calibrated;efSearch=1024,first_stage_distance_evaluations_per_query,,,
+R18.1,Fig 18,"TurboQuant best QPS @>=0.99, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=turboquant_tq1;efSearch=1024,qps,,,
+R18.2,Fig 18,"RaBitQ-1bit best QPS @>=0.99, 100M",fig17_18_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv,method_key=rabitq_b1_adaptive;efSearch=1024,qps,,,
+R19.1,Intro,"RaBitQ-7bit cumulative insertion time, 10M (s)",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=10000000,rabitq_online_add_seconds,,,
+R19.2,Intro,"RaBitQ-7bit cumulative insertion time, 100M (s)",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=100000000,rabitq_online_add_seconds,,,
+R19.3,Intro,"BBQ cumulative insertion time, 10M (s), ef=256 row",fig19_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=10000000,adc_online_add_seconds,,,
+I.1,Intro,"page-read reduction vs DiskANN-RaBitQ, Qwen-1024 @0.99",,,,F15.10/F15.9,16.8,0.1
+I.2,Intro,"page-read reduction vs DiskANN, Qwen-1024 @0.99",,,,F15.11/F15.9,38.0,0.1
+I.3,Intro,"insertion speedup vs RaBitQ-7bit, 100M (low end of 1.8-2.2x)",,,,R19.2/F19.2,1.8,0.1
+I.4,Intro,"insertion speedup vs RaBitQ-7bit, 10M (high end of 1.8-2.2x)",,,,R19.1/R19.3,2.2,0.1
+D9.1,Sec 6.2,"BBQ / FP32 HNSW QPS, MS MARCO",,,,F9.1/F9.2,1.90,0.01
+D9.2,Sec 6.2,"BBQ / FP32 HNSW QPS, DBpedia",,,,F9.3/F9.4,2.13,0.01
+D9.3,Sec 6.2,"BBQ / FP32 HNSW distance evals, DBpedia",,,,F9.5/F9.6,3.36,0.01
+D12.1,Sec 6.4,calibrated reads fewer than fixed R=75 (%),,,,(75-F12.5)/75*100,28.0,0.1
+D12.2,Sec 6.4,calibrated QPS gain over fixed R=75 (%),,,,(F12.7/F12.6-1)*100,7.4,0.1
+D14.1,Sec 6.5,"TurboQuant / BBQ QPS under same calibration, MS MARCO",,,,F14.1/F14.2,1.14,0.01
+D14.2,Sec 6.5,"BBQ / TurboQuant QPS under same calibration, NQ",,,,F14.3/R14.1,2.01,0.01
+D14.3,Sec 6.5,"TurboQuant / BBQ distance evals, NQ",,,,R14.3/R14.2,1.77,0.01
+D15.1,Sec 6.6,"TurboQuant / BBQ pages, OpenAI-1536 @0.98",,,,F15.2/F15.1,1.86,0.01
+D15.2,Sec 6.6,"DiskANN-RaBitQ / BBQ pages, OpenAI-1536 @0.98",,,,F15.3/F15.1,2.86,0.01
+D15.3,Sec 6.6,"DiskANN / BBQ pages, OpenAI-1536 @0.98",,,,F15.4/F15.1,2.86,0.01
+D15.4,Sec 6.6,"BBQ page growth 0.98->0.99, OpenAI-1536",,,,F15.5/F15.1,1.05,0.01
+D15.5,Sec 6.6,"DiskANN-RaBitQ page growth 0.98->0.99, OpenAI-1536",,,,F15.6/F15.3,1.86,0.01
+D15.6,Sec 6.6,"DiskANN page growth 0.98->0.99, OpenAI-1536",,,,F15.7/F15.4,2.03,0.01
+D15.7,Sec 6.6,"BBQ page growth 0.98->0.99, Qwen-1024",,,,F15.9/F15.8,1.18,0.01
+D15.8,Sec 6.6,"DiskANN-RaBitQ page growth 0.98->0.99, Qwen-1024",,,,F15.10/F15.12,2.68,0.01
+D15.9,Sec 6.6,"DiskANN page growth 0.98->0.99, Qwen-1024",,,,F15.11/F15.13,2.79,0.01
+D16.1,Sec 6.6,"Async Batch / Sequential QPS, Qwen-1024",,,,F16.2/F16.1,4.18,0.01
+D16.2,Sec 6.6,"Async Batch / Sequential QPS, OpenAI-1536",,,,F16.5/F16.4,5.04,0.01
+D16.3,Sec 6.6,"overlap gain over Async Batch, Qwen-1024 (%)",,,,(F16.3/F16.2-1)*100,7.1,0.1
+D16.4,Sec 6.6,"overlap gain over Async Batch, OpenAI-1536 (%)",,,,(F16.6/F16.5-1)*100,22.4,0.1
+D18.1,Sec 6.7,BBQ QPS drop 10M->100M (%),,,,(1-F18.3/F18.1)*100,4.3,0.1
+D18.2,Sec 6.7,"BBQ / TurboQuant QPS @>=0.99, 100M",,,,F18.3/R18.1,1.98,0.01
+D18.3,Sec 6.7,"BBQ / RaBitQ-1bit QPS @>=0.99, 100M",,,,F18.3/R18.2,9.59,0.01
+D19.1,Sec 6.8,"RaBitQ-1bit / BBQ insertion time, 10M",,,,F19.3/F19.1,2.06,0.01
+D19.2,Sec 6.8,"RaBitQ-1bit / BBQ insertion time, 100M",,,,F19.4/F19.2,1.49,0.01
+D20.1,Sec 6.9,"colocation QPS gain, 16KB @50% DRAM (%)",,,,(F20.2/F20.1-1)*100,52.0,0.1

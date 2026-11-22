@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F20.`  (4 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F20.`  (5 claims) |
 | Re-plot | `./exp/fig20_colocation/plot/regen.sh` |
 | Paper figure | `plot/colocation.paper.pdf` |
 
@@ -34,6 +34,7 @@ Result files behind the figure (copied verbatim from the original run):
 | F20.2 | 16KB colocated QPS at 50% DRAM | 170.6 |
 | F20.3 | 16KB baseline graph page hit ratio at 50% DRAM | 0.576 |
 | F20.4 | 16KB colocated graph page hit ratio at 50% DRAM | 0.751 |
+| D20.1 | colocation QPS gain, 16KB @50% DRAM (%) (= `(F20.2/F20.1-1)*100`) | 52.0 |
 
 ## Notes
 

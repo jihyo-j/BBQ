@@ -1,23 +1,25 @@
-# RaBitQ v0.5.1 adaptive O_DIRECT binding with aligned fbin support
+# RaBitQ-Library v0.5.1 — benchmark binding used for the RaBitQ baselines
 
-This binding is based on official RaBitQ-Library v0.5.1 commit
-`44f8a607741e9e54f6dda3b38c325071e808aa45` and the benchmark-only adaptive
-FP O_DIRECT callback described in
-`../rabitq_v051_adaptive_odirect_build/README.md`.
+Used for: HNSW-RaBitQ-1bit with adaptive (lower-bound) FP32 rerank from SSD, and RaBitQ-7bit
+(Figs 5, 10, 11, 15, 17, 18, 19).
 
-The O_DIRECT fbin reader accepts only these two exact file layouts:
+```bash
+git clone https://github.com/VectorDB-NTU/RaBitQ-Library.git && cd RaBitQ-Library
+git checkout v0.5.1                                    # 44f8a607741e9e54f6dda3b38c325071e808aa45
+git apply /path/to/BBQ/exp/baselines/patches/rabitq_v051/rabitq_v051_adaptive_odirect.cumulative.patch
+pip install .                                          # Python binding _rabitqlib with the entries below
+```
 
-- legacy fbin: 8-byte `(n, d)` header followed by the FP32 payload;
-- aligned fbin: the same header padded to 4096 bytes followed by the FP32
-  payload.
+`rabitq_v051_adaptive_odirect.cumulative.patch` is the final source state (2026-11-17) of the binding used by
+the paper runs, as a single diff against v0.5.1 (`include/rabitqlib/index/hnsw/hnsw.hpp`,
+`python_bindings/hnsw_bindings.cpp`). It adds:
 
-The layout is inferred from the exact file size. The search statistics expose
-`fbin_data_offset`, which must equal `4096` in the aligned-header benchmark.
-The source-level change is recorded in `aligned4k_header.patch`.
+- `search_1bit_adaptive_fp_odirect`: the 1-bit estimator / lower-bound policy of RaBitQ, with only the accepted
+  candidates read from the `.fbin` with synchronous aligned `O_DIRECT` `pread`;
+- legacy (8-byte header) and 4 KiB-aligned `.fbin` layouts, inferred from the file size (`fbin_data_offset`);
+- per-query latency (`query_latency_ns`) and FP read counters;
+- online add for the insertion experiment (Fig. 19).
 
-The tail-latency build also exposes `query_latency_ns`, measured with
-`std::chrono::steady_clock` inside the per-query HNSW loop.  It covers 1-bit
-traversal, synchronous O_DIRECT FP reads, and exact scoring while excluding
-Python result conversion.  The incremental source change is recorded in
-`per_query_tail_stats.patch`; the NQ runner is
-`../run_nq_rabitq_tail_stats.py`.
+`notes/` keeps the original per-step change notes. The `*.ctx.patch` files there are context-only and do not
+apply with `patch`; they document how the cumulative diff was built up. `03_io_wait_timing` (I/O-wait split for
+Fig. 5) was a separate build (2026-11-11) and is **not** part of the cumulative patch.

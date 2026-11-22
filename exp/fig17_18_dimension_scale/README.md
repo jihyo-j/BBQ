@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F17.`  (15 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F17.`  (18 claims) |
 | Re-plot | `./exp/fig17_18_dimension_scale/plot/regen.sh` |
 | Paper figure | `plot/mrl_dimension.paper.pdf`, `plot/scalability_100m.paper.pdf` |
 
@@ -50,9 +50,13 @@ Result files behind the figure (copied verbatim from the original run):
 | F18.5 | BBQ FP reads/query @>=0.99, 100M | 71.5 |
 | F18.6 | BBQ max Recall@10, 100M | 0.9944 |
 | F18.7 | RaBitQ-7bit max Recall@10, 100M | 0.9849 |
+| D18.1 | BBQ QPS drop 10M->100M (%) (= `(1-F18.3/F18.1)*100`) | 4.3 |
+| D18.2 | BBQ / TurboQuant QPS @>=0.99, 100M (= `F18.3/R18.1`) | 1.98 |
+| D18.3 | BBQ / RaBitQ-1bit QPS @>=0.99, 100M (= `F18.3/R18.2`) | 9.59 |
 
 ## Notes
 
+- Fig. 18: TurboQuant's best QPS at Recall@10 >= 0.99 is 237 / 457 / 273 at 10M / 50M / 100M (3 rounds each), so the 1.98x at 100M depends on that single non-monotone point.
 - The TurboQuant arm is the DiskVecLab TQ1 (`method_key = turboquant_tq1`). An alternative Qdrant-native TQ1 fixed-R run is kept in `results/alt_qdrant_native_tq1/` but is not plotted.
 - Fig. 18 footprint: RaBitQ-7bit `index_bytes` = 112,834,728,305 B = 105.1 GiB (100M `summary_t1.csv`). The 31.3 GiB BBQ footprint is not recorded in any result file.
 - `mrl256` is measured but not plotted.

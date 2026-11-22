@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F12.`  (11 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F12.`  (13 claims) |
 | Re-plot | `./exp/fig12_ablation/plot/regen.sh` |
 | Paper figure | `plot/perquery.paper.pdf`, `plot/recall_ablation.paper.pdf` |
 
@@ -64,6 +64,8 @@ Result files behind the figure (copied verbatim from the original run):
 | F12.9 | FP reads/query, Recall@10=1.0 group | 51.5 |
 | F12.10 | FP reads/query, Recall@10=0.9 group | 75.4 |
 | F12.11 | FP reads/query, Recall@10<=0.8 group | 119.8 |
+| D12.1 | calibrated reads fewer than fixed R=75 (%) (= `(75-F12.5)/75*100`) | 28.0 |
+| D12.2 | calibrated QPS gain over fixed R=75 (%) (= `(F12.7/F12.6-1)*100`) | 7.4 |
 
 ## Notes
 

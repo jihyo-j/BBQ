@@ -1,0 +1,2552 @@
+diff --git a/README.md b/README.md
+index df490b17..afa72d2d 100644
+--- a/README.md
++++ b/README.md
+@@ -7,7 +7,6 @@ Faiss is a library for efficient similarity search and clustering of dense vecto
+ See [CHANGELOG.md](CHANGELOG.md) for detailed information about latest features.
+ 
+ ## Introduction
+-
+ Faiss contains several methods for similarity search. It assumes that the instances are represented as vectors and are identified by an integer, and that the vectors can be compared with L2 (Euclidean) distances or dot products. Vectors that are similar to a query vector are those that have the lowest L2 distance or the highest dot product with the query vector. It also supports cosine similarity, since this is a dot product on normalized vectors.
+ 
+ Some of the methods, like those based on binary vectors and compact quantization codes, solely use a compressed representation of the vectors and do not require to keep the original vectors. This generally comes at the cost of a less precise search but these methods can scale to billions of vectors in main memory on a single server. Other methods, like HNSW and NSG add an indexing structure on top of the raw vectors to make searching more efficient.
+diff --git a/faiss/IndexBinaryFlat.cpp b/faiss/IndexBinaryFlat.cpp
+index 22c395ff..8b48b4e0 100644
+--- a/faiss/IndexBinaryFlat.cpp
++++ b/faiss/IndexBinaryFlat.cpp
+@@ -21,12 +21,75 @@ namespace faiss {
+ IndexBinaryFlat::IndexBinaryFlat(idx_t d_) : IndexBinary(d_) {}
+ 
+ void IndexBinaryFlat::add(idx_t n, const uint8_t* x) {
++    FAISS_THROW_IF_NOT_MSG(
++            xflags.size() == 0 && block_scales.size() == 0,
++            "IndexBinaryFlat::add cannot be mixed with auxiliary storage; "
++            "use add_with_xflags or add_with_block_scales");
+     xb.insert(xb.end(), x, x + n * code_size);
+     ntotal += n;
+ }
+ 
++void IndexBinaryFlat::add_with_xflags(
++        idx_t n,
++        const uint8_t* x,
++        const uint8_t* xflags_in) {
++    FAISS_THROW_IF_NOT(xflags_in);
++    FAISS_THROW_IF_NOT_MSG(
++            block_scales.size() == 0,
++            "IndexBinaryFlat xflag storage cannot be mixed with block scales");
++    FAISS_THROW_IF_NOT_MSG(
++            xflags.size() == 0 || xflags.size() == ntotal * code_size,
++            "IndexBinaryFlat xflag storage is inconsistent with ntotal");
++    xb.insert(xb.end(), x, x + n * code_size);
++    xflags.insert(xflags.end(), xflags_in, xflags_in + n * code_size);
++    ntotal += n;
++}
++
++bool IndexBinaryFlat::has_xflags() const {
++    return xflags.size() != 0 && xflags.size() == ntotal * code_size;
++}
++
++void IndexBinaryFlat::add_with_block_scales(
++        idx_t n,
++        const uint8_t* x,
++        const uint8_t* scales,
++        int scale_size,
++        int block_size) {
++    FAISS_THROW_IF_NOT(scales);
++    FAISS_THROW_IF_NOT(scale_size > 0);
++    FAISS_THROW_IF_NOT(block_size > 0);
++    FAISS_THROW_IF_NOT_MSG(
++            xflags.size() == 0,
++            "IndexBinaryFlat block scale storage cannot be mixed with xflags");
++    FAISS_THROW_IF_NOT_MSG(
++            block_scales.size() == 0 ||
++                    block_scales.size() == ntotal * block_scale_size,
++            "IndexBinaryFlat block scale storage is inconsistent with ntotal");
++    if (block_scale_size == 0) {
++        block_scale_size = scale_size;
++        block_scale_block_size = block_size;
++    }
++    FAISS_THROW_IF_NOT_MSG(
++            block_scale_size == scale_size &&
++                    block_scale_block_size == block_size,
++            "IndexBinaryFlat block scale shape changed between add calls");
++    xb.insert(xb.end(), x, x + n * code_size);
++    block_scales.insert(
++            block_scales.end(), scales, scales + n * block_scale_size);
++    ntotal += n;
++}
++
++bool IndexBinaryFlat::has_block_scales() const {
++    return block_scale_size > 0 && block_scale_block_size > 0 &&
++            block_scales.size() == ntotal * block_scale_size;
++}
++
+ void IndexBinaryFlat::reset() {
+     xb.clear();
++    xflags.clear();
++    block_scales.clear();
++    block_scale_size = 0;
++    block_scale_block_size = 0;
+     ntotal = 0;
+ }
+ 
+@@ -87,6 +150,16 @@ size_t IndexBinaryFlat::remove_ids(const IDSelector& sel) {
+                 memmove(&xb[code_size * j],
+                         &xb[code_size * i],
+                         sizeof(xb[0]) * code_size);
++                if (xflags.size() != 0) {
++                    memmove(&xflags[code_size * j],
++                            &xflags[code_size * i],
++                            sizeof(xflags[0]) * code_size);
++                }
++                if (block_scales.size() != 0) {
++                    memmove(&block_scales[block_scale_size * j],
++                            &block_scales[block_scale_size * i],
++                            sizeof(block_scales[0]) * block_scale_size);
++                }
+             }
+             j++;
+         }
+@@ -95,6 +168,12 @@ size_t IndexBinaryFlat::remove_ids(const IDSelector& sel) {
+     if (nremove > 0) {
+         ntotal = j;
+         xb.resize(ntotal * code_size);
++        if (xflags.size() != 0) {
++            xflags.resize(ntotal * code_size);
++        }
++        if (block_scales.size() != 0) {
++            block_scales.resize(ntotal * block_scale_size);
++        }
+     }
+     return nremove;
+ }
+diff --git a/faiss/IndexBinaryFlat.h b/faiss/IndexBinaryFlat.h
+index b3d88b9f..afbdeb44 100644
+--- a/faiss/IndexBinaryFlat.h
++++ b/faiss/IndexBinaryFlat.h
+@@ -24,6 +24,16 @@ struct IndexBinaryFlat : IndexBinary {
+     /// database vectors, size ntotal * d / 8
+     MaybeOwnedVector<uint8_t> xb;
+ 
++    /// Optional xflag vectors, size ntotal * d / 8. When present, bit i marks
++    /// whether dimension i is weak/ambiguous for the corresponding sign bit.
++    MaybeOwnedVector<uint8_t> xflags;
++
++    /// Optional per-vector block scales for block-scaled BQ. Each scale is a
++    /// uint8 code in [0, 15], stored unpacked as ntotal * block_scale_size bytes.
++    MaybeOwnedVector<uint8_t> block_scales;
++    int block_scale_size = 0;
++    int block_scale_block_size = 0;
++
+     /** Select between using a heap or counting to select the k smallest values
+      * when scanning inverted lists.
+      */
+@@ -37,6 +47,19 @@ struct IndexBinaryFlat : IndexBinary {
+ 
+     void add(idx_t n, const uint8_t* x) override;
+ 
++    void add_with_xflags(idx_t n, const uint8_t* x, const uint8_t* xflags);
++
++    void add_with_block_scales(
++            idx_t n,
++            const uint8_t* x,
++            const uint8_t* scales,
++            int scale_size,
++            int block_size);
++
++    bool has_xflags() const;
++
++    bool has_block_scales() const;
++
+     void reset() override;
+ 
+     void search(
+diff --git a/faiss/IndexBinaryHNSW.cpp b/faiss/IndexBinaryHNSW.cpp
+index 917e8b5c..8cbd0f5d 100644
+--- a/faiss/IndexBinaryHNSW.cpp
++++ b/faiss/IndexBinaryHNSW.cpp
+@@ -139,8 +139,9 @@ void hnsw_add_vertices(
+ #pragma omp for schedule(dynamic)
+                 for (int64_t i = i0; i < i1; i++) {
+                     HNSW::storage_idx_t pt_id = order[i];
+-                    dis->set_query(
+-                            (float*)(x + (pt_id - n0) * index_hnsw.code_size));
++                    const size_t local_id = pt_id - n0;
++                    const uint8_t* q = x + local_id * index_hnsw.code_size;
++                    dis->set_query((float*)q);
+ 
+                     hnsw.add_with_locks(
+                             *dis,
+@@ -220,10 +221,14 @@ void IndexBinaryHNSW::search(
+         const SearchParameters* params_in) const {
+     FAISS_THROW_IF_NOT(k > 0);
+     const SearchParametersHNSW* params = nullptr;
++    const SearchParametersHNSWAdaptiveLight* adaptive_params = nullptr;
+     if (params_in) {
+         params = dynamic_cast<const SearchParametersHNSW*>(params_in);
+         FAISS_THROW_IF_NOT_MSG(
+                 params, "IndexBinaryHNSW params have incorrect type");
++        adaptive_params =
++                dynamic_cast<const SearchParametersHNSWAdaptiveLight*>(
++                        params_in);
+     }
+ 
+     // we use the buffer for distances as float but convert them back
+@@ -234,6 +239,8 @@ void IndexBinaryHNSW::search(
+     RH bres(n, distances_f, labels, k);
+ 
+     size_t n1 = 0, n2 = 0, ndis = 0, nhops = 0;
++    size_t adaptive_queries = 0, adaptive_easy_queries = 0;
++    size_t adaptive_initial_ef_sum = 0, adaptive_effective_ef_sum = 0;
+ 
+ #pragma omp parallel
+     {
+@@ -241,7 +248,7 @@ void IndexBinaryHNSW::search(
+         std::unique_ptr<DistanceComputer> dis(get_distance_computer());
+         RH::SingleResultHandler res(bres);
+ 
+-#pragma omp for reduction(+ : n1, n2, ndis, nhops)
++#pragma omp for reduction(+ : n1, n2, ndis, nhops, adaptive_queries, adaptive_easy_queries, adaptive_initial_ef_sum, adaptive_effective_ef_sum)
+         for (idx_t i = 0; i < n; i++) {
+             res.begin(i);
+             dis->set_query((float*)(x + i * code_size));
+@@ -249,6 +256,139 @@ void IndexBinaryHNSW::search(
+             // as the index parameter. This state does not get used in the
+             // search function, as it is merely there to enable Panorama
+             // execution for IndexHNSWFlatPanorama.
++            HNSWStats stats = adaptive_params
++                    ? hnsw.search_adaptive_light(
++                              *dis, nullptr, res, vt, adaptive_params)
++                    : hnsw.search(*dis, nullptr, res, vt, params_in);
++            n1 += stats.n1;
++            n2 += stats.n2;
++            ndis += stats.ndis;
++            nhops += stats.nhops;
++            adaptive_queries += stats.adaptive_queries;
++            adaptive_easy_queries += stats.adaptive_easy_queries;
++            adaptive_initial_ef_sum += stats.adaptive_initial_ef_sum;
++            adaptive_effective_ef_sum += stats.adaptive_effective_ef_sum;
++            res.end();
++        }
++    }
++
++    HNSWStats total_stats;
++    total_stats.n1 = n1;
++    total_stats.n2 = n2;
++    total_stats.ndis = ndis;
++    total_stats.nhops = nhops;
++    total_stats.adaptive_queries = adaptive_queries;
++    total_stats.adaptive_easy_queries = adaptive_easy_queries;
++    total_stats.adaptive_initial_ef_sum = adaptive_initial_ef_sum;
++    total_stats.adaptive_effective_ef_sum = adaptive_effective_ef_sum;
++    hnsw_stats.combine(total_stats);
++
++#pragma omp parallel for
++    for (idx_t i = 0; i < n * k; ++i) {
++        distances[i] = std::round(distances_f[i]);
++    }
++}
++
++void IndexBinaryHNSW::search_with_xflags(
++        idx_t n,
++        const uint8_t* x,
++        const uint8_t* xflags,
++        idx_t k,
++        int32_t* distances,
++        idx_t* labels,
++        const SearchParameters* params_in) const {
++    FAISS_THROW_IF_NOT(k > 0);
++    FAISS_THROW_IF_NOT(xflags);
++    if (params_in) {
++        const SearchParametersHNSW* params =
++                dynamic_cast<const SearchParametersHNSW*>(params_in);
++        FAISS_THROW_IF_NOT_MSG(
++                params, "IndexBinaryHNSW params have incorrect type");
++    }
++
++    float* distances_f = (float*)distances;
++
++    using RH = HeapBlockResultHandler<HNSW::C>;
++    RH bres(n, distances_f, labels, k);
++
++    size_t n1 = 0, n2 = 0, ndis = 0, nhops = 0;
++
++#pragma omp parallel
++    {
++        VisitedTable vt(ntotal);
++        std::unique_ptr<DistanceComputer> dis(get_xflag_distance_computer());
++        std::vector<uint8_t> query_buf(2 * code_size);
++        RH::SingleResultHandler res(bres);
++
++#pragma omp for reduction(+ : n1, n2, ndis, nhops)
++        for (idx_t i = 0; i < n; i++) {
++            res.begin(i);
++            memcpy(query_buf.data(), x + i * code_size, code_size);
++            memcpy(query_buf.data() + code_size,
++                   xflags + i * code_size,
++                   code_size);
++            dis->set_query((float*)query_buf.data());
++            HNSWStats stats = hnsw.search(*dis, nullptr, res, vt, params_in);
++            n1 += stats.n1;
++            n2 += stats.n2;
++            ndis += stats.ndis;
++            nhops += stats.nhops;
++            res.end();
++        }
++    }
++
++    hnsw_stats.combine({n1, n2, ndis, nhops});
++
++#pragma omp parallel for
++    for (idx_t i = 0; i < n * k; ++i) {
++        distances[i] = std::round(distances_f[i]);
++    }
++}
++
++
++void IndexBinaryHNSW::search_with_block_scales(
++        idx_t n,
++        const uint8_t* x,
++        const uint8_t* scales,
++        idx_t k,
++        int32_t* distances,
++        idx_t* labels,
++        const SearchParameters* params_in) const {
++    FAISS_THROW_IF_NOT(k > 0);
++    FAISS_THROW_IF_NOT(scales);
++    const IndexBinaryFlat* flat_storage = dynamic_cast<const IndexBinaryFlat*>(storage);
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage != nullptr && flat_storage->has_block_scales(),
++            "IndexBinaryHNSW block-scale search requires IndexBinaryFlat block scales");
++    if (params_in) {
++        const SearchParametersHNSW* params =
++                dynamic_cast<const SearchParametersHNSW*>(params_in);
++        FAISS_THROW_IF_NOT_MSG(
++                params, "IndexBinaryHNSW params have incorrect type");
++    }
++
++    float* distances_f = (float*)distances;
++
++    using RH = HeapBlockResultHandler<HNSW::C>;
++    RH bres(n, distances_f, labels, k);
++
++    size_t n1 = 0, n2 = 0, ndis = 0, nhops = 0;
++
++#pragma omp parallel
++    {
++        VisitedTable vt(ntotal);
++        std::unique_ptr<DistanceComputer> dis(get_block_scale_distance_computer());
++        std::vector<uint8_t> query_buf(code_size + flat_storage->block_scale_size);
++        RH::SingleResultHandler res(bres);
++
++#pragma omp for reduction(+ : n1, n2, ndis, nhops)
++        for (idx_t i = 0; i < n; i++) {
++            res.begin(i);
++            memcpy(query_buf.data(), x + i * code_size, code_size);
++            memcpy(query_buf.data() + code_size,
++                   scales + i * flat_storage->block_scale_size,
++                   flat_storage->block_scale_size);
++            dis->set_query((float*)query_buf.data());
+             HNSWStats stats = hnsw.search(*dis, nullptr, res, vt, params_in);
+             n1 += stats.n1;
+             n2 += stats.n2;
+@@ -281,6 +421,53 @@ void IndexBinaryHNSW::add(idx_t n, const uint8_t* x) {
+             hnsw.levels.size() == static_cast<size_t>(ntotal));
+ }
+ 
++void IndexBinaryHNSW::add_with_xflags(
++        idx_t n,
++        const uint8_t* x,
++        const uint8_t* xflags) {
++    FAISS_THROW_IF_NOT(is_trained);
++    IndexBinaryFlat* flat_storage = dynamic_cast<IndexBinaryFlat*>(storage);
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage != nullptr,
++            "IndexBinaryHNSW xflag add requires IndexBinaryFlat storage");
++    size_t n0 = ntotal;
++    flat_storage->add_with_xflags(n, x, xflags);
++    ntotal = flat_storage->ntotal;
++
++    hnsw_add_vertices(
++            *this,
++            n0,
++            n,
++            x,
++            verbose,
++            hnsw.levels.size() == static_cast<size_t>(ntotal));
++}
++
++
++void IndexBinaryHNSW::add_with_block_scales(
++        idx_t n,
++        const uint8_t* x,
++        const uint8_t* scales,
++        int scale_size,
++        int block_size) {
++    FAISS_THROW_IF_NOT(is_trained);
++    IndexBinaryFlat* flat_storage = dynamic_cast<IndexBinaryFlat*>(storage);
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage != nullptr,
++            "IndexBinaryHNSW block-scale add requires IndexBinaryFlat storage");
++    size_t n0 = ntotal;
++    flat_storage->add_with_block_scales(n, x, scales, scale_size, block_size);
++    ntotal = flat_storage->ntotal;
++
++    hnsw_add_vertices(
++            *this,
++            n0,
++            n,
++            x,
++            verbose,
++            hnsw.levels.size() == static_cast<size_t>(ntotal));
++}
++
+ void IndexBinaryHNSW::reset() {
+     hnsw.reset();
+     locks.clear();
+@@ -303,6 +490,29 @@ DistanceComputer* IndexBinaryHNSW::get_distance_computer() const {
+     });
+ }
+ 
++DistanceComputer* IndexBinaryHNSW::get_xflag_distance_computer() const {
++    IndexBinaryFlat* flat_storage = dynamic_cast<IndexBinaryFlat*>(storage);
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage != nullptr,
++            "IndexBinaryHNSW requires IndexBinaryFlat storage");
++    return with_simd_level([&]<SIMDLevel SL>() {
++        return make_binary_hnsw_xflag_distance_computer_fixSL<SL>(
++                code_size, flat_storage);
++    });
++}
++
++
++DistanceComputer* IndexBinaryHNSW::get_block_scale_distance_computer() const {
++    IndexBinaryFlat* flat_storage = dynamic_cast<IndexBinaryFlat*>(storage);
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage != nullptr,
++            "IndexBinaryHNSW requires IndexBinaryFlat storage");
++    return with_simd_level([&]<SIMDLevel SL>() {
++        return make_binary_hnsw_block_scale_distance_computer_fixSL<SL>(
++                code_size, flat_storage);
++    });
++}
++
+ /**************************************************************
+  * IndexBinaryHNSWCagra implementation
+  **************************************************************/
+diff --git a/faiss/IndexBinaryHNSW.h b/faiss/IndexBinaryHNSW.h
+index 2e4049d3..c88c0f38 100644
+--- a/faiss/IndexBinaryHNSW.h
++++ b/faiss/IndexBinaryHNSW.h
+@@ -54,8 +54,21 @@ struct IndexBinaryHNSW : IndexBinary {
+ 
+     DistanceComputer* get_distance_computer() const;
+ 
++    DistanceComputer* get_xflag_distance_computer() const;
++
++    DistanceComputer* get_block_scale_distance_computer() const;
++
+     void add(idx_t n, const uint8_t* x) override;
+ 
++    void add_with_xflags(idx_t n, const uint8_t* x, const uint8_t* xflags);
++
++    void add_with_block_scales(
++            idx_t n,
++            const uint8_t* x,
++            const uint8_t* scales,
++            int scale_size,
++            int block_size);
++
+     /// Trains the storage if needed
+     void train(idx_t n, const uint8_t* x) override;
+ 
+@@ -68,6 +81,24 @@ struct IndexBinaryHNSW : IndexBinary {
+             idx_t* labels,
+             const SearchParameters* params = nullptr) const override;
+ 
++    void search_with_xflags(
++            idx_t n,
++            const uint8_t* x,
++            const uint8_t* xflags,
++            idx_t k,
++            int32_t* distances,
++            idx_t* labels,
++            const SearchParameters* params = nullptr) const;
++
++    void search_with_block_scales(
++            idx_t n,
++            const uint8_t* x,
++            const uint8_t* scales,
++            idx_t k,
++            int32_t* distances,
++            idx_t* labels,
++            const SearchParameters* params = nullptr) const;
++
+     void reconstruct(idx_t key, uint8_t* recons) const override;
+ 
+     void reset() override;
+diff --git a/faiss/IndexHNSW.cpp b/faiss/IndexHNSW.cpp
+index ee626973..b47f9eb5 100644
+--- a/faiss/IndexHNSW.cpp
++++ b/faiss/IndexHNSW.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include <omp.h>
+ #include <atomic>
++#include <cmath>
+ #include <cinttypes>
+ #include <cstdio>
+ #include <cstdlib>
+@@ -314,6 +315,261 @@ void hnsw_search(
+     hnsw_stats.combine({n1, n2, ndis, nhops});
+ }
+ 
++
++static bool packed_bit_is_set(const uint8_t* bits, size_t bit_no) {
++    return (bits[bit_no / 8] & (uint8_t(1) << (7 - (bit_no % 8)))) != 0;
++}
++
++struct HNSWSQXFlagDistanceComputer : DistanceComputer {
++    const IndexHNSWSQ& index;
++    const IndexScalarQuantizer& sq_storage;
++    std::unique_ptr<FlatCodesDistanceComputer> base;
++    std::vector<float> decoded;
++    const float* query = nullptr;
++    const uint8_t* query_xflags = nullptr;
++
++    HNSWSQXFlagDistanceComputer(
++            const IndexHNSWSQ& index,
++            const IndexScalarQuantizer& sq_storage)
++            : index(index),
++              sq_storage(sq_storage),
++              base(sq_storage.get_FlatCodesDistanceComputer()),
++              decoded(index.d) {}
++
++    void set_query(const float* x) override {
++        query = x;
++        base->set_query(x);
++    }
++
++    void set_query_with_xflags(const float* x, const uint8_t* xflags) {
++        query_xflags = xflags;
++        set_query(x);
++    }
++
++    float operator()(idx_t i) override {
++        float score = (*base)(i);
++        const uint8_t* db_xflags =
++                index.xflags.data() + size_t(i) * index.xflag_code_size;
++        const uint8_t* code = sq_storage.codes.data() +
++                size_t(i) * sq_storage.code_size;
++        sq_storage.sa_decode(1, code, decoded.data());
++
++        float weak_tail_score = 0.0f;
++        const size_t tail_dim = size_t(index.d - index.xflag_split);
++        for (size_t t = 0; t < tail_dim; ++t) {
++            if (packed_bit_is_set(query_xflags, t) &&
++                packed_bit_is_set(db_xflags, t)) {
++                const size_t dim = size_t(index.xflag_split) + t;
++                weak_tail_score += query[dim] * decoded[dim];
++            }
++        }
++        return -(score - weak_tail_score);
++    }
++
++    void distances_batch_4(
++            const idx_t idx0,
++            const idx_t idx1,
++            const idx_t idx2,
++            const idx_t idx3,
++            float& dis0,
++            float& dis1,
++            float& dis2,
++            float& dis3) override {
++        dis0 = (*this)(idx0);
++        dis1 = (*this)(idx1);
++        dis2 = (*this)(idx2);
++        dis3 = (*this)(idx3);
++    }
++
++    float symmetric_dis(idx_t i, idx_t j) override {
++        return -base->symmetric_dis(i, j);
++    }
++};
++
++template <class BlockResultHandler>
++void hnsw_search_sq_xflags(
++        const IndexHNSWSQ* index,
++        idx_t n,
++        const float* x,
++        const uint8_t* qxflags,
++        BlockResultHandler& bres,
++        const SearchParameters* params) {
++    FAISS_THROW_IF_NOT_MSG(index->storage, "IndexHNSWSQ has no storage");
++    FAISS_THROW_IF_NOT_MSG(
++            index->metric_type == METRIC_INNER_PRODUCT,
++            "xflag-aware SQ HNSW search currently supports inner product only");
++    FAISS_THROW_IF_NOT_MSG(
++            index->xflag_code_size > 0 && index->xflags.size() ==
++                            size_t(index->ntotal) * index->xflag_code_size,
++            "IndexHNSWSQ xflags are not initialized; call add_with_xflags first");
++
++    const auto* sq_storage = dynamic_cast<const IndexScalarQuantizer*>(index->storage);
++    FAISS_THROW_IF_NOT_MSG(
++            sq_storage, "xflag-aware SQ HNSW search requires IndexScalarQuantizer storage");
++
++    const HNSW& hnsw = index->hnsw;
++    int efSearch = hnsw.efSearch;
++    if (params) {
++        if (const SearchParametersHNSW* hnsw_params =
++                    dynamic_cast<const SearchParametersHNSW*>(params)) {
++            efSearch = hnsw_params->efSearch;
++        }
++    }
++    size_t n1 = 0, n2 = 0, ndis = 0, nhops = 0;
++
++    idx_t check_period = InterruptCallback::get_period_hint(
++            hnsw.max_level * index->d * efSearch);
++
++    for (idx_t i0 = 0; i0 < n; i0 += check_period) {
++        idx_t i1 = std::min(i0 + check_period, n);
++        std::exception_ptr ex;
++        std::atomic<bool> interrupt{false};
++
++#pragma omp parallel if (i1 - i0 > 1)
++        {
++            std::unique_ptr<VisitedTable> vt;
++            std::unique_ptr<typename BlockResultHandler::SingleResultHandler>
++                    res;
++            std::unique_ptr<HNSWSQXFlagDistanceComputer> dis;
++            try {
++                vt = std::make_unique<VisitedTable>(
++                        index->ntotal, hnsw.use_visited_hashset);
++                res = std::make_unique<
++                        typename BlockResultHandler::SingleResultHandler>(bres);
++                dis = std::make_unique<HNSWSQXFlagDistanceComputer>(
++                        *index, *sq_storage);
++            } catch (...) {
++                omp_capture_exception(ex, [&] { interrupt = true; });
++            }
++
++#pragma omp for reduction(+ : n1, n2, ndis, nhops) schedule(guided)
++            for (idx_t i = i0; i < i1; i++) {
++                if (interrupt.load(std::memory_order_relaxed)) {
++                    continue;
++                }
++                try {
++                    res->begin(i);
++                    dis->set_query_with_xflags(
++                            x + i * index->d,
++                            qxflags + i * index->xflag_code_size);
++
++                    HNSWStats stats =
++                            hnsw.search(*dis, index, *res, *vt, params);
++                    n1 += stats.n1;
++                    n2 += stats.n2;
++                    ndis += stats.ndis;
++                    nhops += stats.nhops;
++                    res->end();
++                    vt->advance();
++                } catch (...) {
++                    omp_capture_exception(ex, [&] { interrupt = true; });
++                }
++            }
++        }
++        omp_rethrow_if_exception(ex);
++        InterruptCallback::check();
++    }
++
++    hnsw_stats.combine({n1, n2, ndis, nhops});
++}
++
++template <class BlockResultHandler>
++void hnsw_search_adaptive_light(
++        const IndexHNSW* index,
++        idx_t n,
++        const float* x,
++        BlockResultHandler& bres,
++        const SearchParameters* params_in) {
++    FAISS_THROW_IF_NOT_MSG(
++            index->storage,
++            "No storage index, please use IndexHNSWFlat (or variants) "
++            "instead of IndexHNSW directly");
++
++    const HNSW& hnsw = index->hnsw;
++    SearchParametersHNSWAdaptiveLight default_params;
++    default_params.efSearch = hnsw.efSearch;
++    default_params.check_relative_distance = hnsw.check_relative_distance;
++    default_params.bounded_queue = true;
++
++    const SearchParametersHNSWAdaptiveLight* params = &default_params;
++    if (params_in) {
++        params = dynamic_cast<const SearchParametersHNSWAdaptiveLight*>(
++                params_in);
++        FAISS_THROW_IF_NOT_MSG(
++                params,
++                "params must be SearchParametersHNSWAdaptiveLight");
++    }
++
++    size_t n1 = 0, n2 = 0, ndis = 0, nhops = 0;
++    size_t adaptive_queries = 0, adaptive_easy_queries = 0;
++    size_t adaptive_initial_ef_sum = 0, adaptive_effective_ef_sum = 0;
++
++    idx_t check_period = InterruptCallback::get_period_hint(
++            hnsw.max_level * index->d * std::max(params->efSearch, 1));
++
++    for (idx_t i0 = 0; i0 < n; i0 += check_period) {
++        idx_t i1 = std::min(i0 + check_period, n);
++        std::exception_ptr ex;
++        std::atomic<bool> interrupt{false};
++
++#pragma omp parallel if (i1 - i0 > 1)
++        {
++            std::unique_ptr<VisitedTable> vt;
++            std::unique_ptr<typename BlockResultHandler::SingleResultHandler>
++                    res;
++            std::unique_ptr<DistanceComputer> dis;
++            try {
++                vt = std::make_unique<VisitedTable>(
++                        index->ntotal, hnsw.use_visited_hashset);
++                res = std::make_unique<
++                        typename BlockResultHandler::SingleResultHandler>(bres);
++                dis.reset(storage_distance_computer(index->storage));
++            } catch (...) {
++                omp_capture_exception(ex, [&] { interrupt = true; });
++            }
++
++#pragma omp for reduction(+ : n1, n2, ndis, nhops, adaptive_queries, adaptive_easy_queries, adaptive_initial_ef_sum, adaptive_effective_ef_sum) schedule(guided)
++            for (idx_t i = i0; i < i1; i++) {
++                if (interrupt.load(std::memory_order_relaxed)) {
++                    continue;
++                }
++                try {
++                    res->begin(i);
++                    dis->set_query(x + i * index->d);
++
++                    HNSWStats stats = hnsw.search_adaptive_light(
++                            *dis, index, *res, *vt, params);
++                    n1 += stats.n1;
++                    n2 += stats.n2;
++                    ndis += stats.ndis;
++                    nhops += stats.nhops;
++                    adaptive_queries += stats.adaptive_queries;
++                    adaptive_easy_queries += stats.adaptive_easy_queries;
++                    adaptive_initial_ef_sum += stats.adaptive_initial_ef_sum;
++                    adaptive_effective_ef_sum += stats.adaptive_effective_ef_sum;
++                    res->end();
++                    vt->advance();
++                } catch (...) {
++                    omp_capture_exception(ex, [&] { interrupt = true; });
++                }
++            }
++        }
++        omp_rethrow_if_exception(ex);
++        InterruptCallback::check();
++    }
++
++    HNSWStats total_stats;
++    total_stats.n1 = n1;
++    total_stats.n2 = n2;
++    total_stats.ndis = ndis;
++    total_stats.nhops = nhops;
++    total_stats.adaptive_queries = adaptive_queries;
++    total_stats.adaptive_easy_queries = adaptive_easy_queries;
++    total_stats.adaptive_initial_ef_sum = adaptive_initial_ef_sum;
++    total_stats.adaptive_effective_ef_sum = adaptive_effective_ef_sum;
++    hnsw_stats.combine(total_stats);
++}
++
+ } // anonymous namespace
+ 
+ void IndexHNSW::search(
+@@ -338,6 +594,31 @@ void IndexHNSW::search(
+     }
+ }
+ 
++void IndexHNSW::knn_query_adaptive_light(
++        idx_t n,
++        const float* x,
++        idx_t k,
++        float* distances,
++        idx_t* labels,
++        const SearchParameters* params) const {
++    FAISS_THROW_IF_NOT(k > 0);
++
++    using RH = HeapBlockResultHandler<HNSW::C>;
++    RH bres(n, distances, labels, k);
++
++    hnsw_search_adaptive_light(this, n, x, bres, params);
++
++    if (is_similarity_metric(this->metric_type)) {
++        for (idx_t i = 0; i < k * n; i++) {
++            if (labels[i] < 0) {
++                distances[i] = std::numeric_limits<float>::infinity();
++            } else if (std::isfinite(distances[i])) {
++                distances[i] = 1.0f + distances[i];
++            }
++        }
++    }
++}
++
+ void IndexHNSW::range_search(
+         idx_t n,
+         const float* x,
+@@ -793,6 +1074,65 @@ IndexHNSWSQ::IndexHNSWSQ(
+ 
+ IndexHNSWSQ::IndexHNSWSQ() = default;
+ 
++void IndexHNSWSQ::add_with_xflags(
++        idx_t n,
++        const float* x,
++        const uint8_t* xflags_in,
++        int split) {
++    FAISS_THROW_IF_NOT(n >= 0);
++    FAISS_THROW_IF_NOT_MSG(
++            split > 0 && split < d, "split must be in (0, d)");
++    FAISS_THROW_IF_NOT_MSG(
++            metric_type == METRIC_INNER_PRODUCT,
++            "xflag-aware SQ HNSW currently supports inner product only");
++
++    const size_t code_size = (size_t(d - split) + 7) / 8;
++    if (ntotal == 0 && xflags.empty()) {
++        xflag_split = split;
++        xflag_code_size = code_size;
++    } else {
++        FAISS_THROW_IF_NOT_MSG(
++                xflag_split == split && xflag_code_size == code_size,
++                "all add_with_xflags calls must use the same split");
++    }
++
++    const idx_t old_ntotal = ntotal;
++    IndexHNSW::add(n, x);
++    xflags.resize(size_t(ntotal) * xflag_code_size);
++    memcpy(
++            xflags.data() + size_t(old_ntotal) * xflag_code_size,
++            xflags_in,
++            size_t(n) * xflag_code_size);
++}
++
++void IndexHNSWSQ::search_with_xflags(
++        idx_t n,
++        const float* x,
++        const uint8_t* qxflags,
++        idx_t k,
++        float* distances,
++        idx_t* labels,
++        const SearchParameters* params) const {
++    FAISS_THROW_IF_NOT(k > 0);
++    FAISS_THROW_IF_NOT_MSG(qxflags, "query xflags must be non-null");
++
++    using RH = HeapBlockResultHandler<HNSW::C>;
++    RH bres(n, distances, labels, k);
++
++    hnsw_search_sq_xflags(this, n, x, qxflags, bres, params);
++
++    for (idx_t i = 0; i < k * n; i++) {
++        distances[i] = -distances[i];
++    }
++}
++
++void IndexHNSWSQ::reset() {
++    IndexHNSW::reset();
++    xflags.clear();
++    xflag_split = 0;
++    xflag_code_size = 0;
++}
++
+ /**************************************************************
+  * IndexHNSW2Level implementation
+  **************************************************************/
+diff --git a/faiss/IndexHNSW.h b/faiss/IndexHNSW.h
+index 8e3d7f29..5b4cb9a3 100644
+--- a/faiss/IndexHNSW.h
++++ b/faiss/IndexHNSW.h
+@@ -78,6 +78,14 @@ struct IndexHNSW : Index {
+             idx_t* labels,
+             const SearchParameters* params = nullptr) const override;
+ 
++    void knn_query_adaptive_light(
++            idx_t n,
++            const float* x,
++            idx_t k,
++            float* distances,
++            idx_t* labels,
++            const SearchParameters* params = nullptr) const;
++
+     void range_search(
+             idx_t n,
+             const float* x,
+@@ -208,12 +216,35 @@ struct IndexHNSWPQ : IndexHNSW {
+  *  more efficiently.
+  */
+ struct IndexHNSWSQ : IndexHNSW {
++    /// Packed tail xflags, one row per stored vector. Only used by
++    /// search_with_xflags; add/build still uses the regular SQ distance.
++    std::vector<uint8_t> xflags;
++    int xflag_split = 0;
++    size_t xflag_code_size = 0;
++
+     IndexHNSWSQ();
+     IndexHNSWSQ(
+             int d,
+             ScalarQuantizer::QuantizerType qtype,
+             int M,
+             MetricType metric = METRIC_L2);
++
++    void add_with_xflags(
++            idx_t n,
++            const float* x,
++            const uint8_t* xflags,
++            int split);
++
++    void search_with_xflags(
++            idx_t n,
++            const float* x,
++            const uint8_t* qxflags,
++            idx_t k,
++            float* distances,
++            idx_t* labels,
++            const SearchParameters* params = nullptr) const;
++
++    void reset() override;
+ };
+ 
+ /** 2-level code structure with fast random access
+diff --git a/faiss/impl/HNSW.cpp b/faiss/impl/HNSW.cpp
+index 200e42fa..d82951e6 100644
+--- a/faiss/impl/HNSW.cpp
++++ b/faiss/impl/HNSW.cpp
+@@ -7,9 +7,11 @@
+ 
+ #include <faiss/impl/HNSW.h>
+ 
++#include <cmath>
+ #include <cinttypes>
+ #include <cstddef>
+ #include <cstdlib>
++#include <limits>
+ 
+ #include <faiss/IndexHNSW.h>
+ 
+@@ -619,6 +621,96 @@ static inline void extract_search_params(
+     }
+ }
+ 
++static inline float raw_distance_to_hnswlib_distance(
++        float raw_distance,
++        bool is_similarity_metric) {
++    // hnswlib uses 1 - similarity for IP/cosine, while Faiss internally
++    // traverses similarity HNSW with negated similarities.
++    return is_similarity_metric ? (1.0f + raw_distance) : raw_distance;
++}
++
++static inline size_t resolve_scaled_shrink_ef(
++        size_t configured_ef,
++        double scale,
++        size_t min_ef) {
++    const size_t raw_ef =
++            static_cast<size_t>(std::llround((double)configured_ef * scale));
++    return std::min(configured_ef, std::max(min_ef, raw_ef));
++}
++
++static inline float get_bucket_gamma_ratio(
++        const SearchParametersHNSWAdaptiveLight& params,
++        size_t index) {
++    switch (index) {
++        case 0:
++            return params.bucket_gamma_ratio_0;
++        case 1:
++            return params.bucket_gamma_ratio_1;
++        case 2:
++            return params.bucket_gamma_ratio_2;
++        case 3:
++            return params.bucket_gamma_ratio_3;
++        case 4:
++            return params.bucket_gamma_ratio_4;
++        case 5:
++            return params.bucket_gamma_ratio_5;
++        case 6:
++            return params.bucket_gamma_ratio_6;
++        default:
++            return std::numeric_limits<float>::quiet_NaN();
++    }
++}
++
++static inline void validate_paper_bucket_routing_config(
++        const SearchParametersHNSWAdaptiveLight& params) {
++    const int bucket_count = params.paper_bucket_count;
++    FAISS_THROW_IF_NOT_MSG(
++            bucket_count >= 2 && bucket_count <= 8,
++            "paper_bucket_count must be in [2, 8]");
++
++    float prev_gamma = -std::numeric_limits<float>::infinity();
++    for (int i = 0; i < bucket_count - 1; i++) {
++        const float gamma = get_bucket_gamma_ratio(params, i);
++        FAISS_THROW_IF_NOT_MSG(
++                std::isfinite(gamma),
++                "bucket_gamma_ratios must be finite");
++        FAISS_THROW_IF_NOT_MSG(
++                gamma >= 0.0f && gamma <= 1.0f,
++                "bucket_gamma_ratios must lie in [0, 1]");
++        FAISS_THROW_IF_NOT_MSG(
++                gamma >= prev_gamma,
++                "bucket_gamma_ratios must be monotone nondecreasing");
++        prev_gamma = gamma;
++    }
++}
++
++static inline size_t resolve_paper_bucket_shrink_ef(
++        size_t configured_ef,
++        size_t k,
++        const SearchParametersHNSWAdaptiveLight& params,
++        float classify_chr_ratio) {
++    validate_paper_bucket_routing_config(params);
++
++    const size_t bucket_count = static_cast<size_t>(params.paper_bucket_count);
++    size_t selected_bucket_index = bucket_count - 1;
++    for (size_t i = 0; i + 1 < bucket_count; i++) {
++        if (classify_chr_ratio <= get_bucket_gamma_ratio(params, i)) {
++            selected_bucket_index = i;
++            break;
++        }
++    }
++
++    if (selected_bucket_index + 1 >= bucket_count) {
++        return configured_ef;
++    }
++
++    size_t routed_ef =
++            (configured_ef * (selected_bucket_index + 1)) / bucket_count;
++    routed_ef = std::max<size_t>(1, routed_ef);
++    routed_ef = std::min(configured_ef, routed_ef);
++    return std::max(routed_ef, k);
++}
++
+ /** Do a BFS on the candidates list */
+ int search_from_candidates(
+         const HNSW& hnsw,
+@@ -756,6 +848,329 @@ int search_from_candidates(
+     return nres;
+ }
+ 
++int search_from_candidates_adaptive_light(
++        const HNSW& hnsw,
++        const IndexHNSW* index,
++        DistanceComputer& qdis,
++        ResultHandler& res,
++        int k_search,
++        HNSW::storage_idx_t nearest,
++        float d_nearest,
++        VisitedTable& vt,
++        HNSWStats& stats,
++        const SearchParametersHNSWAdaptiveLight& params) {
++    static constexpr size_t HARD_ONLY_STAG_LIMIT = 20;
++    static constexpr int CLASSIFY_START = 4;
++    static constexpr int CLASSIFY_END = 16;
++    static constexpr float CHR_EMA_DECAY = 0.8f;
++    static constexpr float CHR_EMA_UPDATE = 1.0f - CHR_EMA_DECAY;
++
++    FAISS_THROW_IF_NOT_MSG(
++            params.bounded_queue,
++            "adaptive-light requires SearchParametersHNSWAdaptiveLight.bounded_queue=true");
++
++    const bool similarity_metric =
++            index != nullptr && is_similarity_metric(index->metric_type);
++    const IDSelector* sel = params.sel;
++
++    size_t ef_cur = std::max<size_t>(
++            std::max<size_t>(static_cast<size_t>(params.efSearch), 1),
++            static_cast<size_t>(k_search));
++    ef_cur = std::min(
++            ef_cur,
++            std::max<size_t>(static_cast<size_t>(params.efMax), 1));
++    const size_t configured_ef_cur = ef_cur;
++
++    bool is_easy_query = false;
++    bool is_super_easy_query = false;
++    bool is_mid_easy_query = false;
++    bool classification_evaluated = false;
++    bool effective_ef_shrink_applied = false;
++    int full_pop_count = 0;
++    int stagnation_count = 0;
++    float prev_furthest = std::numeric_limits<float>::max();
++    float smoothed_chr_ema = std::numeric_limits<float>::quiet_NaN();
++    float classify_smoothed_chr_sum = 0.0f;
++    int classify_smoothed_chr_count = 0;
++    float classify_chr_mean = std::numeric_limits<float>::quiet_NaN();
++    const bool direct_classifier_threshold_enabled =
++            std::isfinite(params.early_stop_ratio);
++    if (params.paper_bucket_mode) {
++        validate_paper_bucket_routing_config(params);
++    }
++    const bool super_easy_policy_enabled = direct_classifier_threshold_enabled &&
++            !params.paper_bucket_mode &&
++            std::isfinite(params.super_easy_gamma_ratio);
++    const bool mid_easy_bucket_policy_enabled =
++            direct_classifier_threshold_enabled &&
++            !params.paper_bucket_mode &&
++            std::isfinite(params.mid_easy_upper_gamma_ratio);
++    const int effective_tmin_pops = direct_classifier_threshold_enabled
++            ? std::max(params.tmin_pops, CLASSIFY_END)
++            : params.tmin_pops;
++
++    std::priority_queue<Node> top_candidates;
++    std::priority_queue<Node, std::vector<Node>, std::greater<Node>>
++            candidate_set;
++
++    float lower_bound = std::numeric_limits<float>::max();
++    candidate_set.emplace(d_nearest, nearest);
++    vt.set(nearest);
++
++    if (!sel || sel->is_member(nearest)) {
++        top_candidates.emplace(d_nearest, nearest);
++        lower_bound = d_nearest;
++    }
++
++    int ndis = 0;
++    int nstep = 0;
++
++    auto push_candidate = [&](idx_t idx, float dis) {
++        candidate_set.emplace(dis, idx);
++        if (!sel || sel->is_member(idx)) {
++            top_candidates.emplace(dis, idx);
++            if (top_candidates.size() > ef_cur) {
++                top_candidates.pop();
++            }
++            if (!top_candidates.empty()) {
++                lower_bound = top_candidates.top().first;
++            }
++        }
++    };
++
++    while (!candidate_set.empty()) {
++        float candidate_dist = candidate_set.top().first;
++        storage_idx_t current = candidate_set.top().second;
++
++        if (candidate_dist > lower_bound && top_candidates.size() == ef_cur) {
++            break;
++        }
++
++        candidate_set.pop();
++
++        size_t begin, end;
++        hnsw.neighbor_range(current, 0, &begin, &end);
++
++        size_t jmax = begin;
++        for (size_t j = begin; j < end; j++) {
++            int v1 = hnsw.neighbors[j];
++            if (v1 < 0) {
++                break;
++            }
++            vt.prefetch(v1);
++            jmax += 1;
++        }
++
++        int counter = 0;
++        storage_idx_t saved_j[4];
++
++        for (size_t j = begin; j < jmax; j++) {
++            storage_idx_t v1 = hnsw.neighbors[j];
++            saved_j[counter] = v1;
++            counter += vt.set(v1) ? 1 : 0;
++
++            if (counter == 4) {
++                float dis[4];
++                qdis.distances_batch_4(
++                        saved_j[0],
++                        saved_j[1],
++                        saved_j[2],
++                        saved_j[3],
++                        dis[0],
++                        dis[1],
++                        dis[2],
++                        dis[3]);
++
++                for (int id4 = 0; id4 < 4; id4++) {
++                    if (top_candidates.size() < ef_cur ||
++                        dis[id4] < lower_bound) {
++                        push_candidate(saved_j[id4], dis[id4]);
++                    }
++                }
++
++                ndis += 4;
++                counter = 0;
++            }
++        }
++
++        for (int icnt = 0; icnt < counter; icnt++) {
++            float dis = qdis(saved_j[icnt]);
++            if (top_candidates.size() < ef_cur || dis < lower_bound) {
++                push_candidate(saved_j[icnt], dis);
++            }
++            ndis += 1;
++        }
++
++        bool stop_search = false;
++        if (top_candidates.size() == ef_cur && !top_candidates.empty()) {
++            full_pop_count++;
++            float furthest_dist = raw_distance_to_hnswlib_distance(
++                    top_candidates.top().first,
++                    similarity_metric);
++            const float candidate_dist_hnswlib =
++                    raw_distance_to_hnswlib_distance(
++                            candidate_dist,
++                            similarity_metric);
++            const float chr =
++                    candidate_dist_hnswlib / std::max(furthest_dist, 1e-6f);
++            bool rebased_after_shrink = false;
++
++            if (std::isnan(smoothed_chr_ema)) {
++                smoothed_chr_ema = chr;
++            } else {
++                smoothed_chr_ema =
++                        CHR_EMA_DECAY * smoothed_chr_ema + CHR_EMA_UPDATE * chr;
++            }
++
++            if (full_pop_count >= CLASSIFY_START &&
++                full_pop_count <= CLASSIFY_END) {
++                classify_smoothed_chr_sum += smoothed_chr_ema;
++                classify_smoothed_chr_count++;
++
++                if (!classification_evaluated &&
++                    full_pop_count == CLASSIFY_END) {
++                    classification_evaluated = true;
++                    if (direct_classifier_threshold_enabled) {
++                        classify_chr_mean = classify_smoothed_chr_sum /
++                                static_cast<float>(classify_smoothed_chr_count);
++                        is_easy_query =
++                                classify_chr_mean <= params.early_stop_ratio;
++                        if (is_easy_query) {
++                            const float classify_chr_ratio =
++                                    classify_chr_mean /
++                                    std::max(params.early_stop_ratio, 1e-6f);
++                            if (super_easy_policy_enabled) {
++                                is_super_easy_query =
++                                        classify_chr_ratio <=
++                                        params.super_easy_gamma_ratio;
++                            }
++                            if (mid_easy_bucket_policy_enabled) {
++                                is_mid_easy_query =
++                                        classify_chr_ratio <=
++                                        params.mid_easy_upper_gamma_ratio;
++                            }
++                        }
++                    }
++
++                    if (!effective_ef_shrink_applied) {
++                        size_t shrunk_ef_cur = configured_ef_cur;
++                        if (params.paper_bucket_mode) {
++                            if (is_easy_query) {
++                                const float classify_chr_ratio =
++                                        classify_chr_mean /
++                                        std::max(params.early_stop_ratio, 1e-6f);
++                                shrunk_ef_cur = resolve_paper_bucket_shrink_ef(
++                                        configured_ef_cur,
++                                        static_cast<size_t>(k_search),
++                                        params,
++                                        classify_chr_ratio);
++                            }
++                        } else {
++                            const size_t shrink_super_easy_ef =
++                                    resolve_scaled_shrink_ef(
++                                            configured_ef_cur,
++                                            0.25,
++                                            128);
++                            const size_t shrink_easy_ef =
++                                    std::max<size_t>(1, configured_ef_cur / 2);
++                            const size_t shrink_mid_easy_ef =
++                                    resolve_scaled_shrink_ef(
++                                            configured_ef_cur,
++                                            0.50,
++                                            128);
++                            const size_t shrink_edge_easy_ef =
++                                    resolve_scaled_shrink_ef(
++                                            configured_ef_cur,
++                                            0.75,
++                                            256);
++
++                            if (super_easy_policy_enabled && is_super_easy_query) {
++                                shrunk_ef_cur = shrink_super_easy_ef;
++                            } else if (is_easy_query) {
++                                if (mid_easy_bucket_policy_enabled) {
++                                    shrunk_ef_cur = is_mid_easy_query
++                                            ? shrink_mid_easy_ef
++                                            : shrink_edge_easy_ef;
++                                } else {
++                                    shrunk_ef_cur = shrink_easy_ef;
++                                }
++                            }
++                            shrunk_ef_cur = std::max<size_t>(
++                                    shrunk_ef_cur,
++                                    static_cast<size_t>(k_search));
++                        }
++
++                        if (shrunk_ef_cur < ef_cur) {
++                            ef_cur = shrunk_ef_cur;
++                            while (top_candidates.size() > ef_cur) {
++                                top_candidates.pop();
++                            }
++                            if (!top_candidates.empty()) {
++                                lower_bound = top_candidates.top().first;
++                                furthest_dist =
++                                        raw_distance_to_hnswlib_distance(
++                                                top_candidates.top().first,
++                                                similarity_metric);
++                            }
++                            prev_furthest = furthest_dist;
++                            stagnation_count = 0;
++                            rebased_after_shrink = true;
++                        }
++                        effective_ef_shrink_applied = true;
++                    }
++                }
++            }
++
++            const bool hard_stop_enabled = params.enable_stop &&
++                    direct_classifier_threshold_enabled &&
++                    classification_evaluated && !is_easy_query &&
++                    full_pop_count >= effective_tmin_pops &&
++                    !rebased_after_shrink;
++            if (hard_stop_enabled) {
++                if (furthest_dist >= prev_furthest) {
++                    stagnation_count++;
++                } else {
++                    stagnation_count = 0;
++                }
++
++                if (static_cast<size_t>(std::max(stagnation_count, 0)) >=
++                    HARD_ONLY_STAG_LIMIT) {
++                    stop_search = true;
++                }
++            }
++
++            prev_furthest = furthest_dist;
++        }
++
++        nstep++;
++        if (stop_search) {
++            break;
++        }
++    }
++
++    while (top_candidates.size() > static_cast<size_t>(k_search)) {
++        top_candidates.pop();
++    }
++
++    while (!top_candidates.empty()) {
++        res.add_result(top_candidates.top().first, top_candidates.top().second);
++        top_candidates.pop();
++    }
++
++    stats.n1++;
++    if (candidate_set.empty()) {
++        stats.n2++;
++    }
++    stats.ndis += ndis;
++    stats.nhops += nstep;
++    stats.adaptive_queries += 1;
++    stats.adaptive_easy_queries += is_easy_query ? 1 : 0;
++    stats.adaptive_initial_ef_sum += configured_ef_cur;
++    stats.adaptive_effective_ef_sum += ef_cur;
++
++    return 0;
++}
++
+ int search_from_candidates_panorama(
+         const HNSW& hnsw,
+         const IndexHNSW* index,
+@@ -1294,6 +1709,50 @@ HNSWStats HNSW::search(
+     return stats;
+ }
+ 
++HNSWStats HNSW::search_adaptive_light(
++        DistanceComputer& qdis,
++        const IndexHNSW* index,
++        ResultHandler& res,
++        VisitedTable& vt,
++        const SearchParametersHNSWAdaptiveLight* params) const {
++    HNSWStats stats;
++    if (entry_point == -1) {
++        return stats;
++    }
++
++    SearchParametersHNSWAdaptiveLight default_params;
++    default_params.efSearch = this->efSearch;
++    default_params.check_relative_distance = this->check_relative_distance;
++    default_params.bounded_queue = true;
++    const SearchParametersHNSWAdaptiveLight* active_params =
++            params ? params : &default_params;
++
++    int k = extract_k_from_ResultHandler(res);
++
++    storage_idx_t nearest = entry_point;
++    float d_nearest = qdis(nearest);
++
++    for (int level = max_level; level >= 1; level--) {
++        HNSWStats local_stats =
++                greedy_update_nearest(*this, qdis, level, nearest, d_nearest);
++        stats.combine(local_stats);
++    }
++
++    search_from_candidates_adaptive_light(
++            *this,
++            index,
++            qdis,
++            res,
++            k,
++            nearest,
++            d_nearest,
++            vt,
++            stats,
++            *active_params);
++
++    return stats;
++}
++
+ void HNSW::search_level_0(
+         DistanceComputer& qdis,
+         ResultHandler& res,
+diff --git a/faiss/impl/HNSW.h b/faiss/impl/HNSW.h
+index 9c4e581b..0cf23bfb 100644
+--- a/faiss/impl/HNSW.h
++++ b/faiss/impl/HNSW.h
+@@ -7,6 +7,7 @@
+ 
+ #pragma once
+ 
++#include <limits>
+ #include <optional>
+ #include <queue>
+ #include <vector>
+@@ -56,6 +57,26 @@ struct SearchParametersHNSW : SearchParameters {
+     ~SearchParametersHNSW() {}
+ };
+ 
++struct SearchParametersHNSWAdaptiveLight : SearchParametersHNSW {
++    bool enable_stop = true;
++    int efMax = 1024;
++    int tmin_pops = 25;
++    float early_stop_ratio = 0.6f;
++    float super_easy_gamma_ratio = std::numeric_limits<float>::quiet_NaN();
++    float mid_easy_upper_gamma_ratio = std::numeric_limits<float>::quiet_NaN();
++    bool paper_bucket_mode = false;
++    int paper_bucket_count = 4;
++    float bucket_gamma_ratio_0 = std::numeric_limits<float>::quiet_NaN();
++    float bucket_gamma_ratio_1 = std::numeric_limits<float>::quiet_NaN();
++    float bucket_gamma_ratio_2 = std::numeric_limits<float>::quiet_NaN();
++    float bucket_gamma_ratio_3 = std::numeric_limits<float>::quiet_NaN();
++    float bucket_gamma_ratio_4 = std::numeric_limits<float>::quiet_NaN();
++    float bucket_gamma_ratio_5 = std::numeric_limits<float>::quiet_NaN();
++    float bucket_gamma_ratio_6 = std::numeric_limits<float>::quiet_NaN();
++
++    ~SearchParametersHNSWAdaptiveLight() {}
++};
++
+ struct HNSW {
+     /// internal storage of vectors (32 bits: this is expensive)
+     using storage_idx_t = int32_t;
+@@ -197,6 +218,13 @@ struct HNSW {
+             VisitedTable& vt,
+             const SearchParameters* params = nullptr) const;
+ 
++    HNSWStats search_adaptive_light(
++            DistanceComputer& qdis,
++            const IndexHNSW* index,
++            ResultHandler& res,
++            VisitedTable& vt,
++            const SearchParametersHNSWAdaptiveLight* params = nullptr) const;
++
+     /// search only in level 0 from a given vertex
+     void search_level_0(
+             DistanceComputer& qdis,
+@@ -232,11 +260,19 @@ struct HNSWStats {
+             0; /// number of queries for which the candidate list is exhausted
+     size_t ndis = 0;  /// number of distances computed
+     size_t nhops = 0; /// number of hops aka number of edges traversed
++    size_t adaptive_queries = 0;
++    size_t adaptive_easy_queries = 0;
++    size_t adaptive_initial_ef_sum = 0;
++    size_t adaptive_effective_ef_sum = 0;
+ 
+     void reset() {
+         n1 = n2 = 0;
+         ndis = 0;
+         nhops = 0;
++        adaptive_queries = 0;
++        adaptive_easy_queries = 0;
++        adaptive_initial_ef_sum = 0;
++        adaptive_effective_ef_sum = 0;
+     }
+ 
+     void combine(const HNSWStats& other) {
+@@ -244,6 +280,10 @@ struct HNSWStats {
+         n2 += other.n2;
+         ndis += other.ndis;
+         nhops += other.nhops;
++        adaptive_queries += other.adaptive_queries;
++        adaptive_easy_queries += other.adaptive_easy_queries;
++        adaptive_initial_ef_sum += other.adaptive_initial_ef_sum;
++        adaptive_effective_ef_sum += other.adaptive_effective_ef_sum;
+     }
+ };
+ 
+diff --git a/faiss/impl/ScalarQuantizer.cpp b/faiss/impl/ScalarQuantizer.cpp
+index ed67e5d3..51b96dba 100644
+--- a/faiss/impl/ScalarQuantizer.cpp
++++ b/faiss/impl/ScalarQuantizer.cpp
+@@ -38,6 +38,10 @@ ScalarQuantizer::ScalarQuantizer() {}
+ 
+ void ScalarQuantizer::set_derived_sizes() {
+     switch (qtype) {
++        case QT_2bit:
++            code_size = (d * 2 + 7) / 8;
++            bits = 2;
++            break;
+         case QT_1bit_tqmse:
+             code_size = (d + 7) / 8;
+             bits = 1;
+@@ -93,7 +97,8 @@ void ScalarQuantizer::train(size_t n, const float* x) {
+         return; // nothing to train for centroid-only mode
+     }
+ 
+-    int bit_per_dim = qtype == QT_4bit_uniform ? 4
++    int bit_per_dim = qtype == QT_2bit         ? 2
++            : qtype == QT_4bit_uniform         ? 4
+             : qtype == QT_4bit                 ? 4
+             : qtype == QT_6bit                 ? 6
+             : qtype == QT_8bit_uniform         ? 8
+@@ -113,6 +118,7 @@ void ScalarQuantizer::train(size_t n, const float* x) {
+                     x,
+                     trained);
+             break;
++        case QT_2bit:
+         case QT_4bit:
+         case QT_8bit:
+         case QT_6bit:
+diff --git a/faiss/impl/ScalarQuantizer.h b/faiss/impl/ScalarQuantizer.h
+index b08a305c..a1690cff 100644
+--- a/faiss/impl/ScalarQuantizer.h
++++ b/faiss/impl/ScalarQuantizer.h
+@@ -39,6 +39,7 @@ struct ScalarQuantizer : Quantizer {
+         QT_3bit_tqmse, ///< TurboQuant MSE-optimized, 3 bits per component
+         QT_4bit_tqmse, ///< TurboQuant MSE-optimized, 4 bits per component
+         QT_8bit_tqmse, ///< TurboQuant MSE-optimized, 8 bits per component
++        QT_2bit,       ///< 2 bits per component, linear scalar quantizer
+         QT_count
+     };
+ 
+diff --git a/faiss/impl/binary_hamming/IndexBinaryHNSW_impl.h b/faiss/impl/binary_hamming/IndexBinaryHNSW_impl.h
+index 57d95ea9..4bfaf559 100644
+--- a/faiss/impl/binary_hamming/IndexBinaryHNSW_impl.h
++++ b/faiss/impl/binary_hamming/IndexBinaryHNSW_impl.h
+@@ -28,10 +28,361 @@
+ #include <faiss/impl/binary_hamming/dispatch.h>
+ #include <faiss/utils/hamming.h>
+ 
++#include <algorithm>
++#include <cstdlib>
++#include <cstring>
++#include <fstream>
++#include <string>
++#include <vector>
++
++#if defined(__AVX2__) || defined(__AVX512F__)
++#include <immintrin.h>
++#endif
++
+ namespace faiss {
+ 
+ namespace {
+ 
++inline int xflag_weak_weight_num() {
++    const char* value = std::getenv("FAISS_XFLAG_WEAK_NUM");
++    if (value == nullptr) {
++        return 1;
++    }
++    const int parsed = std::atoi(value);
++    return parsed < 0 ? 0 : parsed;
++}
++
++inline int xflag_weak_weight_den() {
++    const char* value = std::getenv("FAISS_XFLAG_WEAK_DEN");
++    if (value == nullptr) {
++        if (std::getenv("FAISS_XFLAG_ALPHA_FILE") != nullptr) {
++            return 1000;
++        }
++        return 2;
++    }
++    const int parsed = std::atoi(value);
++    return parsed <= 0 ? 2 : parsed;
++}
++
++inline bool xflag_use_or_weak_op() {
++    const char* value = std::getenv("FAISS_XFLAG_WEAK_OP");
++    return value != nullptr && std::strcmp(value, "or") == 0;
++}
++
++inline bool xflag_use_product_score() {
++    const char* value = std::getenv("FAISS_XFLAG_SCORE_MODE");
++    return value != nullptr && std::strcmp(value, "product") == 0;
++}
++
++struct XFlagDimAlpha {
++    bool enabled = false;
++    int den = 2;
++    std::vector<int> weights;
++};
++
++inline const XFlagDimAlpha& xflag_dim_alpha() {
++    static const XFlagDimAlpha config = [] {
++        XFlagDimAlpha out;
++        const char* path = std::getenv("FAISS_XFLAG_ALPHA_FILE");
++        if (path == nullptr || path[0] == '\0') {
++            return out;
++        }
++
++        out.den = xflag_weak_weight_den();
++        std::ifstream input(path);
++        if (!input) {
++            return out;
++        }
++
++        float alpha = 0.0f;
++        while (input >> alpha) {
++            const int weight = std::max(0, int(alpha * out.den + 0.5f));
++            out.weights.push_back(weight);
++        }
++        out.enabled = !out.weights.empty();
++        return out;
++    }();
++    return config;
++}
++
++struct XFlagConfig {
++    int weak_weight_num;
++    int weak_weight_den;
++    bool use_or;
++    bool use_product_score;
++    const XFlagDimAlpha* dim_alpha;
++
++    bool is_or_half() const {
++        return use_or && !use_product_score && !dim_alpha->enabled &&
++                weak_weight_num == 1 && weak_weight_den == 2;
++    }
++};
++
++inline XFlagConfig xflag_config() {
++    return {
++            xflag_weak_weight_num(),
++            xflag_weak_weight_den(),
++            xflag_use_or_weak_op(),
++            xflag_use_product_score(),
++            &xflag_dim_alpha()};
++}
++
++#if defined(__AVX2__)
++inline __m256i xflag_popcount_256(__m256i value) {
++    const __m256i lookup = _mm256_setr_epi8(
++            0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
++            0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
++    const __m256i low_mask = _mm256_set1_epi8(0x0f);
++    const __m256i lo = _mm256_and_si256(value, low_mask);
++    const __m256i hi =
++            _mm256_and_si256(_mm256_srli_epi16(value, 4), low_mask);
++    const __m256i counts = _mm256_add_epi8(
++            _mm256_shuffle_epi8(lookup, lo),
++            _mm256_shuffle_epi8(lookup, hi));
++    return _mm256_sad_epu8(_mm256_setzero_si256(), counts);
++}
++
++inline int xflag_reduce_256(__m256i value) {
++    const __m128i lo = _mm256_castsi256_si128(value);
++    const __m128i hi = _mm256_extracti128_si256(value, 1);
++    const __m128i sum128 = _mm_add_epi64(lo, hi);
++    return int(
++            uint64_t(_mm_cvtsi128_si64(sum128)) +
++            uint64_t(_mm_extract_epi64(sum128, 1)));
++}
++#endif
++
++#if defined(__AVX512F__)
++inline __m512i xflag_popcount_512(__m512i value) {
++#if defined(__AVX512VPOPCNTDQ__)
++    return _mm512_popcnt_epi64(value);
++#else
++    const __m128i lookup128 = _mm_setr_epi8(
++            0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
++    const __m512i lookup = _mm512_broadcast_i32x4(lookup128);
++    const __m512i low_mask = _mm512_set1_epi8(0x0f);
++    const __m512i lo = _mm512_and_si512(value, low_mask);
++    const __m512i hi =
++            _mm512_and_si512(_mm512_srli_epi16(value, 4), low_mask);
++    const __m512i counts = _mm512_add_epi8(
++            _mm512_shuffle_epi8(lookup, lo),
++            _mm512_shuffle_epi8(lookup, hi));
++    return _mm512_sad_epu8(_mm512_setzero_si512(), counts);
++#endif
++}
++
++inline int xflag_reduce_512(__m512i value) {
++    alignas(64) uint64_t lanes[8];
++    _mm512_store_si512(lanes, value);
++    uint64_t total = 0;
++    for (int i = 0; i < 8; ++i) {
++        total += lanes[i];
++    }
++    return int(total);
++}
++#endif
++
++// Fast path for the final OR-half rule. Scores are scaled by two:
++// strong sign mismatches cost 2 and any coordinate marked weak by either
++// vector costs 1, independent of the sign bits.
++inline int xflag_or_half_hamming(
++        const uint8_t* a,
++        const uint8_t* ax,
++        const uint8_t* b,
++        const uint8_t* bx,
++        int code_size) {
++    int offset = 0;
++    int score = 0;
++
++#if defined(__AVX512F__)
++    __m512i score64 = _mm512_setzero_si512();
++    for (; offset + 64 <= code_size; offset += 64) {
++        const __m512i av = _mm512_loadu_si512(a + offset);
++        const __m512i axv = _mm512_loadu_si512(ax + offset);
++        const __m512i bv = _mm512_loadu_si512(b + offset);
++        const __m512i bxv = _mm512_loadu_si512(bx + offset);
++        const __m512i neutral = _mm512_or_si512(axv, bxv);
++        const __m512i strong_mismatch = _mm512_andnot_si512(
++                neutral, _mm512_xor_si512(av, bv));
++        score64 = _mm512_add_epi64(
++                score64,
++                _mm512_add_epi64(
++                        _mm512_slli_epi64(
++                                xflag_popcount_512(strong_mismatch), 1),
++                        xflag_popcount_512(neutral)));
++    }
++    score += xflag_reduce_512(score64);
++#elif defined(__AVX2__)
++    __m256i score32 = _mm256_setzero_si256();
++    for (; offset + 32 <= code_size; offset += 32) {
++        const __m256i av =
++                _mm256_loadu_si256((const __m256i_u*)(a + offset));
++        const __m256i axv =
++                _mm256_loadu_si256((const __m256i_u*)(ax + offset));
++        const __m256i bv =
++                _mm256_loadu_si256((const __m256i_u*)(b + offset));
++        const __m256i bxv =
++                _mm256_loadu_si256((const __m256i_u*)(bx + offset));
++        const __m256i neutral = _mm256_or_si256(axv, bxv);
++        const __m256i strong_mismatch = _mm256_andnot_si256(
++                neutral, _mm256_xor_si256(av, bv));
++        score32 = _mm256_add_epi64(
++                score32,
++                _mm256_add_epi64(
++                        _mm256_slli_epi64(
++                                xflag_popcount_256(strong_mismatch), 1),
++                        xflag_popcount_256(neutral)));
++    }
++    score += xflag_reduce_256(score32);
++#endif
++
++    for (; offset + 8 <= code_size; offset += 8) {
++        uint64_t av;
++        uint64_t axv;
++        uint64_t bv;
++        uint64_t bxv;
++        std::memcpy(&av, a + offset, sizeof(av));
++        std::memcpy(&axv, ax + offset, sizeof(axv));
++        std::memcpy(&bv, b + offset, sizeof(bv));
++        std::memcpy(&bxv, bx + offset, sizeof(bxv));
++        const uint64_t neutral = axv | bxv;
++        score += 2 * popcount64((av ^ bv) & ~neutral) +
++                popcount64(neutral);
++    }
++    for (; offset < code_size; ++offset) {
++        const uint8_t neutral = ax[offset] | bx[offset];
++        const uint8_t strong_mismatch =
++                uint8_t((a[offset] ^ b[offset]) & uint8_t(~neutral));
++        score += 2 * popcount32(strong_mismatch) + popcount32(neutral);
++    }
++    return score;
++}
++
++inline int xflag_hamming(
++        const uint8_t* a,
++        const uint8_t* ax,
++        const uint8_t* b,
++        const uint8_t* bx,
++        int code_size,
++        const XFlagConfig& config) {
++    int accu = 0;
++    int weak_mismatch = 0;
++    int weak_neutral = 0;
++    const int n64 = code_size / 8;
++    const uint64_t* a64 = reinterpret_cast<const uint64_t*>(a);
++    const uint64_t* ax64 = reinterpret_cast<const uint64_t*>(ax);
++    const uint64_t* b64 = reinterpret_cast<const uint64_t*>(b);
++    const uint64_t* bx64 = reinterpret_cast<const uint64_t*>(bx);
++    for (int i = 0; i < n64; ++i) {
++        const uint64_t mismatch = a64[i] ^ b64[i];
++        const uint64_t neutral = config.use_or ? (ax64[i] | bx64[i])
++                                               : (ax64[i] & bx64[i]);
++        accu += popcount64(mismatch);
++        weak_mismatch += popcount64(mismatch & neutral);
++        weak_neutral += popcount64(neutral);
++    }
++    for (int i = n64 * 8; i < code_size; ++i) {
++        const uint8_t mismatch = a[i] ^ b[i];
++        const uint8_t neutral =
++                config.use_or ? (ax[i] | bx[i]) : (ax[i] & bx[i]);
++        accu += popcount32(mismatch);
++        weak_mismatch += popcount32(mismatch & neutral);
++        weak_neutral += popcount32(neutral);
++    }
++    const int kept_mismatch = accu - weak_mismatch;
++    const XFlagDimAlpha& dim_alpha = *config.dim_alpha;
++    if (config.use_product_score) {
++        const int den =
++                dim_alpha.enabled ? dim_alpha.den : config.weak_weight_den;
++        const int max_bits = dim_alpha.enabled
++                ? std::min<int>(int(dim_alpha.weights.size()), code_size * 8)
++                : code_size * 8;
++        int product_score = 0;
++        for (int i = 0; i < code_size; ++i) {
++            const uint8_t mismatch = a[i] ^ b[i];
++            if (mismatch == 0) {
++                continue;
++            }
++            const uint8_t strong_both = uint8_t(~(ax[i] | bx[i]));
++            for (int bit = 0; bit < 8; ++bit) {
++                const int dim = i * 8 + bit;
++                if (dim >= max_bits) {
++                    break;
++                }
++                const uint8_t mask = uint8_t(0x80) >> bit;
++                if ((mismatch & mask) == 0) {
++                    continue;
++                }
++                if (strong_both & mask) {
++                    product_score += den;
++                } else if (dim_alpha.enabled) {
++                    product_score += dim_alpha.weights[dim];
++                } else {
++                    product_score += config.weak_weight_num;
++                }
++            }
++        }
++        return product_score;
++    }
++    if (dim_alpha.enabled) {
++        int dim_penalty = 0;
++        const int max_bits =
++                std::min<int>(int(dim_alpha.weights.size()), code_size * 8);
++        for (int i = 0; i < code_size; ++i) {
++            const uint8_t neutral =
++                    config.use_or ? (ax[i] | bx[i]) : (ax[i] & bx[i]);
++            if (neutral == 0) {
++                continue;
++            }
++            for (int bit = 0; bit < 8; ++bit) {
++                const int dim = i * 8 + bit;
++                if (dim >= max_bits) {
++                    break;
++                }
++                if (neutral & (uint8_t(0x80) >> bit)) {
++                    dim_penalty += dim_alpha.weights[dim];
++                }
++            }
++        }
++        return dim_alpha.den * kept_mismatch + dim_penalty;
++    }
++    return config.weak_weight_den * kept_mismatch +
++            config.weak_weight_num * weak_neutral;
++}
++
++
++inline bool block_scale_bit_is_set(const uint8_t* code, int bit) {
++    return (code[bit / 8] & (uint8_t(0x80) >> (bit % 8))) != 0;
++}
++
++inline float block_scaled_bq_distance(
++        const uint8_t* a,
++        const uint8_t* as,
++        const uint8_t* b,
++        const uint8_t* bs,
++        int dim,
++        int block_size,
++        int block_count) {
++    constexpr int kMaxScaleProduct = 15 * 15;
++    int score = 0;
++    for (int block = 0; block < block_count; ++block) {
++        const int start = block * block_size;
++        if (start >= dim) {
++            break;
++        }
++        const int end = std::min(dim, start + block_size);
++        int mismatches = 0;
++        for (int bit = start; bit < end; ++bit) {
++            mismatches += block_scale_bit_is_set(a, bit) !=
++                    block_scale_bit_is_set(b, bit);
++        }
++        const int bits = end - start;
++        const int scale_product = int(as[block]) * int(bs[block]);
++        score += scale_product * (bits - 2 * mismatches);
++    }
++    return float(kMaxScaleProduct * dim - score);
++}
++
+ template <class HammingComputer>
+ struct FlatHammingDis : DistanceComputer {
+     const int code_size;
+@@ -58,6 +409,127 @@ struct FlatHammingDis : DistanceComputer {
+     }
+ };
+ 
++struct FlatHammingXFlagDis : DistanceComputer {
++    const int code_size;
++    const uint8_t* b;
++    const uint8_t* bx;
++    const uint8_t* q = nullptr;
++    const uint8_t* qx = nullptr;
++    const XFlagConfig config;
++
++    float operator()(idx_t i) override {
++        return xflag_hamming(
++                q,
++                qx,
++                b + i * code_size,
++                bx + i * code_size,
++                code_size,
++                config);
++    }
++
++    float symmetric_dis(idx_t i, idx_t j) override {
++        return xflag_hamming(
++                b + i * code_size,
++                bx + i * code_size,
++                b + j * code_size,
++                bx + j * code_size,
++                code_size,
++                config);
++    }
++
++    explicit FlatHammingXFlagDis(const IndexBinaryFlat& storage)
++            : code_size(storage.code_size),
++              b(storage.xb.data()),
++              bx(storage.xflags.data()),
++              config(xflag_config()) {}
++
++    // Query buffer layout: [sign code bytes][xflag code bytes].
++    void set_query(const float* x) override {
++        q = reinterpret_cast<const uint8_t*>(x);
++        qx = q + code_size;
++    }
++};
++
++struct FlatHammingXFlagOrHalfDis : DistanceComputer {
++    const int code_size;
++    const uint8_t* b;
++    const uint8_t* bx;
++    const uint8_t* q = nullptr;
++    const uint8_t* qx = nullptr;
++
++    float operator()(idx_t i) override {
++        return xflag_or_half_hamming(
++                q, qx, b + i * code_size, bx + i * code_size, code_size);
++    }
++
++    float symmetric_dis(idx_t i, idx_t j) override {
++        return xflag_or_half_hamming(
++                b + i * code_size,
++                bx + i * code_size,
++                b + j * code_size,
++                bx + j * code_size,
++                code_size);
++    }
++
++    explicit FlatHammingXFlagOrHalfDis(const IndexBinaryFlat& storage)
++            : code_size(storage.code_size),
++              b(storage.xb.data()),
++              bx(storage.xflags.data()) {}
++
++    void set_query(const float* x) override {
++        q = reinterpret_cast<const uint8_t*>(x);
++        qx = q + code_size;
++    }
++};
++
++
++struct FlatHammingBlockScaleDis : DistanceComputer {
++    const int code_size;
++    const int dim;
++    const int block_size;
++    const int block_count;
++    const uint8_t* b;
++    const uint8_t* bs;
++    const uint8_t* q = nullptr;
++    const uint8_t* qs = nullptr;
++
++    float operator()(idx_t i) override {
++        return block_scaled_bq_distance(
++                q,
++                qs,
++                b + i * code_size,
++                bs + i * block_count,
++                dim,
++                block_size,
++                block_count);
++    }
++
++    float symmetric_dis(idx_t i, idx_t j) override {
++        return block_scaled_bq_distance(
++                b + i * code_size,
++                bs + i * block_count,
++                b + j * code_size,
++                bs + j * block_count,
++                dim,
++                block_size,
++                block_count);
++    }
++
++    explicit FlatHammingBlockScaleDis(const IndexBinaryFlat& storage)
++            : code_size(storage.code_size),
++              dim(storage.d),
++              block_size(storage.block_scale_block_size),
++              block_count(storage.block_scale_size),
++              b(storage.xb.data()),
++              bs(storage.block_scales.data()) {}
++
++    // Query buffer layout: [sign code bytes][block scale bytes].
++    void set_query(const float* x) override {
++        q = reinterpret_cast<const uint8_t*>(x);
++        qs = q + code_size;
++    }
++};
++
+ } // anonymous namespace
+ 
+ template <>
+@@ -70,4 +542,31 @@ DistanceComputer* make_binary_hnsw_distance_computer_fixSL<THE_SIMD_LEVEL>(
+             });
+ }
+ 
++template <>
++DistanceComputer* make_binary_hnsw_xflag_distance_computer_fixSL<THE_SIMD_LEVEL>(
++        int code_size,
++        IndexBinaryFlat* flat_storage) {
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage->has_xflags(),
++            "IndexBinaryHNSW xflag search requires IndexBinaryFlat xflags");
++    if (xflag_config().is_or_half()) {
++        return new FlatHammingXFlagOrHalfDis(*flat_storage);
++    }
++    return new FlatHammingXFlagDis(*flat_storage);
++}
++
++
++template <>
++DistanceComputer* make_binary_hnsw_block_scale_distance_computer_fixSL<THE_SIMD_LEVEL>(
++        int code_size,
++        IndexBinaryFlat* flat_storage) {
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage->has_block_scales(),
++            "IndexBinaryHNSW block-scale search requires IndexBinaryFlat block scales");
++    FAISS_THROW_IF_NOT_MSG(
++            flat_storage->code_size == code_size,
++            "IndexBinaryHNSW block-scale code_size mismatch");
++    return new FlatHammingBlockScaleDis(*flat_storage);
++}
++
+ } // namespace faiss
+diff --git a/faiss/impl/binary_hamming/dispatch.h b/faiss/impl/binary_hamming/dispatch.h
+index fc216b82..e938fe5e 100644
+--- a/faiss/impl/binary_hamming/dispatch.h
++++ b/faiss/impl/binary_hamming/dispatch.h
+@@ -35,6 +35,16 @@ template <SIMDLevel SL>
+ DistanceComputer* make_binary_hnsw_distance_computer_fixSL(
+         int code_size,
+         IndexBinaryFlat* flat_storage);
++
++template <SIMDLevel SL>
++DistanceComputer* make_binary_hnsw_xflag_distance_computer_fixSL(
++        int code_size,
++        IndexBinaryFlat* flat_storage);
++
++template <SIMDLevel SL>
++DistanceComputer* make_binary_hnsw_block_scale_distance_computer_fixSL(
++        int code_size,
++        IndexBinaryFlat* flat_storage);
+ /** @} */
+ 
+ /** @name IndexBinaryIVF dispatch
+diff --git a/faiss/impl/index_read.cpp b/faiss/impl/index_read.cpp
+index e7e03efe..b7e8fe3a 100644
+--- a/faiss/impl/index_read.cpp
++++ b/faiss/impl/index_read.cpp
+@@ -2935,11 +2935,16 @@ std::unique_ptr<IndexBinary> read_index_binary_up(IOReader* f, int io_flags) {
+     std::unique_ptr<IndexBinary> idx;
+     uint32_t h;
+     READ1(h);
+-    if (h == fourcc("IBxF")) {
++    if (h == fourcc("IBxF") || h == fourcc("IBxX")) {
+         auto idxf = std::make_unique<IndexBinaryFlat>();
+         read_index_binary_header(*idxf, f);
+         read_vector(idxf->xb, f);
+         FAISS_THROW_IF_NOT(idxf->xb.size() == idxf->ntotal * idxf->code_size);
++        if (h == fourcc("IBxX")) {
++            read_vector(idxf->xflags, f);
++            FAISS_THROW_IF_NOT(
++                    idxf->xflags.size() == idxf->ntotal * idxf->code_size);
++        }
+         idx = std::move(idxf);
+     } else if (h == fourcc("IBwF")) {
+         auto ivf = std::make_unique<IndexBinaryIVF>();
+diff --git a/faiss/impl/index_write.cpp b/faiss/impl/index_write.cpp
+index c67a74c4..99800fd1 100644
+--- a/faiss/impl/index_write.cpp
++++ b/faiss/impl/index_write.cpp
+@@ -1263,10 +1263,13 @@ static void write_binary_multi_hash_map(
+ void write_index_binary(const IndexBinary* idx, IOWriter* f) {
+     if (const IndexBinaryFlat* idxf =
+                 dynamic_cast<const IndexBinaryFlat*>(idx)) {
+-        uint32_t h = fourcc("IBxF");
++        uint32_t h = idxf->has_xflags() ? fourcc("IBxX") : fourcc("IBxF");
+         WRITE1(h);
+         write_index_binary_header(idx, f);
+         WRITEVECTOR(idxf->xb);
++        if (h == fourcc("IBxX")) {
++            WRITEVECTOR(idxf->xflags);
++        }
+     } else if (
+             const IndexBinaryIVF* ivf =
+                     dynamic_cast<const IndexBinaryIVF*>(idx)) {
+diff --git a/faiss/impl/scalar_quantizer/codecs.h b/faiss/impl/scalar_quantizer/codecs.h
+index 92978f64..e0391cc8 100644
+--- a/faiss/impl/scalar_quantizer/codecs.h
++++ b/faiss/impl/scalar_quantizer/codecs.h
+@@ -59,6 +59,31 @@ struct Codec4bit<SIMDLevel::NONE> {
+     }
+ };
+ 
++template <SIMDLevel SL>
++struct Codec2bit {};
++
++template <>
++struct Codec2bit<SIMDLevel::NONE> {
++    static FAISS_ALWAYS_INLINE void encode_component(
++            float x,
++            uint8_t* code,
++            size_t i) {
++        int bits = (int)(x * 3.0f);
++        const size_t byte_idx = i >> 2;
++        const size_t shift = (i & 3) << 1;
++        code[byte_idx] |= (bits & 0x3) << shift;
++    }
++
++    static FAISS_ALWAYS_INLINE float decode_component(
++            const uint8_t* code,
++            size_t i) {
++        const size_t byte_idx = i >> 2;
++        const size_t shift = (i & 3) << 1;
++        uint8_t bits = (code[byte_idx] >> shift) & 0x3;
++        return (bits + 0.5f) / 3.0f;
++    }
++};
++
+ template <SIMDLevel SL>
+ struct Codec6bit {};
+ 
+diff --git a/faiss/impl/scalar_quantizer/sq-dispatch.h b/faiss/impl/scalar_quantizer/sq-dispatch.h
+index cee8ec60..62f1e9f1 100644
+--- a/faiss/impl/scalar_quantizer/sq-dispatch.h
++++ b/faiss/impl/scalar_quantizer/sq-dispatch.h
+@@ -52,6 +52,15 @@ ScalarQuantizer::SQuantizer* sq_select_quantizer<THE_LEVEL_TO_DISPATCH>(
+         }
+     }
+     switch (qtype) {
++        case ScalarQuantizer::QT_2bit:
++            if constexpr (SL != SIMDLevel::NONE) {
++                return nullptr;
++            } else {
++                return new QuantizerTemplate<
++                        Codec2bit<SIMDLevel::NONE>,
++                        QuantizerTemplateScaling::NON_UNIFORM,
++                        SIMDLevel::NONE>(d, trained);
++            }
+         case ScalarQuantizer::QT_8bit:
+             return new QuantizerTemplate<
+                     Codec8bit<SL>,
+@@ -119,6 +128,19 @@ SQDistanceComputer* select_distance_computer_body(
+         }
+     }
+     switch (qtype) {
++        case ScalarQuantizer::QT_2bit:
++            if constexpr (SL2 != SIMDLevel::NONE) {
++                return nullptr;
++            } else {
++                return new DCTemplate<
++                        QuantizerTemplate<
++                                Codec2bit<SIMDLevel::NONE>,
++                                QuantizerTemplateScaling::NON_UNIFORM,
++                                SIMDLevel::NONE>,
++                        Sim,
++                        SIMDLevel::NONE>(d, trained);
++            }
++
+         case ScalarQuantizer::QT_8bit_uniform:
+             return new DCTemplate<
+                     QuantizerTemplate<
+@@ -273,6 +295,18 @@ InvertedListScanner* sq_select_InvertedListScanner<THE_LEVEL_TO_DISPATCH>(
+             }
+         }
+         switch (qtype) {
++            case ScalarQuantizer::QT_2bit:
++                if constexpr (SL2 != SIMDLevel::NONE) {
++                    return nullptr;
++                } else {
++                    return scan.template operator()<DCTemplate<
++                            QuantizerTemplate<
++                                    Codec2bit<SIMDLevel::NONE>,
++                                    QuantizerTemplateScaling::NON_UNIFORM,
++                                    SIMDLevel::NONE>,
++                            Similarity,
++                            SIMDLevel::NONE>>();
++                }
+             case ScalarQuantizer::QT_8bit_uniform:
+                 return scan.template operator()<DCTemplate<
+                         QuantizerTemplate<
+diff --git a/faiss/index_factory.cpp b/faiss/index_factory.cpp
+index 877f5643..197918f7 100644
+--- a/faiss/index_factory.cpp
++++ b/faiss/index_factory.cpp
+@@ -152,6 +152,7 @@ int mres_to_int(const std::ssub_match& mr, int deflt = -1, int begin = 0) {
+ std::map<std::string, ScalarQuantizer::QuantizerType> sq_types = {
+         {"SQ8", ScalarQuantizer::QT_8bit},
+         {"SQ4", ScalarQuantizer::QT_4bit},
++        {"SQ2", ScalarQuantizer::QT_2bit},
+         {"SQ6", ScalarQuantizer::QT_6bit},
+         {"SQfp16", ScalarQuantizer::QT_fp16},
+         {"SQbf16", ScalarQuantizer::QT_bf16},
+@@ -165,7 +166,7 @@ std::map<std::string, ScalarQuantizer::QuantizerType> sq_types = {
+         {"SQtqmse8", ScalarQuantizer::QT_8bit_tqmse},
+ };
+ const std::string sq_pattern =
+-        "(SQ0|SQ4|SQ8|SQ6|SQfp16|SQbf16|SQ8_direct_signed|SQ8_direct|SQtqmse1|SQtqmse2|SQtqmse3|SQtqmse4|SQtqmse8)";
++        "(SQ0|SQ2|SQ4|SQ8|SQ6|SQfp16|SQbf16|SQ8_direct_signed|SQ8_direct|SQtqmse1|SQtqmse2|SQtqmse3|SQtqmse4|SQtqmse8)";
+ 
+ std::map<std::string, AdditiveQuantizer::Search_type_t> aq_search_type = {
+         {"_Nfloat", AdditiveQuantizer::ST_norm_float},
+diff --git a/faiss/python/__init__.pyi b/faiss/python/__init__.pyi
+index 99d8d4f5..c49a3041 100644
+--- a/faiss/python/__init__.pyi
++++ b/faiss/python/__init__.pyi
+@@ -1962,6 +1962,12 @@ class IndexBinary:
+ 
+ class IndexBinaryFlat(IndexBinary):
+     def __init__(self, d: int) -> None: ...
++    @overload
++    def add_with_xflags(self, x: torch.Tensor, xflags: torch.Tensor) -> None: ...
++    @overload
++    def add_with_xflags(
++        self, x: npt.NDArray[np.uint8], xflags: npt.NDArray[np.uint8]
++    ) -> None: ...
+ 
+ class IndexBinaryIVF(IndexBinary):
+     nlist: int
+@@ -2042,6 +2048,28 @@ class IndexBinaryHNSW(IndexBinary):
+     own_fields: bool
+ 
+     def __init__(self, d: int, M: int) -> None: ...
++    @overload
++    def add_with_xflags(self, x: torch.Tensor, xflags: torch.Tensor) -> None: ...
++    @overload
++    def add_with_xflags(
++        self, x: npt.NDArray[np.uint8], xflags: npt.NDArray[np.uint8]
++    ) -> None: ...
++    @overload
++    def search_with_xflags(
++        self,
++        x: torch.Tensor,
++        xflags: torch.Tensor,
++        k: int,
++        params: SearchParameters | None = None,
++    ) -> tuple[torch.Tensor, torch.Tensor]: ...
++    @overload
++    def search_with_xflags(
++        self,
++        x: npt.NDArray[np.uint8],
++        xflags: npt.NDArray[np.uint8],
++        k: int,
++        params: SearchParameters | None = None,
++    ) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.int64]]: ...
+ 
+ class IndexBinaryHash(IndexBinary):
+     nflip: int
+diff --git a/faiss/python/class_wrappers.py b/faiss/python/class_wrappers.py
+index 66552ee6..8d9b16ca 100644
+--- a/faiss/python/class_wrappers.py
++++ b/faiss/python/class_wrappers.py
+@@ -53,6 +53,36 @@ def _numeric_to_str(numeric_type):
+         raise ValueError("numeric type must be either faiss.Float32, faiss.Float16, or faiss.Int8")
+ 
+ 
++def _selector_from_hnsw_filter(filter_arg):
++    if filter_arg is None:
++        return None
++    if isinstance(filter_arg, IDSelector):
++        return filter_arg
++    raise NotImplementedError(
++        "faiss adaptive-light wrappers accept filter only as a faiss.IDSelector; "
++        "hnswlib-style Python callables are not supported")
++
++
++def _assign_paper_bucket_gamma_ratios(params, bucket_gamma_ratios):
++    if int(params.paper_bucket_count) < 2 or int(params.paper_bucket_count) > 8:
++        raise ValueError("paper_bucket_count must be in [2, 8]")
++    gamma_ratios = [float(value) for value in bucket_gamma_ratios]
++    if len(gamma_ratios) != int(params.paper_bucket_count) - 1:
++        raise ValueError(
++            "bucket_gamma_ratios must contain exactly paper_bucket_count - 1 entries")
++    for attr in (
++            "bucket_gamma_ratio_0",
++            "bucket_gamma_ratio_1",
++            "bucket_gamma_ratio_2",
++            "bucket_gamma_ratio_3",
++            "bucket_gamma_ratio_4",
++            "bucket_gamma_ratio_5",
++            "bucket_gamma_ratio_6"):
++        setattr(params, attr, np.nan)
++    for i, value in enumerate(gamma_ratios):
++        setattr(params, f"bucket_gamma_ratio_{i}", float(value))
++
++
+ def replace_method(the_class, name, replacement, ignore_missing=False):
+     """ Replaces a method in a class with another version. The old method
+     is renamed to method_name_c (because presumably it was implemented in C) """
+@@ -275,6 +305,19 @@ def handle_Index(the_class):
+         else:
+             self.add_ex(n, swig_ptr(x), numeric_type)
+ 
++    def replacement_add_with_xflags(self, x, xflags, split, numeric_type=faiss.Float32):
++        n, d = x.shape
++        assert d == self.d
++        split = int(split)
++        assert 0 < split < self.d
++        xflag_code_size = (self.d - split + 7) // 8
++        x = np.ascontiguousarray(x, dtype=_numeric_to_str(numeric_type))
++        xflags = np.ascontiguousarray(xflags, dtype='uint8')
++        assert xflags.shape == (n, xflag_code_size)
++        if numeric_type != faiss.Float32:
++            raise TypeError('add_with_xflags currently supports Float32 input only')
++        self.add_with_xflags_c(n, swig_ptr(x), swig_ptr(xflags), split)
++
+     def replacement_add_with_ids(self, x, ids, numeric_type = faiss.Float32):
+         """Adds vectors with arbitrary ids to the index (not all indexes support this).
+         The index must be trained before vectors can be added to it.
+@@ -436,6 +479,134 @@ def handle_Index(the_class):
+             self.search_ex(n, swig_ptr(x), numeric_type, k, swig_ptr(D), swig_ptr(I), params)
+         return D, I
+ 
++    def replacement_search_with_xflags(self, x, xflags, k, *, params=None, D=None, I=None, numeric_type=faiss.Float32):
++        n, d = x.shape
++        assert d == self.d
++        x = np.ascontiguousarray(x, dtype=_numeric_to_str(numeric_type))
++        xflags = np.ascontiguousarray(xflags, dtype='uint8')
++        assert xflags.ndim == 2 and xflags.shape[0] == n
++        assert k > 0
++        if numeric_type != faiss.Float32:
++            raise TypeError('search_with_xflags currently supports Float32 input only')
++
++        if D is None:
++            D = np.empty((n, k), dtype=np.float32)
++        else:
++            assert D.shape == (n, k)
++        if I is None:
++            I = np.empty((n, k), dtype=np.int64)
++        else:
++            assert I.shape == (n, k)
++
++        self.search_with_xflags_c(
++            n, swig_ptr(x), swig_ptr(xflags), k, swig_ptr(D), swig_ptr(I), params)
++        return D, I
++
++    def replacement_knn_query_adaptive_light(
++            self,
++            x,
++            k=1,
++            ef_init=128,
++            enable_stop=True,
++            num_threads=-1,
++            filter=None,
++            early_stop_ratio=0.6,
++            tmin_pops=25,
++            super_easy_gamma_ratio=np.nan,
++            mid_easy_upper_gamma_ratio=np.nan):
++        """Compatibility wrapper for the hnswlib-style adaptive-light query API."""
++
++        selector = _selector_from_hnsw_filter(filter)
++
++        x = np.asarray(x)
++        if x.ndim == 1:
++            x = x.reshape(1, -1)
++        n, d = x.shape
++        assert d == self.d
++        assert k > 0
++
++        x = np.ascontiguousarray(x, dtype='float32')
++        D = np.empty((n, k), dtype=np.float32)
++        I = np.empty((n, k), dtype=np.int64)
++
++        params = faiss.SearchParametersHNSWAdaptiveLight()
++        params.efSearch = int(ef_init)
++        params.efMax = max(int(ef_init), 1024)
++        params.enable_stop = bool(enable_stop)
++        params.tmin_pops = int(tmin_pops)
++        params.early_stop_ratio = float(early_stop_ratio)
++        params.super_easy_gamma_ratio = float(super_easy_gamma_ratio)
++        params.mid_easy_upper_gamma_ratio = float(mid_easy_upper_gamma_ratio)
++        params.bounded_queue = True
++        params.sel = selector
++
++        prev_num_threads = None
++        if num_threads is not None and int(num_threads) > 0:
++            prev_num_threads = faiss.omp_get_max_threads()
++            faiss.omp_set_num_threads(int(num_threads))
++
++        try:
++            self.knn_query_adaptive_light_c(
++                n, swig_ptr(x), k, swig_ptr(D), swig_ptr(I), params)
++        finally:
++            if prev_num_threads is not None:
++                faiss.omp_set_num_threads(int(prev_num_threads))
++
++        return I, D
++
++    def replacement_knn_query_adaptive_light_paper_bucket(
++            self,
++            x,
++            k=1,
++            ef_init=128,
++            enable_stop=True,
++            num_threads=-1,
++            filter=None,
++            early_stop_ratio=0.6,
++            tmin_pops=25,
++            paper_bucket_count=4,
++            bucket_gamma_ratios=()):
++        """Compatibility wrapper for hnswlib-style paper-bucket adaptive-light."""
++
++        selector = _selector_from_hnsw_filter(filter)
++
++        x = np.asarray(x)
++        if x.ndim == 1:
++            x = x.reshape(1, -1)
++        n, d = x.shape
++        assert d == self.d
++        assert k > 0
++
++        x = np.ascontiguousarray(x, dtype="float32")
++        D = np.empty((n, k), dtype=np.float32)
++        I = np.empty((n, k), dtype=np.int64)
++
++        params = faiss.SearchParametersHNSWAdaptiveLight()
++        params.efSearch = int(ef_init)
++        params.efMax = max(int(ef_init), 1024)
++        params.enable_stop = bool(enable_stop)
++        params.tmin_pops = int(tmin_pops)
++        params.early_stop_ratio = float(early_stop_ratio)
++        params.bounded_queue = True
++        params.paper_bucket_mode = True
++        params.paper_bucket_count = int(paper_bucket_count)
++        params.sel = selector
++        _assign_paper_bucket_gamma_ratios(params, bucket_gamma_ratios)
++
++        prev_num_threads = None
++        if num_threads is not None and int(num_threads) > 0:
++            prev_num_threads = faiss.omp_get_max_threads()
++            faiss.omp_set_num_threads(int(num_threads))
++
++        try:
++            self.knn_query_adaptive_light_c(
++                n, swig_ptr(x), k, swig_ptr(D), swig_ptr(I), params)
++        finally:
++            if prev_num_threads is not None:
++                faiss.omp_set_num_threads(int(prev_num_threads))
++
++        return I, D
++
+     def replacement_search_and_reconstruct(self, x, k, *, params=None, D=None, I=None, R=None):
+         """Find the k nearest neighbors of the set of vectors x in the index,
+         and return an approximation of these vectors.
+@@ -885,9 +1056,18 @@ def handle_Index(the_class):
+ 
+     replace_method(the_class, 'add', replacement_add)
+     replace_method(the_class, 'add_with_ids', replacement_add_with_ids)
++    replace_method(the_class, 'add_with_xflags',
++                   replacement_add_with_xflags, ignore_missing=True)
+     replace_method(the_class, 'assign', replacement_assign)
+     replace_method(the_class, 'train', replacement_train)
+     replace_method(the_class, 'search', replacement_search)
++    replace_method(the_class, 'search_with_xflags',
++                   replacement_search_with_xflags, ignore_missing=True)
++    replace_method(the_class, 'knn_query_adaptive_light',
++                   replacement_knn_query_adaptive_light, ignore_missing=True)
++    if hasattr(the_class, "knn_query_adaptive_light_c"):
++        setattr(the_class, "knn_query_adaptive_light_paper_bucket",
++                replacement_knn_query_adaptive_light_paper_bucket)
+     replace_method(the_class, 'remove_ids', replacement_remove_ids)
+     replace_method(the_class, 'reconstruct', replacement_reconstruct)
+     replace_method(the_class, 'reconstruct_batch',
+@@ -950,6 +1130,14 @@ def handle_IndexBinary(the_class):
+         assert ids.shape == (n, ), 'not same nb of vectors as ids'
+         self.add_with_ids_c(n, swig_ptr(x), swig_ptr(ids))
+ 
++    def replacement_add_with_xflags(self, x, xflags):
++        n, d = x.shape
++        x = _check_dtype_uint8(x)
++        xflags = _check_dtype_uint8(xflags)
++        assert d == self.code_size
++        assert xflags.shape == (n, d)
++        self.add_with_xflags_c(n, swig_ptr(x), swig_ptr(xflags))
++
+     def replacement_train(self, x):
+         n, d = x.shape
+         x = _check_dtype_uint8(x)
+@@ -985,6 +1173,21 @@ def handle_IndexBinary(the_class):
+                       params)
+         return distances, labels
+ 
++    def replacement_search_with_xflags(self, x, xflags, k, *, params=None):
++        x = _check_dtype_uint8(x)
++        xflags = _check_dtype_uint8(xflags)
++        n, d = x.shape
++        assert d == self.code_size
++        assert xflags.shape == (n, d)
++        assert k > 0
++        distances = np.empty((n, k), dtype=np.int32)
++        labels = np.empty((n, k), dtype=np.int64)
++        self.search_with_xflags_c(n, swig_ptr(x), swig_ptr(xflags),
++                                  k, swig_ptr(distances),
++                                  swig_ptr(labels),
++                                  params)
++        return distances, labels
++
+     def replacement_search_preassigned(self, x, k, Iq, Dq):
+         n, d = x.shape
+         x = _check_dtype_uint8(x)
+@@ -1094,8 +1297,12 @@ def handle_IndexBinary(the_class):
+ 
+     replace_method(the_class, 'add', replacement_add)
+     replace_method(the_class, 'add_with_ids', replacement_add_with_ids)
++    replace_method(the_class, 'add_with_xflags',
++                   replacement_add_with_xflags, ignore_missing=True)
+     replace_method(the_class, 'train', replacement_train)
+     replace_method(the_class, 'search', replacement_search)
++    replace_method(the_class, 'search_with_xflags',
++                   replacement_search_with_xflags, ignore_missing=True)
+     replace_method(the_class, 'assign', replacement_assign)
+     replace_method(the_class, 'range_search', replacement_range_search)
+     replace_method(the_class, 'reconstruct', replacement_reconstruct)

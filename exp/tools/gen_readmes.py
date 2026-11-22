@@ -26,6 +26,10 @@ NOTES = {
   "`results/calibration/` holds the per-efSearch tau fitted by `fit_pool_top10_conformal` (= `bbq/calibration/calibrate.py`).",
  ],
  "fig10_overall_recall_qps": [
+  "Every point is a single measurement (`rounds = 1`). The DBpedia test sets have 300 (Qwen, E5) or 800 (OpenAI, BGE) "
+  "queries, and DBpedia BGE-1024 is a 99k-vector corpus (`bge-1024-100k`). See `../DATA.md`.",
+  "At Recall@10 >= 0.99: BBQ is faster than TurboQuant on 13/16 configurations and faster than RaBitQ-7bit on 9/16 "
+  "(RaBitQ-7bit wins all 4 Quora and 3 DBpedia configurations).",
   "Baselines run through each system's own search and I/O path; DiskANN/SPANN/PipeANN through DiskVecLab. "
   "Patches against every external tree are in `exp/baselines/patches/`.",
   "`recall-qps_main.dat` starts from curves recovered from the earlier matplotlib PDF (`recall-qps_main_orig.dat`); "
@@ -50,6 +54,9 @@ NOTES = {
   "across all three. Panel (a) (L_visit / L_select) is still a placeholder in the paper.",
  ],
  "fig14_bbq_vs_tq_same_calibration": [
+  "NQ \"2.01x\" compares BBQ at ef=512 (651 QPS, Recall@10 0.9976) with TurboQuant at ef=1024 (324 QPS, 0.9973). "
+  "At the same ef=512, TurboQuant reaches 654 QPS at 0.9963. The reads (61.3 vs 42.1) and distance evaluations "
+  "(1.77x) compare the same two points.",
   "`combine_nq_msmarco_calibrated_adcbq_turboquant.py` merges the four per-method runs into `results/summary_t1.csv`.",
  ],
  "fig15_page_io": [
@@ -58,10 +65,14 @@ NOTES = {
   "the shipped `page_io.dat` is the one in the paper.",
  ],
  "fig16_io_modes": [
+  "The claims use ef=320 (Recall@10 0.9908 for all three modes), the first point at or above 0.99. A later manuscript "
+  "revision quotes the ef=256 rows (233 / 1,031 / 1,192 QPS), whose recall is 0.9897.",
   "`results/qwen1024_summary_t1.csv` contains both datasets (the OpenAI rows were merged in); "
   "`openai1536_summary_t1.csv` is the separate priority run used as the second input of `make_io_ablation_dat.py`.",
  ],
  "fig17_18_dimension_scale": [
+  "Fig. 18: TurboQuant's best QPS at Recall@10 >= 0.99 is 237 / 457 / 273 at 10M / 50M / 100M (3 rounds each), "
+  "so the 1.98x at 100M depends on that single non-monotone point.",
   "The TurboQuant arm is the DiskVecLab TQ1 (`method_key = turboquant_tq1`). An alternative Qdrant-native TQ1 fixed-R run is kept "
   "in `results/alt_qdrant_native_tq1/` but is not plotted.",
   "Fig. 18 footprint: RaBitQ-7bit `index_bytes` = 112,834,728,305 B = 105.1 GiB (100M `summary_t1.csv`). "
@@ -69,6 +80,11 @@ NOTES = {
   "`mrl256` is measured but not plotted.",
  ],
  "fig19_insertion": [
+  "Inserts were measured at 10M, 30M, 50M and 100M (the paper text says 25M increments).",
+  "TurboQuant inserts faster than BBQ at 10M, 30M and 100M (388 / 1,342 / 5,046 s vs 522 / 1,637 / 5,762 s); "
+  "RaBitQ-1bit has higher recall than BBQ at 10M and 50M.",
+  "The intro's \"1.8-2.2x vs RaBitQ-7bit\" is 1.82-2.13x in the data (claims I.3, I.4); Sec. 6.8's 2.06x / 1.49x is "
+  "against RaBitQ-1bit.",
   "Online insertion: `bbq/src/bbq_dynamic_insert.cpp` (`./bbq/build.sh dynamic`). The 1M base uses a frozen tau; "
   "inserted vectors get sign codes only, no retraining.",
   "Input prep (`prepare_msmarco_qwen1024_101m_dynamic_inputs.py`) materialises a 414 GB aligned FP32 file.",
@@ -81,9 +97,15 @@ NOTES = {
  ],
 }
 
+import re
+all_claims = list(csv.DictReader(open(EXP / "claims.csv")))
+file_of = {r["id"]: r["file"] for r in all_claims if r["file"]}
 claims = defaultdict(list)
-for r in csv.DictReader(open(EXP / "claims.csv")):
-    claims[r["file"].split("/")[0]].append(r)
+for r in all_claims:
+    if not r["expected"]:
+        continue  # reference rows are inputs to derived claims, not claims
+    f = r["file"] or next((file_of[t] for t in re.findall(r"[A-Z][0-9.]*[0-9]", r["derive"]) if t in file_of), "")
+    claims[f.split("/")[0]].append(r)
 
 rows = []
 for d in sorted(p for p in EXP.glob("fig*") if p.is_dir()):
@@ -106,7 +128,7 @@ for d in sorted(p for p in EXP.glob("fig*") if p.is_dir()):
     md += [""]
     if cl:
         md += ["## Claims checked by `verify`", "", "| id | claim | paper |", "|---|---|---|"]
-        md += [f"| {c['id']} | {c['claim']} | {c['expected']} |" for c in cl] + [""]
+        md += [f"| {c['id']} | {c['claim']}" + (f" (= `{c['derive']}`)" if c['derive'] else "") + f" | {c['expected']} |" for c in cl] + [""]
     if NOTES.get(d.name):
         md += ["## Notes", ""] + [f"- {n}" for n in NOTES[d.name]] + [""]
     (d / "README.md").write_text("\n".join(md))

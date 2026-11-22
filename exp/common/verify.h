@@ -2,19 +2,25 @@
 //
 // Every number the paper states about its experiments is one row of exp/claims.csv:
 //
-//   id, section, claim, file, select, column, expected, tolerance
+//   id, section, claim, file, select, column, derive, expected, tolerance
 //
 //   file       result CSV, relative to exp/
 //   select     unique row selector: "key=value;key=value" (exact string match on CSV cells)
 //   column     the CSV column holding the measured value
-//   expected   the value as printed in the paper
+//   derive     instead of file/select/column: an arithmetic expression over *measured* values of other
+//              claims, e.g. "F15.10/F15.9" (ratios, "x faster", "% fewer"). Operators + - * / and ( ).
+//   expected   the value as printed in the paper; empty for a *reference* row (an operating point the
+//              paper only uses inside a derived number, e.g. the denominator of "2.01x faster")
 //   tolerance  absolute tolerance (one unit of the last printed digit)
 //
-// A claim PASSes when exactly one row matches the selector and |measured - expected| <= tolerance.
+// A direct claim PASSes when exactly one row matches the selector and |measured - expected| <= tolerance.
+// A derived claim PASSes when every referenced claim could be measured and the expression is within
+// tolerance; it is computed from measured values, never from the paper's printed ones.
 // Anything else (missing file, 0 or >1 matching rows, non-numeric cell, out of tolerance) FAILs,
 // with the reason reported. Header-only, C++17, no dependencies.
 #pragma once
 
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
@@ -95,8 +101,9 @@ inline bool matches(const Row& r, const std::vector<std::pair<std::string, std::
 
 // ---------------------------------------------------------------- claims
 struct Claim {
-    std::string id, section, text, file, select, column;
+    std::string id, section, text, file, select, column, derive;
     double expected = 0, tolerance = 0;
+    bool reference = false;  // measured for use in `derive`, not itself a paper claim
 };
 
 struct Outcome {
@@ -105,24 +112,100 @@ struct Outcome {
     std::string reason;  // empty on PASS
 };
 
+// Recursive-descent evaluator for `derive` expressions: claim ids, numbers, + - * / ( ).
+class Expr {
+public:
+    Expr(const std::string& s, const std::map<std::string, double>& vals) : s_(s), vals_(vals) {}
+    bool eval(double& out, std::string& err) {
+        out = sum();
+        skip();
+        if (err_.empty() && pos_ != s_.size()) err_ = "unexpected '" + s_.substr(pos_, 1) + "'";
+        err = err_;
+        return err_.empty();
+    }
+
+private:
+    void skip() { while (pos_ < s_.size() && s_[pos_] == ' ') ++pos_; }
+    bool eat(char c) { skip(); if (pos_ < s_.size() && s_[pos_] == c) { ++pos_; return true; } return false; }
+    double sum() {
+        double v = product();
+        for (;;) {
+            if (eat('+')) v += product();
+            else if (eat('-')) v -= product();
+            else return v;
+        }
+    }
+    double product() {
+        double v = atom();
+        for (;;) {
+            if (eat('*')) v *= atom();
+            else if (eat('/')) v /= atom();
+            else return v;
+        }
+    }
+    double atom() {
+        if (eat('(')) { double v = sum(); if (!eat(')')) fail("missing ')'"); return v; }
+        if (eat('-')) return -atom();
+        skip();
+        size_t b = pos_;
+        while (pos_ < s_.size() && (std::isalnum(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '.' || s_[pos_] == '_')) ++pos_;
+        std::string tok = s_.substr(b, pos_ - b);
+        if (tok.empty()) { fail("expected a value"); return NAN; }
+        if (std::isdigit(static_cast<unsigned char>(tok[0]))) return std::stod(tok);
+        auto it = vals_.find(tok);
+        if (it == vals_.end()) { fail("unmeasured claim " + tok); return NAN; }
+        return it->second;
+    }
+    void fail(const std::string& e) { if (err_.empty()) err_ = e; }
+    const std::string& s_;
+    const std::map<std::string, double>& vals_;
+    size_t pos_ = 0;
+    std::string err_;
+};
+
 class Checker {
 public:
     explicit Checker(std::string root) : root_(std::move(root)) {}
 
-    Outcome check(const Claim& c) {
-        Outcome o;
+    // Direct claims first, then derived ones (which may reference any direct or earlier derived claim).
+    std::vector<Outcome> run(const std::vector<Claim>& claims) {
+        std::vector<Outcome> out(claims.size());
+        std::map<std::string, double> measured;
+        for (int pass = 0; pass < 2; ++pass) {
+            for (size_t i = 0; i < claims.size(); ++i) {
+                const Claim& c = claims[i];
+                if (c.derive.empty() != (pass == 0)) continue;
+                Outcome& o = out[i];
+                bool ok = pass == 0 ? measure(c, o) : derive(c, measured, o);
+                if (!ok) continue;
+                measured[c.id] = o.measured;
+                judge(c, o);
+            }
+        }
+        return out;
+    }
+
+private:
+    bool measure(const Claim& c, Outcome& o) {
         const Table* t = table(c.file, o.reason);
-        if (!t) return o;
+        if (!t) return false;
         auto sel = parse_selector(c.select);
         const Row* hit = nullptr;
         int n = 0;
         for (auto& r : t->rows)
             if (matches(r, sel)) { hit = &r; ++n; }
-        if (n != 1) { o.reason = "selector matched " + std::to_string(n) + " rows"; return o; }
+        if (n != 1) { o.reason = "selector matched " + std::to_string(n) + " rows"; return false; }
         auto it = hit->find(c.column);
-        if (it == hit->end()) { o.reason = "no column " + c.column; return o; }
+        if (it == hit->end()) { o.reason = "no column " + c.column; return false; }
         try { o.measured = std::stod(it->second); }
-        catch (...) { o.reason = "non-numeric cell '" + it->second + "'"; return o; }
+        catch (...) { o.reason = "non-numeric cell '" + it->second + "'"; return false; }
+        return true;
+    }
+    static bool derive(const Claim& c, const std::map<std::string, double>& measured, Outcome& o) {
+        return Expr(c.derive, measured).eval(o.measured, o.reason);
+    }
+    static void judge(const Claim& c, Outcome& o) {
+        if (c.reference) { o.pass = true; return; }
         double diff = std::fabs(o.measured - c.expected);
         o.pass = diff <= c.tolerance * (1 + 1e-9);
         if (!o.pass) {
@@ -130,10 +213,7 @@ public:
             std::snprintf(buf, sizeof buf, "off by %.6g (tol %.6g)", diff, c.tolerance);
             o.reason = buf;
         }
-        return o;
     }
-
-private:
     const Table* table(const std::string& file, std::string& err) {
         auto it = cache_.find(file);
         if (it != cache_.end()) return &it->second;
@@ -151,8 +231,9 @@ inline bool load_claims(const std::string& path, std::vector<Claim>& out, std::s
     for (auto& r : t.rows) {
         Claim c;
         c.id = r["id"]; c.section = r["section"]; c.text = r["claim"]; c.file = r["file"];
-        c.select = r["select"]; c.column = r["column"];
-        try { c.expected = std::stod(r["expected"]); c.tolerance = std::stod(r["tolerance"]); }
+        c.select = r["select"]; c.column = r["column"]; c.derive = r["derive"];
+        c.reference = r["expected"].empty();
+        if (!c.reference) try { c.expected = std::stod(r["expected"]); c.tolerance = std::stod(r["tolerance"]); }
         catch (...) { err = "bad expected/tolerance in claim " + c.id; return false; }
         out.push_back(std::move(c));
     }

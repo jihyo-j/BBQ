@@ -49,6 +49,38 @@
 
 #include "adcbq_sign_packing.hpp"
 
+// The development FAISS fork adds two optional per-vector payloads to IndexBinaryFlat (`xflags`,
+// `block_scales`) for experiments outside the BBQ paper. BBQ never fills them; it only has to keep them in
+// step when it permutes or releases the code storage. Detect them at compile time so this file builds
+// against upstream FAISS as well as the fork.
+#include <type_traits>
+#include <utility>
+namespace bbq_compat {
+template <class T, class = void>
+struct has_fork_payloads : std::false_type {};
+template <class T>
+struct has_fork_payloads<T, std::void_t<decltype(std::declval<T&>().xflags),
+                                        decltype(std::declval<T&>().block_scales),
+                                        decltype(std::declval<T&>().block_scale_size)>>
+        : std::true_type {};
+
+template <class Flat, class Reorder>
+void reorder_fork_payloads(Flat& flat, size_t code_size, Reorder&& reorder) {
+    if constexpr (has_fork_payloads<Flat>::value) {
+        if (flat.xflags.size() > 0) reorder(flat.xflags, code_size);
+        if (flat.block_scales.size() > 0) reorder(flat.block_scales, static_cast<size_t>(flat.block_scale_size));
+    }
+}
+
+template <class Flat>
+void release_fork_payloads(Flat& flat) {
+    if constexpr (has_fork_payloads<Flat>::value) {
+        flat.xflags = decltype(flat.xflags)();
+        flat.block_scales = decltype(flat.block_scales)();
+    }
+}
+}  // namespace bbq_compat
+
 #ifndef O_DIRECT
 #define O_DIRECT 0
 #endif
@@ -4908,10 +4940,7 @@ std::vector<uint32_t> apply_index_colocation(
     };
 
     reorder_bytes(flat->xb, index.code_size);
-    if (flat->xflags.size() > 0) reorder_bytes(flat->xflags, index.code_size);
-    if (flat->block_scales.size() > 0) {
-        reorder_bytes(flat->block_scales, static_cast<size_t>(flat->block_scale_size));
-    }
+    bbq_compat::reorder_fork_payloads(*flat, index.code_size, reorder_bytes);
 
     std::vector<faiss::idx_t> new_to_old(n);
     for (size_t colocated = 0; colocated < n; ++colocated) {
@@ -10390,8 +10419,7 @@ int main(int argc, char** argv) {
             auto* flat = dynamic_cast<faiss::IndexBinaryFlat*>(index->storage);
             if (!flat) throw std::runtime_error("paged index release requires IndexBinaryFlat");
             flat->xb = faiss::MaybeOwnedVector<uint8_t>();
-            flat->xflags = faiss::MaybeOwnedVector<uint8_t>();
-            flat->block_scales = faiss::MaybeOwnedVector<uint8_t>();
+            bbq_compat::release_fork_payloads(*flat);
             index->hnsw.neighbors = faiss::MaybeOwnedVector<faiss::HNSW::storage_idx_t>();
             index->hnsw.offsets.clear();
             index->hnsw.levels.clear();

@@ -42,6 +42,8 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
+- Every point is a single measurement (`rounds = 1`). The DBpedia test sets have 300 (Qwen, E5) or 800 (OpenAI, BGE) queries, and DBpedia BGE-1024 is a 99k-vector corpus (`bge-1024-100k`). See `../DATA.md`.
+- At Recall@10 >= 0.99: BBQ is faster than TurboQuant on 13/16 configurations and faster than RaBitQ-7bit on 9/16 (RaBitQ-7bit wins all 4 Quora and 3 DBpedia configurations).
 - Baselines run through each system's own search and I/O path; DiskANN/SPANN/PipeANN through DiskVecLab. Patches against every external tree are in `exp/baselines/patches/`.
 - `recall-qps_main.dat` starts from curves recovered from the earlier matplotlib PDF (`recall-qps_main_orig.dat`); `update_recall-qps_main_tq_pq_opq.py` replaces the TQ/PQ/OPQ curves and `add_recall-qps_main_pipeann.py` adds PipeANN. `regen.sh` reproduces the shipped `.dat` exactly.
 - MRQ (NQ BGE-M3, 1,657.6 FP reads/query at Recall@10 0.9903) is in `results/mrq_nq_bge_m3_C4096_B320_direct.csv`, line 12.

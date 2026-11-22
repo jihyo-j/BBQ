@@ -14,6 +14,31 @@ ln -sfn "${ROOT}/bbq/src/bbq_dynamic_insert.cpp"  "${W}/adcbq_fpgraph_dynamic_5m
 ln -sfn "${EXP}/baselines/qdrant_tq_ffi"          "${W}/qdrant_tq_ffi"
 for f in "${EXP}"/baselines/patches/qdrant/*.patch; do ln -sfn "$f" "${W}/$(basename "$f")"; done
 
+# RaBitQ headers for the FAISS-based drivers: they compile with -I REPO/include (REPO = exp/).
+if [[ ! -d "${EXP}/include/rabitqlib" ]]; then
+  base=$(sed -n 's/^commit: //p' "${EXP}/baselines/patches/rabitq-library/BASE")
+  dep="${W}/_deps/RaBitQ-Library"
+  [[ -d "${dep}" ]] || git clone -q https://github.com/VectorDB-NTU/RaBitQ-Library.git "${dep}"
+  git -C "${dep}" checkout -q "${base}"
+  git -C "${dep}" apply "${EXP}/baselines/patches/rabitq-library/include.patch"
+  ln -sfn "${dep}/include" "${EXP}/include"
+fi
+
+# Patched Qdrant (TurboQuant codec) for the Rust FFI in exp/baselines/qdrant_tq_ffi (Cargo path ../qdrant).
+# Reuses $QDRANT_ROOT if it already is the patched checkout; otherwise fetches the pinned commit and patches it.
+Q="${EXP}/baselines/qdrant"
+if [[ ! -e "${Q}" ]]; then
+  qbase=$(sed -n 's/^commit: //p' "${EXP}/baselines/patches/qdrant/BASE")
+  if [[ -n "${QDRANT_ROOT:-}" && -d "${QDRANT_ROOT}/.git" && "$(git -C "${QDRANT_ROOT}" rev-parse HEAD)" == "${qbase}" ]]; then
+    ln -sfn "${QDRANT_ROOT}" "${Q}"
+  else
+    git init -q "${W}/_deps/qdrant" && git -C "${W}/_deps/qdrant" fetch -q --depth 1 https://github.com/qdrant/qdrant.git "${qbase}"
+    git -C "${W}/_deps/qdrant" checkout -q FETCH_HEAD
+    git -C "${W}/_deps/qdrant" apply "${EXP}/baselines/patches/qdrant/qdrant.patch"
+    ln -sfn "${W}/_deps/qdrant" "${Q}"
+  fi
+fi
+
 # experiment/adcbq_optimized/build.sh (called by runners with OUT=<binary>)
 cat > "${W}/adcbq_optimized/build.sh" <<SH
 #!/usr/bin/env bash

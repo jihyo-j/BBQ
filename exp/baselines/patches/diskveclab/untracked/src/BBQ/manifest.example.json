@@ -1,0 +1,16 @@
+{
+  "output_root": "/path/to/diskveclab-results/bbq",
+  "datasets": [
+    {
+      "key": "nq-qwen1024",
+      "corpus": "nq",
+      "model": "qwen-1024",
+      "metric": "cosine",
+      "base": "/path/to/nq_qwen1024_base.fbin",
+      "query": "/path/to/nq_qwen1024_query.fbin",
+      "groundtruth": "/path/to/nq_qwen1024_gt.ibin",
+      "index": "/path/to/indexes/nq_qwen1024.bbq_hnsw.faiss",
+      "fp_sidecar": "/path/to/indexes/nq_qwen1024.fp32.aligned4k.fbin"
+    }
+  ]
+}

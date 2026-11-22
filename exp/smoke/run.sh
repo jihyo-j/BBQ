@@ -33,6 +33,20 @@ echo "== 3. calibrated query-adaptive rerank"
 "${BIN}" "${C[@]}" "${T[@]}" --out "${W}/calibrated.csv" --efs 128 --rerank-n 128 \
   --calibrated-threshold-rerank-tau "${TAU}" | grep -o 'recall@10=.*'
 
+echo "== 4. same calibrated rerank, FP32 vectors read from disk with O_DIRECT (Fig. 16 modes)"
+# The first run writes a 4 KiB-aligned copy of the base vectors next to it (base.fp32.header4096.fbin).
+# SMOKE_DIR must be on a filesystem that supports O_DIRECT (not tmpfs).
+for mode in "sequential:--fp-rerank-source odirect" \
+            "async-batch:--fp-rerank-source odirect-uring --fp-rerank-qd 128" \
+            "async-batch+overlap:--fp-rerank-source odirect-uring --fp-rerank-qd 128 --fp-rerank-overlap-queries"; do
+  # shellcheck disable=SC2086
+  "${BIN}" "${C[@]}" "${T[@]}" --out "${W}/ssd_${mode%%:*}.csv" --efs 128 --rerank-n 128 \
+    --calibrated-threshold-rerank-tau "${TAU}" --fp-rerank-path "${W}/base.fp32.header4096.fbin" ${mode#*:} > /dev/null
+  python3 -c "import csv,sys; r=next(csv.DictReader(open(sys.argv[1]))); \
+print(f\"{sys.argv[2]:<20} Recall@10={float(r['recall_at_k']):.4f}  QPS={float(r['qps']):8.1f}  4KiB pages/query={float(r['rerank_read_bytes_mean'])/int(r['nq'])/4096:.1f}\")" \
+    "${W}/ssd_${mode%%:*}.csv" "${mode%%:*}"
+done
+
 python3 - "${W}/calibrated.csv" <<'PY'
 import csv, sys
 r = next(csv.DictReader(open(sys.argv[1])))
