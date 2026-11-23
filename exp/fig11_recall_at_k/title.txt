@@ -1,1 +1,1 @@
-Fig 11: Recall@k for k=30/50/100 (NQ Qwen-1024; T=1)
+Fig 11: Recall@k for k=30/50/100, with in-memory FP32 HNSW (NQ Qwen-1024; T=1)

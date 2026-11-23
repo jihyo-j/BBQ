@@ -1,0 +1,1 @@
+Sec 3.1: query-side bit-width sweep with 1-bit database codes (NQ / Quora Qwen-1024, ef=256, T=1)

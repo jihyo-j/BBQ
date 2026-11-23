@@ -5,7 +5,7 @@ import csv, sys
 import numpy as np
 rows = list(csv.DictReader(open(sys.argv[1])))
 MARK = {30: [160, 224, 320, 448, 616, 1024], 50: [320, 416, 520, 640, 792, 1024], 100: [512, 608, 712, 816, 936, 1024]}
-METH = [("adc_bq_calibrated", "bbq"), ("turboquant_tq1_fp", "tq"), ("rabitq_1bit_adaptive_fp", "rabitq")]
+METH = [("adc_bq_calibrated", "bbq"), ("turboquant_tq1_fp", "tq"), ("rabitq_1bit_adaptive_fp", "rabitq"), ("fp32_hnsw_ram", "fp")]
 
 def pchip(x, y, xq):
     h = np.diff(x); d = np.diff(y) / h; n = len(x); m = np.zeros(n)

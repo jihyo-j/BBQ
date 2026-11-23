@@ -248,7 +248,7 @@ plot D index "adcbq_h_curve" u 1:2 w l ls 1 notitle, \
 
 # (i)
 eval PANEL(PXL(0), PYB(2), PW2, PH2)
-set xrange [0.900000:0.999400]; set yrange [10.069:6506.1]
+set xrange [0.900000:0.999400]; set yrange [10.069:10252]
 set xtics ("0.9" 0.9, "0.95" 0.95, "0.98" 0.98, "0.99" 0.99, "0.998" 0.998)
 eval YLABEL("QPS")
 eval XLABEL("Recall\\\\@10")
@@ -374,7 +374,7 @@ plot D index "adcbq_l_curve" u 1:2 w l ls 1 notitle, \
 
 # (m)
 eval PANEL(PXL(0), PYB(3), PW2, PH2)
-set xrange [0.900000:0.999300]; set yrange [10.456:5229.4]
+set xrange [0.900000:0.999300]; set yrange [10.456:8963.7]
 set xtics ("0.9" 0.9, "0.95" 0.95, "0.98" 0.98, "0.99" 0.99, "0.998" 0.998)
 eval YLABEL("QPS")
 eval XLABEL("Recall\\\\@10")

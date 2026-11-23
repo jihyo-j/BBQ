@@ -1,0 +1,28 @@
+{
+  "datasets": [
+    "nq_qwen06_1024",
+    "quora_qwen1024"
+  ],
+  "query_bits": [
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "query_quantizer": "per-query symmetric uniform endpoints; FP32 dequantization; L2 normalization",
+  "ground_truth": "original FP32-query exact neighbors",
+  "split_seed": 11,
+  "calibration_queries": 1000,
+  "calibration_target": 0.99,
+  "efSearch": 256,
+  "threads": 1,
+  "near_fp32_epsilon": 0.001,
+  "rabitq_note": "production RaBitQ retains its internal 4-bit query estimator after input-query quantization",
+  "summary": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_quora_qwen1024_query_bitwidth_sweep_t1/summary_t1.csv",
+  "per_query": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_quora_qwen1024_query_bitwidth_sweep_t1/per_query_recall_t1.csv",
+  "transitions": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_quora_qwen1024_query_bitwidth_sweep_t1/query_improvement_transitions_t1.csv",
+  "saturation": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_quora_qwen1024_query_bitwidth_sweep_t1/fp32_saturation_t1.csv",
+  "figure_png": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_quora_qwen1024_query_bitwidth_sweep_t1/query_bitwidth_recall_and_improvement_t1.png",
+  "figure_pdf": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_quora_qwen1024_query_bitwidth_sweep_t1/query_bitwidth_recall_and_improvement_t1.pdf"
+}

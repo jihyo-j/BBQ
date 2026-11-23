@@ -13,5 +13,9 @@ python3 update_recall-qps_main_tq_pq_opq.py $R/recall_qps_12methods_16datasets_t
 python3 add_recall-qps_main_pipeann.py $R/spann_pipeann_all_search_results.csv > /dev/null
 python3 make_recall-qps_md.py $R/spann_pipeann_all_search_results.csv > /dev/null
 for f in "${keep[@]}"; do cp "$tmp/$f" .; done
+# Panels whose dataset was re-measured on the BEIR sets of Table 5 (text-embedding-3-small; BGE-large BEIR-400).
+# A panel is replaced only once all 12 methods exist for it (see update_beir_panels.py); the data CSV is built by
+# exp/scripts/collect_beir_recall_qps.py.
+python3 update_beir_panels.py $R/beir_recall_qps_t1.csv
 gnuplot recall-qps_main.gp
 gnuplot recall-qps_md.gp

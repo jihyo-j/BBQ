@@ -1,0 +1,1 @@
+All in DRAM: BBQ (calibrated, FP32 rerank from RAM) vs RaBitQ-7bit (NQ Qwen-1024, T=1)

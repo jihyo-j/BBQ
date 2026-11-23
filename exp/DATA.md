@@ -15,7 +15,33 @@ MRL ladder, the 100M scale set and prebuilt indexes. This file lists:
 | `.ibin` | `int32 n, int32 k`, then `n*k` int32 neighbour ids (exact cosine top-k; ties broken by id). |
 | splits | `seed<S>.cal<C>.test<T>.{cal,test}.{query.fbin,gt.ibin}`, a random permutation of the query set, made by `make_split` in `scripts/run_adcbq_calibrated_threshold_overlap.py` (seed 11 for all paper runs). |
 
-## The 16 configurations (Figs 10, 21; registry: `scripts/run_v051_ssd_odirect_multidataset.py`)
+## The BEIR sets of Table 5 (text-embedding-3-small, BGE-large)
+
+Table 5's OpenAI rows and the DBpedia BGE row are BEIR sets prepared for the `openai_beir_11methods_t1` campaign
+(manifest: `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json`, built by
+`scripts/prepare_openai_beir_11methods_inputs.py`):
+
+| key | corpus | model | dim | base rows | queries (cal / test) | used by |
+|---|---|---|---|---|---|---|
+| sieun_msmarco_openai1536 | MS MARCO | OpenAI text-embedding-3-small | 1536 | 1,000,000 | 6,980 (1000 / 5980) | Fig 10/21 panel (i), Figs 15, 16 |
+| sieun_dbpedia_entity_openai1536 | DBpedia-entity | OpenAI text-embedding-3-small | 1536 | 1,000,000 | 400 (200 / 200) | Fig 10/21 panel (m) |
+| sieun_dbpedia_entity_bge_large1024_beir400 | DBpedia-entity | BGE-large-en-v1.5 (BEIR-400) | 1024 | 1,000,000 | 400 (200 / 200) | Fig 10/21 panel (n), once all 12 methods are measured |
+| sieun_nq_openai1536, sieun_quora_openai1536 | NQ, Quora | OpenAI text-embedding-3-small | 1536 | 1M / 522,931 | 3,452 / 10,000 | not in the paper figures |
+
+All 12 methods are measured at T = 1 (3 rounds) on the first two. They are collected into
+`fig10_overall_recall_qps/results/beir_recall_qps_t1.csv` by `scripts/collect_beir_recall_qps.py`. Only DiskANN-PQ,
+DiskANN-RaBitQ, SPANN and PipeANN are measured on the BGE-large BEIR-400 set so far.
+
+## The original 16-configuration matrix (registry: `scripts/run_v051_ssd_odirect_multidataset.py`)
+
+The first full matrix (`diskveclab_full_matrix`, rounds = 1) used the files below. Three of its rows predate the
+BEIR sets above:
+- `msmarco_openai1536` is the ada-002 `msmarco-v1-openai-ada2-1M` file;
+- `dbpedia_openai1536` is `openai-1536-1M` (999k rows, 1,000 queries);
+- `dbpedia_bge1024` is `bge-1024-100k` (99k rows, 1,000 queries).
+
+Figs 10/21 now draw panels (i) and (m) from the BEIR sets. Panel (n) still shows `bge-1024-100k` until the BEIR-400
+BGE runs are complete.
 
 Counts are taken from `fig10_overall_recall_qps/results/split_manifest.csv`, written by the runner.
 
@@ -41,11 +67,8 @@ Counts are taken from `fig10_overall_recall_qps/results/split_manifest.csv`, wri
 Query and ground-truth files sit next to each base file, with the same stem and a `_query.fbin` / `_neighbors*.ibin`
 (or `.ibin`) suffix.
 
-Several of these disagree with Table 5 of the paper. See "Paper ↔ data" in `README.md`:
-- DBpedia BGE has 99k vectors, not 1M.
-- DBpedia OpenAI/BGE have 1,000 queries, not 400.
-- MS MARCO BGE has 10,000 queries, not 6,980.
-- The MS MARCO OpenAI vectors are named `ada2`, while Table 5 says text-embedding-3-small.
+Table 5 describes the BEIR sets above for the OpenAI rows and DBpedia BGE. One row of this matrix still differs from
+Table 5: MS MARCO BGE-1024 (`msmarco-bge-1024`) has 10,000 queries; Table 5 gives 6,980 for MS MARCO.
 
 ## Other sets
 

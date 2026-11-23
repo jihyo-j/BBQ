@@ -58,5 +58,15 @@ done
 for p in 4096:4k 8192:8k 16384:16k; do
   PAGE_BYTES="${p%%:*}" OUT="${W}/adcbq_optimized/faiss_adcbq_hnsw_${p##*:}_graph_batchcache_calibrated" "${ROOT}/bbq/build.sh" search
 done
+# Ablation builds (2026-11-23): LUT on/off (Sec. 5.1) and query bit-width (Sec. 3.1, all-DRAM comparison)
+OUT="${W}/adcbq_optimized/faiss_adcbq_hnsw_lut_ablation" "${ROOT}/bbq/build.sh" search
+ADCBQ_FORCE_FP32_DIRECT_SCALAR=1 OUT="${W}/adcbq_optimized/faiss_adcbq_hnsw_scalar_direct_ablation" "${ROOT}/bbq/build.sh" search
+SRC="${EXP}/scripts/faiss_fpgraph_packed_asym_bq_hnsw_intquery.cpp" OUT="${W}/adcbq_optimized/faiss_adcbq_hnsw_intquery" \
+  "${ROOT}/bbq/build.sh" search
+cat > "${W}/adcbq_optimized/build_intquery.sh" <<SH
+#!/usr/bin/env bash
+SRC="${EXP}/scripts/faiss_fpgraph_packed_asym_bq_hnsw_intquery.cpp" OUT="\${OUT:-${W}/adcbq_optimized/faiss_adcbq_hnsw_intquery}" exec "${ROOT}/bbq/build.sh" search
+SH
+chmod +x "${W}/adcbq_optimized/build_intquery.sh"
 cp -f "${W}/adcbq_optimized/faiss_adcbq_hnsw" "${W}/faiss_fpgraph_packed_asym_bq_hnsw"
 echo "workspace ready: ${W}"

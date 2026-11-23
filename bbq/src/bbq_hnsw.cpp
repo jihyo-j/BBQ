@@ -81,6 +81,7 @@ void release_fork_payloads(Flat& flat) {
 }
 }  // namespace bbq_compat
 
+
 #ifndef O_DIRECT
 #define O_DIRECT 0
 #endif
@@ -1529,6 +1530,9 @@ struct PackedAsymBQDistanceComputer : faiss::DistanceComputer {
         return x;
     }
 
+#if defined(ADCBQ_FORCE_FP32_DIRECT_SCALAR) && defined(__GNUC__)
+    __attribute__((noinline, optimize("no-tree-vectorize")))
+#endif
     float distance_to_code_fp32_direct_scalar(const uint8_t* code) const {
         const float* q = query_direct;
         float s0 = 0.0f;
@@ -1626,7 +1630,9 @@ struct PackedAsymBQDistanceComputer : faiss::DistanceComputer {
 #endif
 
     float distance_to_code_fp32_direct(const uint8_t* code) const {
-#if defined(__AVX512F__)
+#if defined(ADCBQ_FORCE_FP32_DIRECT_SCALAR)
+        return distance_to_code_fp32_direct_scalar(code);
+#elif defined(__AVX512F__)
         return distance_to_code_fp32_direct_avx512(code);
 #else
         return distance_to_code_fp32_direct_scalar(code);
@@ -3685,7 +3691,7 @@ struct PackedAsymBQDistanceComputer : faiss::DistanceComputer {
 
     void distances_batch_16(const faiss::idx_t* ids, float* dis_out) {
         if (mode == AdcMode::Fp32Direct) {
-#if defined(__AVX512F__) && defined(__SSE2__)
+#if !defined(ADCBQ_FORCE_FP32_DIRECT_SCALAR) && defined(__AVX512F__) && defined(__SSE2__)
             batch16_fp32_direct_avx512(ids, dis_out);
 #else
             for (int i = 0; i < 16; ++i) {
@@ -3732,7 +3738,7 @@ struct PackedAsymBQDistanceComputer : faiss::DistanceComputer {
 
     void distances_batch_8(const faiss::idx_t* ids, float* dis_out) {
         if (mode == AdcMode::Fp32Direct) {
-#if defined(__AVX512F__) && defined(__SSE2__)
+#if !defined(ADCBQ_FORCE_FP32_DIRECT_SCALAR) && defined(__AVX512F__) && defined(__SSE2__)
             batch8_fp32_direct_avx512(ids, dis_out);
 #else
             for (int i = 0; i < 8; ++i) {

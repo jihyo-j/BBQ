@@ -1,4 +1,4 @@
-# Fig 11: Recall@k for k=30/50/100 (NQ Qwen-1024; T=1)
+# Fig 11: Recall@k for k=30/50/100, with in-memory FP32 HNSW (NQ Qwen-1024; T=1)
 
 | | |
 |---|---|
@@ -11,12 +11,16 @@
 Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the runners import each other). Set the paths in [`exp/env.sh`](../env.sh) first; see the top-level README.
 
 - `exp/scripts/run_msmarco_quora_qwen1024_recall_k30_50_100_t1.py`
+- `exp/scripts/run_nq_inmemory_fp_hnsw_recall_k30_50_100_t1.py`
 
 ## Stored results
 
 Result files behind the figure (copied verbatim from the original run):
 
+- `results/inmemory_fp_hnsw_manifest.json`
+- `results/inmemory_fp_hnsw_summary_t1.csv`
 - `results/nq_qwen1024_recall_k30_50_100_t1.csv`
+- `results/nq_recall_k30_50_100_with_inmemory_fp.csv`
 
 ## Claims checked by `verify`
 

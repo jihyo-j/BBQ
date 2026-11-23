@@ -14,7 +14,7 @@ exp/
 │   └── plot/           shared gnuplot style (common.gp) and legend tools
 ├── MATRIX.md           figure → experiment directory → number of claims
 ├── DATA.md             every dataset the runners read: files, sizes, splits, provenance
-├── figNN_*/
+├── figNN_*/, fig_*/   (fig_* = figures added after the 2026-11-22 draft: LUT ablation, query bit-width, all-DRAM)
 │   ├── README.md       what was run, which result file backs which claim, caveats
 │   ├── results/        result CSV/JSON copied verbatim from the original runs
 │   └── plot/           NAME.gp, NAME.dat, make_*.py, regen.sh, NAME.paper.pdf (as printed)
@@ -110,14 +110,13 @@ Found while assembling this artifact and during an external review. None of thes
 | Sec 6.1 | "FAISS 1.14.1" | an unreleased upstream `main` commit (`46def469`, 2026-05-01, version string 1.14.1); pin the commit |
 | Sec 6.1 | dimensionality studied with "Qwen3-Embedding 0.6B / 4B / 8B" | Fig 17 uses MRL truncations of the single 8B checkpoint, as Sec 6.7 says |
 | Sec 5.3 | separate tuning and calibration query sets | every split is calibration (1,000; 100–200 for DBpedia) + test; ef_search is swept on the test queries |
-| Table 5 | DBpedia: 1,000,000 vectors, 400 queries | DBpedia BGE-1024: **99,000** vectors (`bge-1024-100k`). DBpedia OpenAI: 999,000. DBpedia OpenAI and BGE: 1,000 queries |
-| Table 5 | MS MARCO: 6,980 queries | MS MARCO BGE-1024: 10,000 |
-| Table 5 | MS MARCO OpenAI = text-embedding-3-small | file is `msmarco-v1-openai-ada2-1M` (ada-002). Verify, and also verify DBpedia OpenAI (`openai-1536-1M`) |
+| Table 5 | MS MARCO: 6,980 queries | MS MARCO BGE-1024 (`msmarco-bge-1024`): 10,000 |
 
 ### Mixed sources inside one figure
 
 | Where | What |
 |---|---|
+| Figs 10 / 21 | Table 5 describes the BEIR sets: text-embedding-3-small for MS MARCO and DBpedia, and BGE-large BEIR-400 for DBpedia. The figure panels (i) MS MARCO OpenAI, (m) DBpedia OpenAI and (n) DBpedia BGE were first drawn from older files (ada-002; 999k/1,000-query DBpedia OpenAI; 99k/1,000-query DBpedia BGE). <br>• Panels (i) and (m) are now redrawn from the BEIR campaign: all 12 methods, T = 1, 3 rounds (`results/beir_recall_qps_t1.csv`). <br>• Panel (n) keeps the old 99k data until 8 methods are run on BGE-large BEIR-400 (see `fig10_overall_recall_qps/README.md`). <br>On the BEIR data, at R@10 ≥ 0.99, BBQ beats TurboQuant on both panels (2,318 vs 1,523 and 1,639 vs 943 QPS), but RaBitQ-7bit beats BBQ on both (3,387 and 1,849 QPS). The Sec 6.3 sentences about these datasets need to be re-read against the new panels. |
 | Fig 9 | The text numbers (635 vs 335, 1,547 vs 727 QPS) come from the 2026-11-09 run. The plotted curves come from the 2026-11-10 rerun. Both are kept. |
 | Figs 12(b), 13 | Three ground-truth variants of one MS MARCO run are in use, all kept under `fig13_calibration_analysis/results/`: <br>• Fig 12(b) matches `ip_aligned`. <br>• Fig 13's plotted recall curve matches the legacy GT. <br>• The 307 traversal-limited queries in Sec 6.5 come from `exact_cosine_aligned` (the legacy GT gives 454). |
 
@@ -129,8 +128,8 @@ Found while assembling this artifact and during an external review. None of thes
 | Fig 18, "1.98× TurboQuant at 100M" | TurboQuant's best QPS at R@10 ≥ 0.99 is 237 / 457 / 273 at 10M / 50M / 100M. This is not monotone, so the ratio is sensitive to that run. |
 | Fig 19 | TurboQuant inserts faster than BBQ at 10M, 30M and 100M. BBQ is faster at 50M only. RaBitQ-1bit has higher recall than BBQ at 10M (0.9899 vs 0.9893) and 50M (0.9878 vs 0.9849). |
 | Intro vs Sec 6.8 | The intro's insertion speed-up is against RaBitQ-7bit; Sec 6.8 uses RaBitQ-1bit (2.06× / 1.49×). Both hold, but against different baselines. |
-| Fig 10 / 21 | RaBitQ-7bit is faster than BBQ at R@10 ≥ 0.99 on 7 of 16 configurations (all 4 Quora, 3 DBpedia). TurboQuant is faster on 3 of 16. |
-| Fig 10 / 21 measurement | Every point is a single run (`rounds = 1`). The DBpedia test sets have 300 (Qwen, E5) or 800 (OpenAI, BGE) queries. Figs 17 and 18 use 3 rounds. |
+| Fig 10 / 21 | RaBitQ-7bit is faster than BBQ at R@10 ≥ 0.99 on 8 of 16 configurations (all 4 Quora, 3 DBpedia, and MS MARCO OpenAI on the BEIR data). TurboQuant is faster on 2 of 16, plus DBpedia BGE on the old 99k data. |
+| Fig 10 / 21 measurement | Points from the original matrix are single runs (`rounds = 1`); the DBpedia Qwen/E5 test sets have 300 queries. The BEIR panels (i), (m) use 3 rounds, as do Figs 17 and 18. |
 
 ### Another manuscript revision
 
@@ -151,6 +150,9 @@ A later revision of the manuscript prints different numbers in two places:
 
 ## Provenance notes
 
+- `bbq/src/bbq_hnsw.cpp` is the 2026-11-23 source. It adds the compile-time `ADCBQ_FORCE_FP32_DIRECT_SCALAR` switch
+  used only by the LUT ablation (`fig_lut_ablation`); the default build is unchanged. The query bit-width variant is
+  `scripts/faiss_fpgraph_packed_asym_bq_hnsw_intquery.cpp`. Both carry the same upstream-FAISS guard.
 - The BBQ binaries used in the paper runs were built from successive snapshots of `bbq/src/bbq_hnsw.cpp`. The final
   ones (`faiss_adcbq_hnsw_same_pool_calibration`, `_equal_pool_qd`, 2026-11-19) match the committed source. Fig 8
   used an earlier snapshot (2026-09-29).

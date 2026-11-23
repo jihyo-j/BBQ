@@ -30,7 +30,7 @@ Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the ru
 
 Result files behind the figure (copied verbatim from the original run):
 
-- 331 files under `results/`
+- 332 files under `results/`
 
 ## Claims checked by `verify`
 
@@ -42,6 +42,9 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
+- **BEIR panels.** Panels (i) MS MARCO OpenAI and (m) DBpedia OpenAI are drawn from the BEIR text-embedding-3-small sets of Table 5: all 12 methods, T=1, 3 rounds, collected by `exp/scripts/collect_beir_recall_qps.py` into `results/beir_recall_qps_t1.csv` and applied by `plot/update_beir_panels.py`. Panel (n) DBpedia BGE still shows the older 99k `bge-1024-100k` data, because only DiskANN-PQ, DiskANN-RaBitQ, SPANN and PipeANN have been run on BGE-large BEIR-400. To complete it, run on an otherwise idle machine `run_openai_beir_11methods_t1.py --skip-prepare --datasets sieun_dbpedia_entity_bge_large1024_beir400 --result-root <experiment>/openai_beir_bge400_t1`, then rerun the collector and `regen.sh`; the panel switches over automatically once all 12 methods are present.
+- On the BEIR panels at Recall@10 >= 0.99: MS MARCO OpenAI has RaBitQ-7bit 3,387, BBQ 2,318 and TurboQuant 1,523 QPS; DBpedia OpenAI has RaBitQ-7bit 1,849, BBQ 1,639 and TurboQuant 943 QPS.
+- Claims F10.1/F10.2 (TurboQuant 1,869 vs BBQ 1,196 QPS on DBpedia BGE-1024) refer to the older 99k panel (n).
 - Every point is a single measurement (`rounds = 1`). The DBpedia test sets have 300 (Qwen, E5) or 800 (OpenAI, BGE) queries, and DBpedia BGE-1024 is a 99k-vector corpus (`bge-1024-100k`). See `../DATA.md`.
 - At Recall@10 >= 0.99: BBQ is faster than TurboQuant on 13/16 configurations and faster than RaBitQ-7bit on 9/16 (RaBitQ-7bit wins all 4 Quora and 3 DBpedia configurations).
 - Baselines run through each system's own search and I/O path; DiskANN/SPANN/PipeANN through DiskVecLab. Patches against every external tree are in `exp/baselines/patches/`.

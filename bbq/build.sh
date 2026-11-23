@@ -5,7 +5,7 @@
 #   ./bbq/build.sh dynamic       -> build/bbq_dynamic_insert (online insertion; needs the TurboQuant FFI)
 #   ./bbq/build.sh test          -> build/test_adcbq_sign_packing (AVX-512 bit-packing unit test)
 #
-# Requirements: g++ >= 11 (C++17), OpenMP, liburing, OpenBLAS, FAISS 1.14.x built with AVX2,
+# Requirements: g++ >= 11 (C++17), OpenMP, liburing, OpenBLAS, upstream FAISS 46def469 built with AVX2,
 # and an AVX-512 CPU (-march=native; the paper used a Xeon Gold 6442Y).
 set -euo pipefail
 
@@ -26,9 +26,14 @@ COMMON=(-std=c++17 -O3 -DNDEBUG -march=native -fopenmp -I"${FAISS_ROOT}" -I"${FA
 
 case "${1:-search}" in
   search)
+    # SRC: an experiment variant of the same file (e.g. the query bit-width build in exp/scripts).
+    # ADCBQ_FORCE_FP32_DIRECT_SCALAR=1: scalar FP32 ADC without LUT or SIMD, for the LUT ablation only.
     out="${OUT:-${OUT_DIR}/bbq_hnsw}"
-    "${CXX}" "${COMMON[@]}" -DADCBQ_PAGED_INDEX_PAGE_BYTES="${PAGE_BYTES}" \
-      "${HERE}/src/bbq_hnsw.cpp" "${LIBDIRS[@]}" -Wl,-rpath,"${RPATH}" \
+    src="${SRC:-${HERE}/src/bbq_hnsw.cpp}"
+    defs=(-DADCBQ_PAGED_INDEX_PAGE_BYTES="${PAGE_BYTES}")
+    [[ "${ADCBQ_FORCE_FP32_DIRECT_SCALAR:-0}" == "1" ]] && defs+=(-DADCBQ_FORCE_FP32_DIRECT_SCALAR=1)
+    "${CXX}" "${COMMON[@]}" "${defs[@]}" \
+      "${src}" "${LIBDIRS[@]}" -Wl,-rpath,"${RPATH}" \
       -lfaiss_avx2 -lopenblas -luring -o "${out}"
     ;;
   dynamic)

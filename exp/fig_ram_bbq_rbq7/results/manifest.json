@@ -1,0 +1,51 @@
+{
+  "experiment": "NQ/Quora Qwen-1024 calibrated ADC-BQ LUT ablation",
+  "comparison": {
+    "no_lut": "fp32-direct AVX-512 sign-bit accumulation; no query LUT",
+    "optimized_lut": "current int16 4-dim/16-entry nibble LUT SIMD path"
+  },
+  "datasets": [
+    "nq_qwen06_1024"
+  ],
+  "efs": [
+    80,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "M": 24,
+  "efConstruction": 200,
+  "k": 10,
+  "threads": 1,
+  "rounds": 3,
+  "cpu_affinity": 44,
+  "split_seed": 11,
+  "calibration_protocol": "per-ef-pool-top10-split-conformal",
+  "calibration_target": 0.99,
+  "conformal_order": 991,
+  "fp_rerank_storage": "process-owned FP32 RAM",
+  "same_graph_within_dataset": true,
+  "splits": {
+    "nq_qwen06_1024": {
+      "calibration_queries": 1000,
+      "test_queries": 2452,
+      "calibration_query": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_calibrated_threshold_overlap/splits/nq_qwen06_1024/seed11.cal1000.test2452.cal.query.fbin",
+      "test_query": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_calibrated_threshold_overlap/splits/nq_qwen06_1024/seed11.cal1000.test2452.test.query.fbin"
+    }
+  },
+  "graphs": {
+    "nq_qwen06_1024": {
+      "path": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_inmemory_fp_hnsw_recall_k30_50_100_t1/nq_qwen06_1024.fp_built_graph.M24.efC200.faiss",
+      "bytes": 336166998,
+      "sha256": "61b48d2368d5d745062d8aa736ad1f86300e084b34a5ea2c9ebf3ad299690acf"
+    }
+  },
+  "binary": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_optimized/faiss_adcbq_hnsw_intquery",
+  "source": "/home/jihyo/workspace/RaBitQ-Library/experiment/faiss_fpgraph_packed_asym_bq_hnsw_intquery.cpp",
+  "summary_csv": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_qwen1024_bbq_vs_int16query_nolut_t1/summary_t1.csv",
+  "paired_ef_comparison_csv": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_qwen1024_bbq_vs_int16query_nolut_t1/summary_t1.csv",
+  "target_recall_summary_csv": "/home/jihyo/workspace/RaBitQ-Library/experiment/nq_qwen1024_bbq_vs_int16query_nolut_t1/summary_t1.csv",
+  "plot_png": "",
+  "plot_pdf": ""
+}

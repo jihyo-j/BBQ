@@ -1,0 +1,5 @@
+dataset,method,near_fp32_epsilon,fp32_recall_at_10,minimum_bits_within_epsilon
+nq_qwen06_1024,calibrated_adcbq,0.001,0.9955546492659053,16
+nq_qwen06_1024,rabitq_1bit_adaptive_fp,0.001,0.9840538336052205,16
+quora_qwen1024,calibrated_adcbq,0.001,0.9964111111111112,16
+quora_qwen1024,rabitq_1bit_adaptive_fp,0.001,0.9965,16
