@@ -1,0 +1,11 @@
+{
+ "key": "msmarco_qw06",
+ "nq": 500,
+ "R": 80,
+ "rabitq_containment_ours": 0.9992,
+ "rabitq_containment_faiss": 0.9994,
+ "rabitq_delta": -0.0002,
+ "faiss_code_size": 136,
+ "faiss_secs": 142.3,
+ "rank_bruteforce_max_abs_diff": 0
+}

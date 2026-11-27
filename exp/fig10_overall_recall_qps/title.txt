@@ -1,1 +1,0 @@
-Fig 10 + Fig 21: Recall@10-QPS on 16 dataset-embedding configs, 12 methods (T=1)

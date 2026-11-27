@@ -1,0 +1,112 @@
+{
+ "msmarco_qw06": {
+  "calib_margin-bound_margin": {
+   "delta": -0.36468750000000005,
+   "sd": 0.9459647272622584,
+   "frac_neg": 0.625
+  },
+  "calib_margin-fixedR": {
+   "delta": -20.213974999999998,
+   "sd": 2.491674946260148,
+   "frac_neg": 1.0
+  },
+  "calib_margin-bound_seq": {
+   "delta": 4.611425,
+   "sd": 1.0732939028630868,
+   "frac_neg": 0.0
+  },
+  "bound_margin-bound_seq": {
+   "delta": 4.976112499999999,
+   "sd": 1.3353367744212674,
+   "frac_neg": 0.0
+  }
+ },
+ "nq_qw06": {
+  "calib_margin-bound_margin": {
+   "delta": 2.0533024333719583,
+   "sd": 0.8465474687671756,
+   "frac_neg": 0.0
+  },
+  "calib_margin-fixedR": {
+   "delta": -21.204721900347625,
+   "sd": 2.545710266890985,
+   "frac_neg": 1.0
+  },
+  "calib_margin-bound_seq": {
+   "delta": 6.433893395133256,
+   "sd": 1.425756716360734,
+   "frac_neg": 0.0
+  },
+  "bound_margin-bound_seq": {
+   "delta": 4.380590961761298,
+   "sd": 1.2863134450234326,
+   "frac_neg": 0.0
+  }
+ },
+ "quora_bgem3": {
+  "calib_margin-bound_margin": {
+   "delta": 0.5936875,
+   "sd": 0.3542757452689888,
+   "frac_neg": 0.05
+  },
+  "calib_margin-fixedR": {
+   "delta": -12.352,
+   "sd": 1.629747738856444,
+   "frac_neg": 1.0
+  },
+  "calib_margin-bound_seq": {
+   "delta": 2.44325,
+   "sd": 0.7883283270833614,
+   "frac_neg": 0.0
+  },
+  "bound_margin-bound_seq": {
+   "delta": 1.8495625,
+   "sd": 0.7094665492150621,
+   "frac_neg": 0.0
+  }
+ },
+ "fever_bgem3": {
+  "calib_margin-bound_margin": {
+   "delta": 2.6778500000000003,
+   "sd": 2.3715486885263988,
+   "frac_neg": 0.075
+  },
+  "calib_margin-fixedR": {
+   "delta": -31.365437500000002,
+   "sd": 6.122668845958897,
+   "frac_neg": 1.0
+  },
+  "calib_margin-bound_seq": {
+   "delta": 24.2443875,
+   "sd": 3.297781914792434,
+   "frac_neg": 0.0
+  },
+  "bound_margin-bound_seq": {
+   "delta": 21.566537500000003,
+   "sd": 2.5223400978199813,
+   "frac_neg": 0.0
+  }
+ },
+ "msmarco_ada2": {
+  "calib_margin-bound_margin": {
+   "delta": 3.55205,
+   "sd": 1.303092907524642,
+   "frac_neg": 0.0
+  },
+  "calib_margin-fixedR": {
+   "delta": -19.720850000000002,
+   "sd": 3.0413545253255085,
+   "frac_neg": 1.0
+  },
+  "calib_margin-bound_seq": {
+   "delta": 4.5536125,
+   "sd": 1.5019808522777427,
+   "frac_neg": 0.0
+  },
+  "bound_margin-bound_seq": {
+   "delta": 1.0015625,
+   "sd": 1.2251580964831459,
+   "frac_neg": 0.25
+  }
+ }
+}

@@ -1,0 +1,13 @@
+nrows = 2
+ytop = 329.50
+ls=1 | BBQ | lp
+ls=3 | TurboQuant1 | lp
+ls=5 | RaBitQ-7bit (RAM) | lp
+ls=13 | FAISS HNSW (RAM) | lp
+ls=7 | HNSW-RaBitQ1bit | lp
+ls=6 | RaBitQ-SSD 9bit | l
+ls=4 | PipeANN-RaBitQ1bit | lp
+ls=8 | DiskANN-RaBitQ1bit | lp
+ls=10 | DiskANN-PQ | lp
+ls=11 | Faiss PQ | lp
+ls=12 | Faiss OPQ | l

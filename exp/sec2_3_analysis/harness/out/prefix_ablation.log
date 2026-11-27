@@ -1,0 +1,14 @@
+  prefix 500/2000
+  prefix 1000/2000
+  prefix 1500/2000
+  prefix 2000/2000
+prefix {'p95': 47.0, 'med': 16.0, 'candrec30': 0.9842000000000001, 'kappa': 0.9221583482255494, 'beta': 0.8253071114307079, 'gap': 0.16349794666469097}
+  noprefix 500/2000
+  noprefix 1000/2000
+  noprefix 1500/2000
+  noprefix 2000/2000
+noprefix {'p95': 74.04999999999995, 'med': 21.5, 'candrec30': 0.9596, 'kappa': 0.9311151418782946, 'beta': 0.5230569201728008, 'gap': 0.09838058675825596}
+
+condition                    p95 R*   med R*  CandRec@30    kappa     beta
+prefix                           47       16      0.9842   0.9222    0.825
+noprefix                         74       22      0.9596   0.9311    0.523

@@ -1,0 +1,32 @@
+
+quora_qw06   q#276   "What is it like to have no family?"
+   judged relevant: 2 document(s);  beta=0.921  R*=14
+     r     cos   z(r)  judged  document
+     1   0.840  10.38   yes   "What does it feel like to have no family?"
+     2   0.807   9.85   yes   "What does it feel to have no family?"
+     3   0.736   8.71    .    "What is it like to have no siblings?"
+     4   0.718   8.43    .    "What am I missing out on in life if I don't have a family?"
+     5   0.710   8.30    .    "What does it feel like when you have no siblings?"
+     6   0.706   8.23    .    "What is it like to be the only child of parents who have no "
+     7   0.693   8.02    .    "How does it feel to have no siblings?"
+     8   0.690   7.97    .    "How does it feel like having no sibling?"
+     9   0.680   7.82    .    "What's it like to have never really had a mom or a dad?"
+    10   0.680   7.82    .    "What is it like to not have kids?"
+    11   0.676   7.76    .    "What is it like to not have a mom?"
+    12   0.670   7.65    .    "Is a married couple without kids still considered a family?"
+
+msmarco_qw06   q#811   "who starred in marnie"
+   judged relevant: 1 document(s);  beta=0.658  R*=18
+     r     cos   z(r)  judged  document
+     1   0.671  10.16    .    (text not recoverable)
+     2   0.610   9.14   yes   (text not recoverable)
+     3   0.581   8.66    .    (text not recoverable)
+     4   0.551   8.16    .    (text not recoverable)
+     5   0.547   8.10    .    (text not recoverable)
+     6   0.531   7.84    .    (text not recoverable)
+     7   0.524   7.71    .    (text not recoverable)
+     8   0.520   7.65    .    (text not recoverable)
+     9   0.510   7.49    .    (text not recoverable)
+    10   0.504   7.38    .    (text not recoverable)
+    11   0.503   7.37    .    (text not recoverable)
+    12   0.501   7.33    .    (text not recoverable)

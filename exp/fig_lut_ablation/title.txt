@@ -1,1 +1,0 @@
-Sec 5.1: ADC-BQ with the int16 nibble LUT vs scalar FP32 ADC (no calibration, no rerank; NQ / Quora Qwen-1024; T=1)

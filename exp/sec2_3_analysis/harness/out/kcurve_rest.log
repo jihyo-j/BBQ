@@ -1,0 +1,12 @@
+/home/sieun/projects/BBQETA/src/kcurve.py:58: RuntimeWarning: invalid value encountered in divide
+  ts = (ts - ts.mean()) / ts.std(); as_ = (as_ - as_.mean()) / as_.std()
+/home/sieun/.local/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3036: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/home/sieun/.local/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3037: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+wrote /home/sieun/projects/BBQETA/out/kcurve_nq_qw06.dat and _perq.npz
+   adc_bq   c_Q=0.39  p95 R* at k=1,5,10,30,100:       3      20      51     238    1229
+wrote /home/sieun/projects/BBQETA/out/kcurve_glove.dat and _perq.npz
+   adc_bq   c_Q=0.74  p95 R* at k=1,5,10,30,100:    1039    8364   17765   53449  120619
+wrote /home/sieun/projects/BBQETA/out/kcurve_gist.dat and _perq.npz
+   adc_bq   c_Q=nan  p95 R* at k=1,5,10,30,100:  951904  987343  995299  998006  999258

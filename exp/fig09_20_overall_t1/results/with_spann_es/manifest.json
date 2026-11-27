@@ -1,0 +1,19 @@
+{
+  "format": "latest-full16-12methods-t1-v1",
+  "threads": 1,
+  "datasets": 16,
+  "methods": 12,
+  "result_rows": 3664,
+  "available_curves": 186,
+  "complete_20_point_curves": 181,
+  "partial_curves": 5,
+  "missing_curves": 6,
+  "notes": [
+    "All OpenAI panels use text-embedding-3-small measurements.",
+    "DBpedia BGE uses the 1M BEIR-400 dataset.",
+    "All six disk/Faiss baselines use d/8-byte resident routing codes.",
+    "Legacy 99K DBpedia-BGE and digitized plot points are excluded."
+  ],
+  "results_csv": "experiment/latest_full16_12methods_t1/recall_qps_all_latest_t1.csv",
+  "coverage_csv": "experiment/latest_full16_12methods_t1/coverage_latest_t1.csv"
+}

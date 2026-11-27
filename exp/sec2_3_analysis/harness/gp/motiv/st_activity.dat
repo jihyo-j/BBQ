@@ -1,0 +1,20 @@
+# Embedding-model download activity, relative to the 2022 level.
+#
+# Source: the "sentence-transformers" row of downloads_by_namespace_year.csv in
+# the Hugging Face dataset XciD/hf-model-downloads-by-origin-2022-2026,
+# revision 1bed1b4, accessed 2026-11-19.  Its README describes the figures as
+# GET and HEAD requests for particular model files, counted from archived Hub
+# access logs; these are the published aggregates and we have not verified the
+# underlying logs.  So this is a file-download count for one namespace, not a
+# count of users, of API calls, or of industry-wide usage, and the namespace
+# also hosts static (non-Transformer) embedding models.  The source table's
+# 2026 row covers only part of the year and is excluded here rather than drawn
+# as a short year.
+#
+#   relative(year) = annual_downloads(year) / annual_downloads(2022)
+#
+# year  annual_downloads  relative
+2022   206297891   1.0000
+2023   315253801   1.5281
+2024  1960879690   9.5051
+2025  2747223348  13.3168

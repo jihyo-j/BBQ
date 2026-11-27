@@ -1,0 +1,1 @@
+Fig 9 (MS MARCO, DBpedia) + Fig 20 (NQ, Quora): Recall@10-QPS, 16 dataset-embedding configurations x 11 methods, single thread

@@ -1,0 +1,9 @@
+[18:12:04] nq_nem8: N=1000000 d=4096 nq=2000  (NQ / Nemotron)
+[18:12:32]   beta mean=2.1651  beta(10-100)=1.8111  z10 mean=12.364
+[18:13:27]   Sym-BQ             512.0B  kappa=0.8663 eta=0.290  p95R*=24  CR@30=0.9971 CR@80=0.9998  [55.6s]
+[18:14:27]     [verify] adc_bq q0 kappa gram=0.916175 direct=0.916175 diff=3.01e-09
+[18:14:41]   ADC-BQ             512.0B  kappa=0.9392 eta=0.184  p95R*=17  CR@30=0.9996 CR@80=1.0000  [73.0s]
+[18:16:15]   ADC-BQ +centre     512.0B  kappa=0.9405 eta=0.182  p95R*=18  CR@30=0.9997 CR@80=1.0000  [94.7s]
+[18:18:09]   ADC-BQ +centre+scale   516.0B  kappa=0.9406 eta=0.181  p95R*=17  CR@30=0.9997 CR@80=1.0000  [113.9s]
+[18:19:32]     [verify] pq q0 kappa gram=0.930629 direct=0.930629 diff=2.38e-09
+[18:19:46]   PQ                 512.0B  kappa=0.9505 eta=0.164  p95R*=16  CR@30=0.9998 CR@80=1.0000  [96.4s]

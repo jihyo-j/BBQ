@@ -1,1 +1,0 @@
-Fig 16: sequential vs async batch vs async batch + overlap (MS MARCO; T=1)

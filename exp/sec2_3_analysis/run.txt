@@ -1,0 +1,9 @@
+harness/src/measure.py
+harness/src/kcurve.py
+harness/src/dimsweep.py
+harness/src/dimperq.py
+harness/src/bitsvsdims.py
+harness/src/levels.py
+harness/src/export_fig4.py
+harness/src/export_perq.py
+harness/src/export_dimperq.py

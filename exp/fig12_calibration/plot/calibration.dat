@@ -1,0 +1,16 @@
+# from ../results/legacy_gt (5980 test queries, target 0.99)
+# queries with pool-absent GT neighbors = 307, in-pool GT not reproduced by exact rerank = 147
+# mean recall@10 = 0.9897, 1-recall = 0.01027
+# x name loss queries
+# decomp
+0 visit 0.009582 454
+1 select 0.000686 40
+
+
+# sweep
+# target pool_top10_preserved final_recall_at_10 mean_fp_reads
+0.9 0.911706 0.981706 28.344
+0.95 0.962876 0.986957 35.233
+0.975 0.979264 0.988462 40.875
+0.99 0.992809 0.989732 54.044
+0.995 0.995318 0.989950 58.618

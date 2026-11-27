@@ -1,0 +1,53 @@
+# BBQ Section 3.3, the per-query candidate budget.  Colours and markers follow
+# Figure 2's legend exactly, so a reader matches the series across the two.
+set terminal pdfcairo enhanced font "Liberation Sans,8" fontscale 0.75 linewidth 1 size 3.4in,1.95in
+set output "perq.pdf"
+LW = 2.6; MLW = 1.3; INK="#262626"
+set style line 21 lc rgb "#0A0AF0" lw LW pt 4  ps 0.78   # Quora/Qwen
+set style line 23 lc rgb "#FF8000" lw LW pt 12 ps 0.93   # DBpedia/Qwen
+set style line 24 lc rgb "#E8336D" lw LW pt 6  ps 0.78   # MS MARCO/Qwen
+set style line 25 lc rgb "#1A9850" lw LW pt 8  ps 0.85   # MS MARCO/BGE
+set border 31 lw 2
+set tics in mirror scale 1.3,0.7 font ",8"
+unset x2tics; unset y2tics; unset grid
+set bmargin 0; set tmargin 0; set lmargin 0; set rmargin 0
+W=0.350; H=0.490; B=0.370
+set multiplot
+
+# ---- (a) how many queries a budget of R would fully serve ----
+set size W,H; set origin 0.168,B
+set title "(a) Coverage vs {/:Italic R}" font ",8.5" offset 0,-0.5
+set logscale x; set xrange[9:700]
+set xtics ("10" 10,"100" 100) ; set mxtics 10
+set xlabel "candidate budget {/:Italic R}" font ",9" offset 0,0.6
+set yrange[0:1.04]; set ytics ("0" 0,"0.5" 0.5,"1" 1); set mytics 2
+set ylabel "queries fully served" font ",9" offset 1.0,0
+unset key
+set arrow 1 from 9,0.95 to 700,0.95 nohead lc rgb "#9A9A9A" lw 1.0 dt 3 front
+set label 1 "0.95" at 11,0.885 left font ",6.5" tc rgb "#707070" front
+plot "p_cdf.dat" u 1:2 w l ls 21 notitle, "" u 1:3 w l ls 24 notitle, \
+     "" u 1:4 w l ls 23 notitle, "" u 1:5 w l ls 25 notitle
+
+# ---- (b) what a single fixed budget costs against a per-query oracle ----
+unset arrow 1; unset label 1
+set size W,H; set origin 0.628,B
+set title "(b) Fixed vs oracle" font ",8.5" offset 0,-0.5
+unset logscale x; set xrange[0.80:0.998]
+set xtics ("0.80" 0.80,"0.90" 0.90,"0.99" 0.99); set mxtics 2
+set xlabel "coverage target" font ",9" offset 0,0.6
+set yrange[1:6.3]; set ytics 1; set mytics 2
+set ylabel "fixed / oracle" font ",9" offset 1.0,0
+unset key
+plot "p_overpay.dat" u 1:2 w l ls 21 notitle, "" u 1:3 w l ls 24 notitle, \
+     "" u 1:4 w l ls 23 notitle, "" u 1:5 w l ls 25 notitle
+
+# ---- shared legend ----
+unset border; unset tics; unset xlabel; unset ylabel; unset title
+unset logscale x; unset logscale y
+set size 1,1; set origin 0,0; set xrange[0:1]; set yrange[0:1]
+set key at screen 0.5,0.175 center top horizontal maxrows 2 reverse Left \
+    samplen 3 spacing 1.25 width 1 font ",8.5" tc rgb INK
+plot NaN w l ls 21 t "Quora/Qwen", NaN w l ls 24 t "MS MARCO/Qwen", \
+     NaN w l ls 23 t "DBpedia/Qwen", NaN w l ls 25 t "MS MARCO/BGE"
+
+unset multiplot

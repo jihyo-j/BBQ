@@ -1,0 +1,1 @@
+Fig 12 / Sec 6.3: calibration target sweep and L_visit / L_select loss split (MS MARCO Qwen-1024, ef=256)

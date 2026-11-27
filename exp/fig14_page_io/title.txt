@@ -1,0 +1,1 @@
+Fig 14 / Sec 6.4: 4-KiB SSD pages per query vs Recall@10 (MS MARCO OpenAI-1536, Qwen-1024)

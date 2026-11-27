@@ -1,1 +1,1 @@
-BBQ manuscript, PVLDB Vol. 20 draft, 19 pages, as received 2026-11-22 (abstract: 'up to 2.1x faster than in-memory full-precision HNSW')
+BBQ manuscript 'BBQ: Blessing ANN Search with Binary Quantization on Transformer Embeddings', PVLDB Vol. 20 draft, 17 pages, revision received 2026-11-27 (abstract: 'up to 2.7x faster than in-memory full-precision HNSW')

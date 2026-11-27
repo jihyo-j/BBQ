@@ -1,0 +1,1 @@
+Fig 11 / Sec 6.3: ablation sym-BQ -> ADC-BQ -> fixed R=75 -> calibrated R(q), per-query reads (MS MARCO Qwen-1024)

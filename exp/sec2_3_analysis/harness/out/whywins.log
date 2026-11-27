@@ -1,0 +1,26 @@
+  msmarco_qw06           cv=0.353 aniso=0.405 f=0.7884 kurt=-0.01 pr=0.212 | rot c_Q 0.94x  rot R* 0.92x
+  nq_qw06                cv=0.354 aniso=0.428 f=0.7883 kurt=-0.01 pr=0.184 | rot c_Q 0.94x  rot R* 1.00x
+  quora_qw06             cv=0.410 aniso=0.522 f=0.7856 kurt=+0.00 pr=0.147 | rot c_Q 0.92x  rot R* 0.94x
+  dbpedia_qw06           cv=0.283 aniso=0.391 f=0.7906 kurt=-0.02 pr=0.171 | rot c_Q 0.96x  rot R* 0.88x
+  msmarco_bgem3          cv=0.249 aniso=0.586 f=0.7688 kurt=-0.01 pr=0.156 | rot c_Q 1.01x  rot R* 1.13x
+  nq_bgem3               cv=0.244 aniso=0.549 f=0.7698 kurt=-0.01 pr=0.161 | rot c_Q 0.98x  rot R* 1.23x
+  quora_bgem3            cv=0.270 aniso=0.578 f=0.7707 kurt=+0.00 pr=0.161 | rot c_Q 0.98x  rot R* 1.00x
+  fever_bgem3            cv=0.221 aniso=0.488 f=0.7782 kurt=-0.02 pr=0.122 | rot c_Q 0.91x  rot R* 1.10x
+  dbpedia_bgel           cv=0.107 aniso=0.582 f=0.7876 kurt=-0.01 pr=0.161 | rot c_Q 1.01x  rot R* 0.74x
+  dbpedia_bgeb           cv=0.157 aniso=0.605 f=0.7902 kurt=-0.02 pr=0.203 | rot c_Q 1.04x  rot R* 1.16x
+  dbpedia_ada2           cv=0.181 aniso=0.831 f=0.5986 kurt=+0.49 pr=0.114 | rot c_Q 1.15x  rot R* 2.02x
+  msmarco_ada2           cv=0.197 aniso=0.823 f=0.5909 kurt=-0.02 pr=0.127 | rot c_Q 1.20x  rot R* 2.02x
+  msmarco_e5m            cv=1.163 aniso=0.718 f=0.7570 kurt=+0.01 pr=0.055 | rot c_Q 0.63x  rot R* 0.81x
+  glove                  cv=0.088 aniso=0.354 f=0.7963 kurt=+0.10 pr=0.880 | rot c_Q 0.94x  rot R* 1.21x
+/home/sieun/projects/BBQETA/src/whywins.py:53: RuntimeWarning: invalid value encountered in divide
+  f = np.abs(S).sum(1) / (np.sqrt(d) * np.linalg.norm(S, axis=1))
+  gist                   cv=0.366 aniso=0.868 f=nan kurt=+3.42 pr=0.042 | rot c_Q nanx  rot R* 0.00x
+
+Spearman over 15 configurations
+property       rot c_Q ratio   rot R* ratio
+coord_cv                 nan         -0.579
+aniso                    nan          0.071
+f_mean                   nan            nan
+kurt                     nan         -0.171
+pr                       nan          0.100
+d                        nan          0.103

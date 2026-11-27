@@ -1,0 +1,1 @@
+Sec 1: HNSW vs IVF candidate generation at Recall@10 >= 0.99 (MS MARCO Qwen-1024, 1-bit ADC, T=1)

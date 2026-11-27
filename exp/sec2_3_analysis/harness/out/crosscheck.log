@@ -1,0 +1,3 @@
+[1] RaBitQ-1bit containment@80: ours 0.99920  faiss 0.99940  delta -0.00020
+[3] rank vs brute force: max |diff| = 0
+-> /home/sieun/projects/BBQETA/out/crosscheck_msmarco_qw06.json

@@ -1,0 +1,92 @@
+# Figure 1 (Section 1), the two motivation panels, one PDF each, plus the
+# legend strip for panel (b).
+#
+# Restyled onto the house furniture of the experiment figures: same border
+# weight, mirrored ticks, same type sizes and the same plot-box aspect.  The
+# fills are the paper's own series colours rather than a grey ramp, and the
+# "unresolved" slab is a light solid instead of a hatch -- the hatch was what
+# made the panel read as noise.
+#
+# Panel (b) covers 2022-2025: 193 evaluation groups from 40 papers.  The
+# caption has to carry those two numbers, not the six-year 361/71.
+#
+#   gnuplot fig1.gp    ->  f1a.pdf f1b.pdf f1_legend.pdf
+
+PW = 1.6384                      # 0.49\columnwidth, two across in a figure
+load "house.gp"
+
+MODN = "#E8336D"    # modern Transformer / API embeddings
+OTHR = "#FF8000"    # other learned
+CONV = "#6E86B8"    # conventional descriptors, muted so the learned slabs lead
+UNRS = "#C9C9C9"    # could not be resolved from the paper
+XLO = 2021.45
+XHI = 2025.55
+
+set xrange [XLO:XHI]
+unset mxtics
+
+# ---------------------------------------------------------------- (a) -------
+# Download activity in Hugging Face's sentence-transformers namespace, as
+# published, relative to 2022.
+set output "f1a.pdf"
+set xtics ("2022" 2022,"2023" 2023,"2024" 2024,"2025" 2025) font ",7"
+set yrange [0:17.5]; set ytics 0,5,15 font FT; set mytics 5
+set ylabel "downloads" font FA offset 0.8,0 tc rgb INK
+plot "motiv/st_activity.dat" u 1:3 w lp lc rgb "#0A0AF0" lw LW pt 7 ps 0.55 notitle, \
+     "motiv/st_activity.dat" u 1:($1 == 2022 ? $3 : NaN):("1{/Symbol \264}") \
+         w labels left offset char 0.1,0.9 font FN tc rgb INK notitle, \
+     "motiv/st_activity.dat" u 1:($1 == 2025 ? $3 : NaN):("13.3{/Symbol \264}") \
+         w labels right offset char -0.4,0.6 font FN tc rgb INK notitle
+unset output
+
+# ---------------------------------------------------------------- (b) -------
+# What those evaluations actually ran on: the representation mix of the ANN
+# evaluations in VLDB papers, as 100% stacked bars, one per year.
+set output "f1b.pdf"
+load "house.gp"
+set xrange [XLO:XHI]; unset mxtics
+set yrange [0:100]; set ytics 0,25,100 font FT; set mytics 5
+set ylabel "share (%)" font FA offset 1.9,0 tc rgb INK
+set boxwidth 0.78
+set xtics ()
+NL = 20
+do for [i=1:6] {
+    yr = system(sprintf("awk '!/^#/ && NF {c++; if (c==%d) print $1}' motiv/vldb_corpora.dat", i))
+    ng = system(sprintf("awk '!/^#/ && NF {c++; if (c==%d) print $3}' motiv/vldb_corpora.dat", i))
+    if (yr+0 >= XLO && yr+0 <= XHI) {
+        set xtics add (yr yr+0)
+        # drawn as a label, not a second tick line, so the year keeps the same
+        # baseline as panel (a) and the count sits clearly under it
+        set label NL sprintf("n=%s", ng) at first yr+0, graph -0.27 center \
+            font ",6.3" tc rgb INK front
+        NL = NL + 1
+    }
+}
+set xtics font ",7" offset 0,0.25 scale 0
+set style fill solid 1.0 noborder
+plot "motiv/vldb_pct.dat" u 1:5 w boxes lc rgb UNRS notitle, \
+     ""                   u 1:4 w boxes lc rgb CONV notitle, \
+     ""                   u 1:3 w boxes lc rgb OTHR notitle, \
+     ""                   u 1:2 w boxes lc rgb MODN notitle, \
+     ""                   u 1:($2 >= 15 ? $2/2 : NaN):7 \
+         w labels center font FN tc rgb "white" notitle, \
+     ""                   u 1:($2 > 0 && $2 < 15 ? $2 + 6.5 : NaN):7 \
+         w labels center font FN tc rgb INK notitle
+unset output
+
+# ------------------------------------------------------------ legend --------
+# Panel (b)'s categories only, so the strip is one panel wide and sits under
+# that panel.
+set terminal pdfcairo enhanced font "Liberation Sans,8" fontscale 0.75 \
+    linewidth 1 size 3.3437in,0.270in
+set output "f1_legend.pdf"
+unset border; unset tics; unset xlabel; unset ylabel
+set lmargin at screen 0; set rmargin at screen 1
+set bmargin at screen 0; set tmargin at screen 1
+set xrange [0:1]; set yrange [0:1]
+set style fill solid 1.0 noborder
+set key at graph 0.717,1.02 center top horizontal maxrows 2 reverse Left \
+    samplen 0.9 spacing 1.15 width -2.6 font ",7" tc rgb INK
+plot NaN w boxes lc rgb MODN t "Modern",       NaN w boxes lc rgb CONV t "Conventional", \
+     NaN w boxes lc rgb OTHR t "Other learned", NaN w boxes lc rgb UNRS t "Unresolved"
+unset output

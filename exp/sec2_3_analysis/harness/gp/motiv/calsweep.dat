@@ -1,0 +1,10 @@
+# msmarco_qw06 ef=256, pi=0.00927; 400 calibrations per target
+# margin = achieved global Recall@10 minus target, in percentage points.
+# Repetitions that certify nothing are carried at recall 1 (the value the
+# exhaustive fallback guarantees); escal is their share.
+# i target margin p05 p95 escal R_fin achieved
+1 0.9000 0.1242 -1.6016 1.5121 0.0000 13.8 0.90124
+2 0.9500 0.0667 -0.9893 1.0287 0.0000 18.4 0.95067
+3 0.9750 0.0503 -0.7548 0.7561 0.0000 24.6 0.97550
+4 0.9900 0.3379 -0.5584 1.0000 0.4675 41.5 0.99338
+5 0.9950 0.4509 0.5000 0.5000 0.9575 56.1 0.99951

@@ -1,0 +1,9 @@
+# msmarco_qw06 ef=256, m=1000, 400 replications.
+# Per-query Recall@10 shares, pooled over the replicates that certified;
+# replicates with tau=inf are counted as failures, not as recall 1.
+# i target ten nine eight seven_or_less fail mean reads
+1 0.9000 0.36316 0.38591 0.17835 0.07259 0.0000 0.90124 13.8
+2 0.9500 0.62489 0.28594 0.06896 0.02021 0.0000 0.95067 18.4
+3 0.9750 0.80522 0.15842 0.02779 0.00857 0.0000 0.97550 24.6
+4 0.9900 0.90386 0.07737 0.01363 0.00514 0.4675 0.98757 41.5
+5 0.9950 0.91288 0.06849 0.01328 0.00534 0.9575 0.98844 56.1

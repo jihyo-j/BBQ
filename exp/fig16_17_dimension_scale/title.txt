@@ -1,0 +1,1 @@
+Fig 16 (MRL dimension, NQ Qwen3-8B) + Fig 17 (scale 10M/50M/100M, MS MARCO Qwen-1024), Sec 6.5

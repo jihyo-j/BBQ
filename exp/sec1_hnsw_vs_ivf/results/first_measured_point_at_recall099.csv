@@ -1,0 +1,3 @@
+method,parameter,parameter_value,recall_at_10,onebit_distance_evals_per_query,fp32_refinements_per_query,ivf_over_hnsw_eval_ratio
+HNSW,efSearch,512,0.992793,9532.71,55.0418,81.65390534276193
+IVF,nprobe,768,0.99592,778383.0,77.4485,81.65390534276193

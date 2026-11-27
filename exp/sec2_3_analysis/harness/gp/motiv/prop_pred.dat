@@ -1,0 +1,48 @@
+# binomial prediction P[Bin(m,pi) > m-l] at the measured m only.
+# m-l = floor(rho(m+1))-1 steps by one every 1/rho queries, so the
+# prediction is a sawtooth in m; evaluating it at the same m as the
+# measurement compares like with like.
+# Quora/Qwen ef=1024 pi=0.00423
+100 0.3457
+200 0.2080
+400 0.0918
+800 0.0224
+1600 0.0017
+3000 0.0000
+
+
+# MS MARCO/Qwen ef=512 pi=0.00582
+100 0.4420
+200 0.3243
+400 0.2057
+800 0.0991
+1600 0.0282
+3000 0.0038
+
+
+# MS MARCO/BGE-M3 ef=1024 pi=0.00995
+100 0.6321
+200 0.5926
+400 0.5636
+800 0.5421
+1600 0.5258
+3000 0.5137
+
+
+# NQ/Qwen ef=128 pi=0.01347
+100 0.7424
+200 0.7524
+400 0.7872
+800 0.8436
+1600 0.9106
+
+
+# FEVER/BGE-M3 ef=1024 pi=0.01468
+100 0.7722
+200 0.7934
+400 0.8391
+800 0.9005
+1600 0.9586
+3000 0.9899
+
+

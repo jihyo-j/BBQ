@@ -1,0 +1,112 @@
+# Six-year (2021-2026) side-by-side variant, superseded by the 2022-2025
+# embuse_side.gp.  Its caption counts are 361 groups / 71 papers.
+# THIS IS THE FIGURE THE PAPER SHIPS -- its output is copied to
+# paper/figures/bbq/embuse.pdf.
+#
+# Side-by-side variant of the intro motivation figure: both panels in one
+# column, next to each other instead of stacked.  Same data and same palette as
+# embuse.gp -- the pair goes side by side so the float clears
+# the top of page 1's right column.  Stacked (embuse.gp) also reaches page 1,
+# but leaves a 102pt hole in that column and pushes section 1 to page 2.
+# What side by side costs: no share figures inside the bars (the slab is 11pt
+# and "19.8" is 14.5pt), two-digit years, and an n row at 5.5pt carrying "n="
+# on the first bar only.  Fonts and tick style still follow recall_qps.gp.
+
+if (!exists("NAVY")) NAVY = "#6A62F2"
+if (!exists("MOD"))  MOD  = "#DB2E5C"
+if (!exists("OTHR")) OTHR = "#9A9A9A"
+if (!exists("CONV")) CONV = "#C9C9C9"
+if (!exists("HATCH"))HATCH= "#A8A8A8"
+if (!exists("HRULE"))HRULE= "#B4B4B4"
+if (!exists("OUT"))  OUT  = "embuse_side.pdf"
+if (!exists("TS"))   TS   = 6.5   # tick font size, shrunk to fit half a column
+
+INK = "#262626"
+
+set terminal pdfcairo enhanced font "Liberation Sans,8" fontscale 0.75 \
+    linewidth 1 size 3.33in,1.72in
+set output OUT
+
+set border 3 lw 1.0
+set tics in nomirror scale 0.8,0.4 tc rgb INK
+unset x2tics; unset y2tics; unset grid
+set bmargin 0; set tmargin 0; set lmargin 0; set rmargin 0
+
+set multiplot
+
+# ---------------------------------------------------------------- (a)
+set lmargin at screen 0.150
+set rmargin at screen 0.370
+set tmargin at screen 0.855
+set bmargin at screen 0.335
+set title "(a) ST activity" font ",7.5" offset 0,-0.5 tc rgb INK
+unset xlabel
+set ylabel "Relative downloads" font ",7" offset 1.3,0 tc rgb INK
+set xrange [2021.7:2025.65]
+set xtics ("'22" 2022, "'23" 2023, "'24" 2024, "'25" 2025) \
+          font sprintf(",%g", TS) offset 0,0.4
+unset mxtics
+set yrange [0:15]
+set ytics 0,5,15 font sprintf(",%g", TS)
+unset mytics
+unset key
+plot "st_activity.dat" u 1:3 w lp lc rgb NAVY lw 1.8 pt 7 ps 0.42 notitle, \
+     "st_activity.dat" u 1:($1 == 2022 ? $3 : NaN):("1{/Symbol \264}") \
+         w labels left offset char -0.2,0.9 font ",6" tc rgb INK notitle, \
+     "st_activity.dat" u 1:($1 == 2025 ? $3 : NaN):("13.3{/Symbol \264}") \
+         w labels right offset char -0.7,0.4 font ",6" tc rgb INK notitle
+
+# ---------------------------------------------------------------- (b)
+set lmargin at screen 0.520
+set rmargin at screen 0.988
+set tmargin at screen 0.855
+set bmargin at screen 0.335
+set title "(b) VLDB evaluation mix" font ",7.5" offset 0,-0.5 tc rgb INK
+set ylabel "Dataset share (%)" font ",7" offset 1.3,0 tc rgb INK
+set xrange [2020.45:2026.55]
+set yrange [0:100]
+set ytics 0,25,100 font sprintf(",%g", TS)
+unset mytics
+unset key
+set boxwidth 0.70
+
+# Two-digit years: at half a column each bar slot is about 17pt and a four-digit
+# year set in 6pt is 15.3pt, which collides with its neighbours once the n line
+# is there too.  The full years are on the stacked version and in the caption.
+set xtics ()
+do for [i=1:6] {
+    yr = system(sprintf("awk '!/^#/ && NF {c++; if (c==%d) print $1}' vldb_corpora.dat", i))
+    ng = system(sprintf("awk '!/^#/ && NF {c++; if (c==%d) print $3}' vldb_corpora.dat", i))
+    # "n=" on the first bar only: spelling it out six times makes the widest
+    # pair (116, 150) touch at this width, and the caption defines n anyway.
+    set xtics add (sprintf("{/*0.95 '%s}\n{/*0.85 %s%s}", substr(yr,3,4), \
+                           (i == 1 ? "n=" : ""), ng) yr+0)
+}
+set xtics font sprintf(",%g", TS) offset 0,0.4 scale 0
+unset mxtics
+
+# No in-slab share numbers here: the bar is about 11pt wide and "19.8" is
+# 14.5pt, so the figures would hang off the slab.  They stay on the stacked
+# version; the 2026 shares are given in the text.
+set style fill pattern 5 border lc rgb HRULE
+plot "vldb_pct.dat" u 1:5 w boxes lc rgb HATCH notitle
+set style fill solid 1.0 noborder
+plot "vldb_pct.dat" u 1:4 w boxes lc rgb CONV notitle, \
+     "vldb_pct.dat" u 1:3 w boxes lc rgb OTHR notitle, \
+     "vldb_pct.dat" u 1:2 w boxes lc rgb MOD  notitle
+
+# ---------------------------------------------------------------- legend
+unset border; unset tics; unset xlabel; unset ylabel; unset title
+set lmargin at screen 0; set rmargin at screen 1
+set bmargin at screen 0; set tmargin at screen 1
+set xrange [0:1]; set yrange [0:1]
+set style fill solid 1.0 noborder
+set key horizontal maxcols 2 reverse Left center at screen 0.480,0.075 \
+    samplen 1.2 spacing 1.1 font ",6" tc rgb INK
+plot NaN w boxes fs solid 1.0 noborder lc rgb MOD  t "Modern", \
+     NaN w boxes fs solid 1.0 noborder lc rgb CONV t "Conventional", \
+     NaN w boxes fs solid 1.0 noborder lc rgb OTHR t "Other learned", \
+     NaN w boxes fs pattern 5 border lc rgb HRULE lc rgb HATCH t "Unresolved"
+
+unset multiplot
+unset output

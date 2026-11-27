@@ -1,0 +1,980 @@
+{
+ "key": "msmarco_qw8",
+ "corpus": "MS MARCO",
+ "encoder": "Qwen3-8B",
+ "N": 1000000,
+ "nq": 1000,
+ "D": 4096,
+ "dims": [
+  32,
+  64,
+  128,
+  256,
+  512,
+  1024,
+  2048,
+  4096
+ ],
+ "arms": [
+  "sym_bq",
+  "adc_bq",
+  "adc_bq_c",
+  "adc_bq_cb",
+  "pq",
+  "opq",
+  "sq4",
+  "sq8",
+  "rabitq1",
+  "tq1"
+ ],
+ "nice": {
+  "sym_bq": "Sym-BQ",
+  "adc_bq": "ADC-BQ",
+  "adc_bq_c": "ADC-BQ +centre",
+  "adc_bq_cb": "ADC-BQ +centre+scale",
+  "pq": "PQ",
+  "opq": "OPQ",
+  "sq4": "SQ-4bit",
+  "sq8": "SQ-8bit",
+  "rabitq1": "RaBitQ-1bit",
+  "tq1": "TurboQuant-1bit"
+ },
+ "rows": [
+  {
+   "d": 32,
+   "f_sign_cos": 0.8015219642408117,
+   "c_Q_iso": 0.7460373649419891,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 4.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.6315237119199812,
+     "c_Q": 1.2358324111280619,
+     "c_Q_med": 1.2201155568829707,
+     "c_Q_p95": 1.5069897460932071,
+     "ndeg": 0,
+     "secs": 3.6
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 4.0,
+     "note": "q.sign(x)",
+     "kappa": 0.7822922616288243,
+     "c_Q": 0.7966847865357813,
+     "c_Q_med": 0.7926913855732227,
+     "c_Q_p95": 0.9081559031853762,
+     "ndeg": 0,
+     "secs": 3.7
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 4.0,
+     "note": "shared centroid",
+     "kappa": 0.8104082203002035,
+     "c_Q": 0.7229804738092797,
+     "c_Q_med": 0.7214010566922249,
+     "c_Q_p95": 0.8077783195466779,
+     "ndeg": 0,
+     "secs": 3.7
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 8.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.809566811174659,
+     "c_Q": 0.725176020804653,
+     "c_Q_med": 0.7231469416944253,
+     "c_Q_p95": 0.8108386717047055,
+     "ndeg": 0,
+     "secs": 3.8
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 4.0,
+     "note": "M=4 x 8bit",
+     "kappa": 0.8480674300943276,
+     "c_Q": 0.6245211248845243,
+     "c_Q_med": 0.6213009750397394,
+     "c_Q_p95": 0.7147051178078638,
+     "ndeg": 0,
+     "secs": 3.7
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 4.0,
+     "note": "M=4 x 8bit + learned rotation",
+     "kappa": 0.8494890363087656,
+     "c_Q": 0.6207695404231349,
+     "c_Q_med": 0.6183756517174424,
+     "c_Q_p95": 0.708589874614404,
+     "ndeg": 0,
+     "secs": 4.2
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 16.0,
+     "note": "per-dim range",
+     "kappa": 0.9896027007446402,
+     "c_Q": 0.14508823381084285,
+     "c_Q_med": 0.14482229531826318,
+     "c_Q_p95": 0.16003814611839515,
+     "ndeg": 0,
+     "secs": 3.6
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 32.0,
+     "note": "per-dim range",
+     "kappa": 0.9999631060412786,
+     "c_Q": 0.008574328504541505,
+     "c_Q_med": 0.00856289691442969,
+     "c_Q_p95": 0.009471040590268065,
+     "ndeg": 0,
+     "secs": 3.6
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 8.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.8108121415467974,
+     "c_Q": 0.7219307835150375,
+     "c_Q_med": 0.7222344265587721,
+     "c_Q_p95": 0.8076595982973056,
+     "ndeg": 0,
+     "secs": 3.8
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 4.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.7888264392006079,
+     "c_Q": 0.7794153176910362,
+     "c_Q_med": 0.7775151553634989,
+     "c_Q_p95": 0.8735756140005086,
+     "ndeg": 0,
+     "secs": 3.7
+    }
+   }
+  },
+  {
+   "d": 64,
+   "f_sign_cos": 0.7927225356627415,
+   "c_Q_iso": 0.7689735077190949,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 8.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.6266246080862183,
+     "c_Q": 1.2504959269222908,
+     "c_Q_med": 1.2390962042950342,
+     "c_Q_p95": 1.5160504533129802,
+     "ndeg": 0,
+     "secs": 3.6
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 8.0,
+     "note": "q.sign(x)",
+     "kappa": 0.7900475892920696,
+     "c_Q": 0.7762300928136566,
+     "c_Q_med": 0.7738254264586757,
+     "c_Q_p95": 0.8683921706624886,
+     "ndeg": 0,
+     "secs": 3.6
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 8.0,
+     "note": "shared centroid",
+     "kappa": 0.8173862002233432,
+     "c_Q": 0.7047846975434895,
+     "c_Q_med": 0.7037623048513915,
+     "c_Q_p95": 0.7770735808621496,
+     "ndeg": 0,
+     "secs": 3.8
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 12.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.817285936903786,
+     "c_Q": 0.7050464433840481,
+     "c_Q_med": 0.704259388536471,
+     "c_Q_p95": 0.7787062443706829,
+     "ndeg": 0,
+     "secs": 3.9
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 8.0,
+     "note": "M=8 x 8bit",
+     "kappa": 0.8572071807418766,
+     "c_Q": 0.6003932822676092,
+     "c_Q_med": 0.5997538843552925,
+     "c_Q_p95": 0.6793489875575172,
+     "ndeg": 0,
+     "secs": 3.9
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 8.0,
+     "note": "M=8 x 8bit + learned rotation",
+     "kappa": 0.8717181417203457,
+     "c_Q": 0.5616200949315375,
+     "c_Q_med": 0.5586887074815292,
+     "c_Q_p95": 0.6384205543196759,
+     "ndeg": 0,
+     "secs": 5.2
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 32.0,
+     "note": "per-dim range",
+     "kappa": 0.9897870541382843,
+     "c_Q": 0.1437857076469197,
+     "c_Q_med": 0.14382427394468694,
+     "c_Q_p95": 0.1576641987898279,
+     "ndeg": 0,
+     "secs": 3.7
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 64.0,
+     "note": "per-dim range",
+     "kappa": 0.9999636771561864,
+     "c_Q": 0.008508379988452443,
+     "c_Q_med": 0.008512132819125356,
+     "c_Q_p95": 0.009343389445725962,
+     "ndeg": 0,
+     "secs": 3.7
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 12.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.8337934615474467,
+     "c_Q": 0.6619943776787206,
+     "c_Q_med": 0.6607667130884389,
+     "c_Q_p95": 0.7362330660976945,
+     "ndeg": 0,
+     "secs": 4.0
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 8.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.8118007622436253,
+     "c_Q": 0.719340968743677,
+     "c_Q_med": 0.7191388274424431,
+     "c_Q_p95": 0.8004799075393163,
+     "ndeg": 0,
+     "secs": 3.8
+    }
+   }
+  },
+  {
+   "d": 128,
+   "f_sign_cos": 0.7891019381912149,
+   "c_Q_iso": 0.7784320834049797,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 16.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.6417205187270276,
+     "c_Q": 1.199425536221087,
+     "c_Q_med": 1.1881954683374059,
+     "c_Q_p95": 1.4098256438975119,
+     "ndeg": 0,
+     "secs": 3.8
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 16.0,
+     "note": "q.sign(x)",
+     "kappa": 0.8050873378766499,
+     "c_Q": 0.7368386942576426,
+     "c_Q_med": 0.7365801895561537,
+     "c_Q_p95": 0.8118792508889878,
+     "ndeg": 0,
+     "secs": 3.8
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 16.0,
+     "note": "shared centroid",
+     "kappa": 0.8298375835329493,
+     "c_Q": 0.6723537043689333,
+     "c_Q_med": 0.6740360337808493,
+     "c_Q_p95": 0.7337263541882421,
+     "ndeg": 0,
+     "secs": 4.2
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 20.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.83018684595877,
+     "c_Q": 0.6714422964729402,
+     "c_Q_med": 0.6736484382008124,
+     "c_Q_p95": 0.7344277245954046,
+     "ndeg": 0,
+     "secs": 4.4
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 16.0,
+     "note": "M=16 x 8bit",
+     "kappa": 0.8704795304691042,
+     "c_Q": 0.5650674605134888,
+     "c_Q_med": 0.5640381608183618,
+     "c_Q_p95": 0.630132221526277,
+     "ndeg": 0,
+     "secs": 4.2
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 16.0,
+     "note": "M=16 x 8bit + learned rotation",
+     "kappa": 0.8894221444046148,
+     "c_Q": 0.5134118933459567,
+     "c_Q_med": 0.5117470036745178,
+     "c_Q_p95": 0.5752491532690566,
+     "ndeg": 0,
+     "secs": 7.9
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 64.0,
+     "note": "per-dim range",
+     "kappa": 0.9903728156194861,
+     "c_Q": 0.13956462414237936,
+     "c_Q_med": 0.1397461096182961,
+     "c_Q_p95": 0.15218806966777762,
+     "ndeg": 0,
+     "secs": 3.8
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 128.0,
+     "note": "per-dim range",
+     "kappa": 0.9999657666286853,
+     "c_Q": 0.00826176981277093,
+     "c_Q_med": 0.008270588300699534,
+     "c_Q_p95": 0.008998359040382164,
+     "ndeg": 0,
+     "secs": 3.7
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 20.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.8520335536140645,
+     "c_Q": 0.6141850869651958,
+     "c_Q_med": 0.6135436978992156,
+     "c_Q_p95": 0.678226965062072,
+     "ndeg": 0,
+     "secs": 4.4
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 16.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.8300063617881276,
+     "c_Q": 0.6718965728562589,
+     "c_Q_med": 0.6704159729878801,
+     "c_Q_p95": 0.7424584429523851,
+     "ndeg": 0,
+     "secs": 3.9
+    }
+   }
+  },
+  {
+   "d": 256,
+   "f_sign_cos": 0.7857061516124164,
+   "c_Q_iso": 0.7873171215720917,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 32.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.6763600379047487,
+     "c_Q": 1.0915410040593558,
+     "c_Q_med": 1.085266049075495,
+     "c_Q_p95": 1.2603570704960132,
+     "ndeg": 0,
+     "secs": 3.9
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 32.0,
+     "note": "q.sign(x)",
+     "kappa": 0.8309278238789475,
+     "c_Q": 0.6695026384463585,
+     "c_Q_med": 0.6717160679931496,
+     "c_Q_p95": 0.7322144363400879,
+     "ndeg": 0,
+     "secs": 3.9
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 32.0,
+     "note": "shared centroid",
+     "kappa": 0.8515903343257417,
+     "c_Q": 0.6153972484408974,
+     "c_Q_med": 0.6154492232999367,
+     "c_Q_p95": 0.6731948870705745,
+     "ndeg": 0,
+     "secs": 4.7
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 36.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.8520143063622181,
+     "c_Q": 0.6142775423609076,
+     "c_Q_med": 0.614429169301835,
+     "c_Q_p95": 0.6729619000250027,
+     "ndeg": 0,
+     "secs": 5.2
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 32.0,
+     "note": "M=32 x 8bit",
+     "kappa": 0.8962706964758919,
+     "c_Q": 0.4943254158724051,
+     "c_Q_med": 0.49517133412163167,
+     "c_Q_p95": 0.552453437138555,
+     "ndeg": 0,
+     "secs": 4.8
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 32.0,
+     "note": "M=32 x 8bit + learned rotation",
+     "kappa": 0.9133272321480757,
+     "c_Q": 0.44530268257174177,
+     "c_Q_med": 0.44492996607509694,
+     "c_Q_p95": 0.49863907111290956,
+     "ndeg": 0,
+     "secs": 11.0
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 128.0,
+     "note": "per-dim range",
+     "kappa": 0.9918462336195707,
+     "c_Q": 0.12830334561606158,
+     "c_Q_med": 0.12831868599604346,
+     "c_Q_p95": 0.139732191831338,
+     "ndeg": 0,
+     "secs": 4.0
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 256.0,
+     "note": "per-dim range",
+     "kappa": 0.99997101669424,
+     "c_Q": 0.007602295252179436,
+     "c_Q_med": 0.007600631783087206,
+     "c_Q_p95": 0.008273444780396834,
+     "ndeg": 0,
+     "secs": 4.0
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 36.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.8767616519672473,
+     "c_Q": 0.5481905349613667,
+     "c_Q_med": 0.5485510131472164,
+     "c_Q_p95": 0.6042191975354835,
+     "ndeg": 0,
+     "secs": 5.7
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 32.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.8579102170415616,
+     "c_Q": 0.5986350912582615,
+     "c_Q_med": 0.5984911051055091,
+     "c_Q_p95": 0.6655461688983554,
+     "ndeg": 0,
+     "secs": 4.5
+    }
+   }
+  },
+  {
+   "d": 512,
+   "f_sign_cos": 0.784704286874471,
+   "c_Q_iso": 0.789941261944515,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 64.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.7283630726679744,
+     "c_Q": 0.9420189288812443,
+     "c_Q_med": 0.9384402738317488,
+     "c_Q_p95": 1.0786114445942305,
+     "ndeg": 0,
+     "secs": 4.4
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 64.0,
+     "note": "q.sign(x)",
+     "kappa": 0.8624861552784671,
+     "c_Q": 0.5864999103364621,
+     "c_Q_med": 0.5865563078734015,
+     "c_Q_p95": 0.6477849025200896,
+     "ndeg": 0,
+     "secs": 4.5
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 64.0,
+     "note": "shared centroid",
+     "kappa": 0.881429776754237,
+     "c_Q": 0.5355320305344913,
+     "c_Q_med": 0.5344751347179865,
+     "c_Q_p95": 0.5909149819431307,
+     "ndeg": 0,
+     "secs": 5.8
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 68.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.8819442580609695,
+     "c_Q": 0.534124747833908,
+     "c_Q_med": 0.5329850452826856,
+     "c_Q_p95": 0.5888201835604925,
+     "ndeg": 0,
+     "secs": 6.9
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 64.0,
+     "note": "M=64 x 8bit",
+     "kappa": 0.9201465617529024,
+     "c_Q": 0.42498289704997577,
+     "c_Q_med": 0.4246116608547681,
+     "c_Q_p95": 0.4730108834746759,
+     "ndeg": 0,
+     "secs": 5.9
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 64.0,
+     "note": "M=64 x 8bit + learned rotation",
+     "kappa": 0.9370625330936946,
+     "c_Q": 0.37203347836105494,
+     "c_Q_med": 0.3715772611724013,
+     "c_Q_p95": 0.41590219724641797,
+     "ndeg": 0,
+     "secs": 24.7
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 256.0,
+     "note": "per-dim range",
+     "kappa": 0.9936121507301824,
+     "c_Q": 0.11338386353144307,
+     "c_Q_med": 0.11334740663474731,
+     "c_Q_p95": 0.1239656087439818,
+     "ndeg": 0,
+     "secs": 4.5
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 512.0,
+     "note": "per-dim range",
+     "kappa": 0.9999773590509218,
+     "c_Q": 0.006717575980076153,
+     "c_Q_med": 0.0067147914025144076,
+     "c_Q_p95": 0.007347029430836432,
+     "ndeg": 0,
+     "secs": 4.6
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 68.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.9023451491669792,
+     "c_Q": 0.4772306692753361,
+     "c_Q_med": 0.4764789926568637,
+     "c_Q_p95": 0.5269813228427829,
+     "ndeg": 0,
+     "secs": 7.5
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 64.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.8859935381104628,
+     "c_Q": 0.5229724442029532,
+     "c_Q_med": 0.5226204137860828,
+     "c_Q_p95": 0.5781776204291074,
+     "ndeg": 0,
+     "secs": 5.2
+    }
+   }
+  },
+  {
+   "d": 1024,
+   "f_sign_cos": 0.7835624866935292,
+   "c_Q_iso": 0.7929335552228781,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 128.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.7935060328282578,
+     "c_Q": 0.7672419734586904,
+     "c_Q_med": 0.7642778877545378,
+     "c_Q_p95": 0.8768027969022488,
+     "ndeg": 0,
+     "secs": 5.3
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 128.0,
+     "note": "q.sign(x)",
+     "kappa": 0.9007431214895061,
+     "c_Q": 0.4817081954564248,
+     "c_Q_med": 0.4810333064118725,
+     "c_Q_p95": 0.5376322784192344,
+     "ndeg": 0,
+     "secs": 5.3
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 128.0,
+     "note": "shared centroid",
+     "kappa": 0.9141821143360287,
+     "c_Q": 0.44281597332898476,
+     "c_Q_med": 0.44228164864625874,
+     "c_Q_p95": 0.4918316242896742,
+     "ndeg": 0,
+     "secs": 8.0
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 132.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.9147462165051704,
+     "c_Q": 0.44114160087554,
+     "c_Q_med": 0.4408027493561279,
+     "c_Q_p95": 0.4900043666949167,
+     "ndeg": 0,
+     "secs": 10.2
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 128.0,
+     "note": "M=128 x 8bit",
+     "kappa": 0.9461421825443489,
+     "c_Q": 0.3415223517180896,
+     "c_Q_med": 0.3420750628229633,
+     "c_Q_p95": 0.3829290612871399,
+     "ndeg": 0,
+     "secs": 8.7
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 128.0,
+     "note": "M=128 x 8bit + learned rotation",
+     "kappa": 0.9627109484431225,
+     "c_Q": 0.2804080139282054,
+     "c_Q_med": 0.2806506315353088,
+     "c_Q_p95": 0.3157487042519459,
+     "ndeg": 0,
+     "secs": 85.0
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 512.0,
+     "note": "per-dim range",
+     "kappa": 0.9956779056144417,
+     "c_Q": 0.0930761734405971,
+     "c_Q_med": 0.0930823657903396,
+     "c_Q_p95": 0.10336839572871145,
+     "ndeg": 0,
+     "secs": 5.4
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 1024.0,
+     "note": "per-dim range",
+     "kappa": 0.9999847216329062,
+     "c_Q": 0.005515691742037907,
+     "c_Q_med": 0.0055140723549878656,
+     "c_Q_p95": 0.006128131958462102,
+     "ndeg": 0,
+     "secs": 5.4
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 132.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.9329323867735222,
+     "c_Q": 0.3853495258369819,
+     "c_Q_med": 0.3860990044942824,
+     "c_Q_p95": 0.43168335582853706,
+     "ndeg": 0,
+     "secs": 11.1
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 128.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.9211884829178317,
+     "c_Q": 0.4218145862234448,
+     "c_Q_med": 0.42136201531315226,
+     "c_Q_p95": 0.470619434540406,
+     "ndeg": 0,
+     "secs": 6.7
+    }
+   }
+  },
+  {
+   "d": 2048,
+   "f_sign_cos": 0.7803805520402775,
+   "c_Q_iso": 0.8012819888977917,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 256.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.8540890572410934,
+     "c_Q": 0.6086228565120674,
+     "c_Q_med": 0.6056146141192027,
+     "c_Q_p95": 0.6945615083325554,
+     "ndeg": 0,
+     "secs": 18.1
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 256.0,
+     "note": "q.sign(x)",
+     "kappa": 0.9329530078232534,
+     "c_Q": 0.3852882225042182,
+     "c_Q_med": 0.38508968980439484,
+     "c_Q_p95": 0.4293537652127059,
+     "ndeg": 0,
+     "secs": 16.5
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 256.0,
+     "note": "shared centroid",
+     "kappa": 0.9423315080319657,
+     "c_Q": 0.35462454884159117,
+     "c_Q_med": 0.35369215956460565,
+     "c_Q_p95": 0.39411544055315917,
+     "ndeg": 0,
+     "secs": 49.2
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 260.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.942887437674007,
+     "c_Q": 0.3527397044580236,
+     "c_Q_med": 0.35185838418816584,
+     "c_Q_p95": 0.3929114177483505,
+     "ndeg": 0,
+     "secs": 59.3
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 256.0,
+     "note": "M=256 x 8bit",
+     "kappa": 0.9659666210808714,
+     "c_Q": 0.2671923837522544,
+     "c_Q_med": 0.268024223693791,
+     "c_Q_p95": 0.29839393769533545,
+     "ndeg": 0,
+     "secs": 23.9
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 256.0,
+     "note": "M=256 x 8bit + learned rotation",
+     "kappa": 0.9798029350087734,
+     "c_Q": 0.20360268658004935,
+     "c_Q_med": 0.20430717107900337,
+     "c_Q_p95": 0.2280422603429251,
+     "ndeg": 0,
+     "secs": 423.6
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 1024.0,
+     "note": "per-dim range",
+     "kappa": 0.9972567041612503,
+     "c_Q": 0.07405823670150376,
+     "c_Q_med": 0.07401775854069757,
+     "c_Q_p95": 0.0822965211049797,
+     "ndeg": 0,
+     "secs": 22.9
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 2048.0,
+     "note": "per-dim range",
+     "kappa": 0.999990332641815,
+     "c_Q": 0.004387158854619781,
+     "c_Q_med": 0.004382346360145006,
+     "c_Q_p95": 0.0048773057039530115,
+     "ndeg": 0,
+     "secs": 19.6
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 260.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.9573053117055824,
+     "c_Q": 0.30138981112041663,
+     "c_Q_med": 0.30203227669611155,
+     "c_Q_p95": 0.335988823020444,
+     "ndeg": 0,
+     "secs": 38.0
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 256.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.9494287884917187,
+     "c_Q": 0.3301029853850045,
+     "c_Q_med": 0.33042690793173163,
+     "c_Q_p95": 0.3693716464371934,
+     "ndeg": 0,
+     "secs": 31.5
+    }
+   }
+  },
+  {
+   "d": 4096,
+   "f_sign_cos": 0.7745570698748013,
+   "c_Q_iso": 0.8166009357556518,
+   "arms": {
+    "sym_bq": {
+     "name": "Sym-BQ",
+     "bytes_per_vec": 512.0,
+     "note": "sign(q).sign(x)",
+     "kappa": 0.9043684570583446,
+     "c_Q": 0.47110925767538253,
+     "c_Q_med": 0.4723686805603113,
+     "c_Q_p95": 0.5356760609720062,
+     "ndeg": 0,
+     "secs": 20.3
+    },
+    "adc_bq": {
+     "name": "ADC-BQ",
+     "bytes_per_vec": 512.0,
+     "note": "q.sign(x)",
+     "kappa": 0.9577013867597169,
+     "c_Q": 0.29977849862952044,
+     "c_Q_med": 0.29991588401205965,
+     "c_Q_p95": 0.3394461034412719,
+     "ndeg": 0,
+     "secs": 18.8
+    },
+    "adc_bq_c": {
+     "name": "ADC-BQ +centre",
+     "bytes_per_vec": 512.0,
+     "note": "shared centroid",
+     "kappa": 0.9634976217246711,
+     "c_Q": 0.27722927526599483,
+     "c_Q_med": 0.277154045698635,
+     "c_Q_p95": 0.31416881290047777,
+     "ndeg": 0,
+     "secs": 72.2
+    },
+    "adc_bq_cb": {
+     "name": "ADC-BQ +centre+scale",
+     "bytes_per_vec": 516.0,
+     "note": "shared centroid + per-vector scale",
+     "kappa": 0.9639871147086546,
+     "c_Q": 0.2752464278044097,
+     "c_Q_med": 0.2754804004912834,
+     "c_Q_p95": 0.31148869108151095,
+     "ndeg": 0,
+     "secs": 145.0
+    },
+    "pq": {
+     "name": "PQ",
+     "bytes_per_vec": 512.0,
+     "note": "M=512 x 8bit",
+     "kappa": 0.9811642655280319,
+     "c_Q": 0.1963688320010679,
+     "c_Q_med": 0.19636847736673857,
+     "c_Q_p95": 0.22095917475842253,
+     "ndeg": 0,
+     "secs": 83.0
+    },
+    "opq": {
+     "name": "OPQ",
+     "bytes_per_vec": 512.0,
+     "note": "M=512 x 8bit + learned rotation",
+     "kappa": 0.9903831840814783,
+     "c_Q": 0.13930291385064175,
+     "c_Q_med": 0.13916201200837125,
+     "c_Q_p95": 0.15744793424726958,
+     "ndeg": 0,
+     "secs": 2269.6
+    },
+    "sq4": {
+     "name": "SQ-4bit",
+     "bytes_per_vec": 2048.0,
+     "note": "per-dim range",
+     "kappa": 0.9983942190462769,
+     "c_Q": 0.05658568527678722,
+     "c_Q_med": 0.056522030123048704,
+     "c_Q_p95": 0.06373654051590057,
+     "ndeg": 0,
+     "secs": 93.2
+    },
+    "sq8": {
+     "name": "SQ-8bit",
+     "bytes_per_vec": 4096.0,
+     "note": "per-dim range",
+     "kappa": 0.9999943423430205,
+     "c_Q": 0.0033546600767084466,
+     "c_Q_med": 0.0033520817062911885,
+     "c_Q_p95": 0.0037783434503094932,
+     "ndeg": 0,
+     "secs": 73.2
+    },
+    "rabitq1": {
+     "name": "RaBitQ-1bit",
+     "bytes_per_vec": 516.0,
+     "note": "centroid + rotation + beta",
+     "kappa": 0.9763115953363646,
+     "c_Q": 0.22106494281977496,
+     "c_Q_med": 0.22094441798220316,
+     "c_Q_p95": 0.2495399740740137,
+     "ndeg": 0,
+     "secs": 303.4
+    },
+    "tq1": {
+     "name": "TurboQuant-1bit",
+     "bytes_per_vec": 512.0,
+     "note": "random rotation + MSE 1-bit codebook",
+     "kappa": 0.9718605317390985,
+     "c_Q": 0.2417923788282954,
+     "c_Q_med": 0.2418512014176908,
+     "c_Q_p95": 0.27267868607704704,
+     "ndeg": 0,
+     "secs": 198.9
+    }
+   }
+  }
+ ]
+}

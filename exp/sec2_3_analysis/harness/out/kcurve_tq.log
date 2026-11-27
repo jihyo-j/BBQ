@@ -1,0 +1,6 @@
+rewrote /home/sieun/projects/BBQETA/out/kcurve_msmarco_qw06.dat with tq1 (c_Q median 0.389)
+   k=  1  tq1 p95 R* = 3
+   k=  5  tq1 p95 R* = 17
+   k= 10  tq1 p95 R* = 43
+   k= 50  tq1 p95 R* = 368
+   k=100  tq1 p95 R* = 949

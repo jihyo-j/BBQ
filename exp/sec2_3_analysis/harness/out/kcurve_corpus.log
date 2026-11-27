@@ -1,0 +1,8 @@
+wrote /home/sieun/projects/BBQETA/out/kcurve_msmarco_bgem3.dat and _perq.npz
+   adc_bq   c_Q=0.45  p95 R* at k=1,5,10,30,100:       4      35      93     430    2041
+   tq1      c_Q=0.46  p95 R* at k=1,5,10,30,100:       5      39     106     572    2415
+   rabitq1  c_Q=0.38  p95 R* at k=1,5,10,30,100:       4      30      83     397    1660
+wrote /home/sieun/projects/BBQETA/out/kcurve_quora_qw06.dat and _perq.npz
+   adc_bq   c_Q=0.40  p95 R* at k=1,5,10,30,100:       2      13      34     129     643
+   tq1      c_Q=0.37  p95 R* at k=1,5,10,30,100:       2      13      33     131     556
+   rabitq1  c_Q=0.32  p95 R* at k=1,5,10,30,100:       2      13      28     103     479

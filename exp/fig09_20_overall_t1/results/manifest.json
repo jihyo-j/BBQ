@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-11-25T19:22:06.342132+09:00",
+  "threads": 1,
+  "datasets": 16,
+  "methods": 11,
+  "result_rows": 3520,
+  "complete_20_point_curves": 176,
+  "partial_curves": [],
+  "missing_curves": 0,
+  "excluded_methods": [
+    "SPANN",
+    "Elasticsearch BBQ"
+  ],
+  "notes": [
+    "DBpedia BGE is the 1M BEIR-400 set, split into 200 calibration and 200 test queries.",
+    "FP HNSW uses process-owned full FP32 vectors in RAM; QPS is the median of three rounds.",
+    "Other methods retain the QPS statistic reported by their source measurements.",
+    "Partial curves are exported as measured; no points are interpolated or fabricated."
+  ],
+  "results_csv": "experiment/latest_full16_11methods_t1/recall_qps_all_latest_t1.csv",
+  "coverage_csv": "experiment/latest_full16_11methods_t1/coverage_latest_t1.csv"
+}

@@ -1,0 +1,1 @@
+Fig 7: (a) ADC vs sym-BQ candidate preservation (MS MARCO BGE); (b) LUT vs scalar ADC throughput (Quora BGE-M3, no calibration, T=1)

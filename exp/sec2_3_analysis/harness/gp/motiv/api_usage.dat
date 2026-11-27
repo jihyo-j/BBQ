@@ -1,0 +1,12 @@
+# Observed embedding API usage.
+# Source: OpenRouter embedding rankings, data through 2026-11-17.
+#   https://openrouter.ai/rankings/embeddings
+# Rounded request counts as shown publicly; platform-internal usage, not an
+# annual total and not a global market share.  E5 is not in this top-6 table.
+# idx  requests_million  selected  short_label                 full_model
+0   153.0  1  "OpenAI 3-small"   text-embedding-3-small
+1    67.0  1  "Qwen3 8B"         Qwen3-Embedding-8B
+2    56.9  0  "Gemini Emb-2"     Gemini-Embedding-2
+3    37.7  0  "Gemini Emb-001"   Gemini-Embedding-001
+4    33.9  1  "OpenAI 3-large"   text-embedding-3-large
+5    25.2  1  "BGE-M3"           BGE-M3

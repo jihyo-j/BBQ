@@ -1,0 +1,121 @@
+"""Re-encode queries so that the query-side instruction can be ablated.
+
+Section 4 claims that part of the embedding term is set by the prompt.  That
+claim is only usable if we can reproduce the released query vectors from the
+published checkpoint: otherwise a new condition is not comparable with the
+numbers in the rest of the paper.  `gate()` is that control.  It re-encodes a
+handful of queries under the prescribed recipe and reports the mean cosine to
+the stored vectors; everything downstream should refuse to run below ~0.99.
+
+Measured gate values: Qwen3-0.6B 0.99992 on MS MARCO and 0.99994 on Quora
+(residual is fp16 storage).  BGE-large on DBpedia FAILS at 0.34 - the released
+query set has 400 rows against BEIR's 467, so the orders do not correspond and
+the mapping is still unknown.
+
+Needs torch + transformers, which are not in the system python on this box.
+Run with the scratchpad venv.
+"""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np
+from common import NTHREADS
+
+os.environ.setdefault("HF_HOME", "/home/smrc/samsung-nvme/sieun/hf_cache")
+
+# Each entry is a deployment recipe, not just a checkpoint: the pooling and the
+# query-side instruction are prescribed by the model card and are what the
+# released vectors were built with.
+MODELS = {
+    "qwen06": dict(
+        name="Qwen/Qwen3-Embedding-0.6B",
+        revision="97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+        pooling="last",            # last-token pool over a causal LM
+        pad="left",
+        instruction=("Instruct: Given a web search query, retrieve relevant "
+                     "passages that answer the query\nQuery: "),
+    ),
+    "bgel": dict(
+        name="BAAI/bge-large-en-v1.5",
+        revision=None,
+        pooling="cls",
+        pad="right",
+        instruction="Represent this sentence for searching relevant passages: ",
+    ),
+}
+
+# Same template, a different task.  Controls the alternative that any prefix of
+# this length would do.  20 tokens against the real instruction's 21.
+MISMATCH = ("Instruct: Given a product review, classify its sentiment as "
+            "positive or negative\nQuery: ")
+# Same template, no task at all.  Separates the template's own effect from the
+# task content's.  21 tokens.
+NULL = ("Instruct: The quick brown fox jumps over the lazy dog beside the "
+        "quiet river\nQuery: ")
+
+_CACHE = {}
+
+
+def _load(key):
+    if key in _CACHE:
+        return _CACHE[key]
+    try:
+        import torch
+        from transformers import AutoTokenizer, AutoModel
+    except ImportError:
+        sys.exit("encoders.py needs torch + transformers; use the scratchpad venv")
+    torch.set_num_threads(NTHREADS)
+    cfg = MODELS[key]
+    kw = {} if cfg["revision"] is None else {"revision": cfg["revision"]}
+    tok = AutoTokenizer.from_pretrained(cfg["name"], padding_side=cfg["pad"], **kw)
+    mdl = AutoModel.from_pretrained(cfg["name"], **kw).eval()
+    _CACHE[key] = (torch, tok, mdl, cfg)
+    return _CACHE[key]
+
+
+def encode(texts, model="qwen06", instruction=None, bs=32, maxlen=256, log=None):
+    """Encode and L2-normalise.  `instruction` is prepended verbatim; pass the
+    model's own via MODELS[model]['instruction'], or None for the raw query.
+
+    No EOS is appended: with Qwen3-Embedding, appending one drops the match to
+    the released vectors from 0.99992 to 0.98561, so the released set was built
+    without it.
+    """
+    torch, tok, mdl, _ = _load(model)
+    pre = instruction or ""
+    out = []
+    for i in range(0, len(texts), bs):
+        batch = [pre + t for t in texts[i:i + bs]]
+        d = tok(batch, padding=True, truncation=True, max_length=maxlen,
+                return_tensors="pt")
+        with torch.no_grad():
+            h = mdl(**d).last_hidden_state
+        h = h[:, -1] if MODELS[model]["pooling"] == "last" else h[:, 0]
+        out.append(torch.nn.functional.normalize(h, dim=-1).numpy().astype(np.float32))
+        if log and i % (bs * 20) == 0:
+            print(f"    {log} {i}/{len(texts)}", flush=True)
+    return np.concatenate(out)
+
+
+def gate(texts, stored, model="qwen06", n=64, thresh=0.99):
+    """Do we reproduce the released query vectors under the prescribed recipe?
+
+    Returns (ok, cos_with_instruction, cos_without).  A low value on BOTH means
+    the query order or the pooling does not correspond, not that the condition
+    is different -- stop rather than interpret anything downstream.
+    """
+    instr = MODELS[model]["instruction"]
+    a = encode(texts[:n], model, instr)
+    b = encode(texts[:n], model, None)
+    ca = float(np.mean(np.sum(a * stored[:n], 1)))
+    cb = float(np.mean(np.sum(b * stored[:n], 1)))
+    return (max(ca, cb) >= thresh), ca, cb
+
+
+if __name__ == "__main__":
+    import json
+    from common import load
+    MS = "/home/smrc/samsung-nvme/sieun/msmarco-qwen1024/"
+    texts = [json.loads(l)["text"] for l in open(MS + "msmarco-1m_queries.jsonl")][:64]
+    X, Q, _ = load("msmarco_qw06", 64)
+    ok, ca, cb = gate(texts, Q)
+    print(f"msmarco_qw06 gate: with={ca:.5f} without={cb:.5f} -> {'OK' if ok else 'FAIL'}")

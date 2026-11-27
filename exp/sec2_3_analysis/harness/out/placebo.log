@@ -1,0 +1,65 @@
+Loading weights:   0%|          | 0/310 [00:00<?, ?it/s]Loading weights: 100%|██████████| 310/310 [00:00<00:00, 4663.15it/s]
+  prefix 'real' = 21 tokens
+  prefix 'mismatch' = 20 tokens
+  prefix 'filler' = 21 tokens
+
+=== MS MARCO (Qwen3-0.6B, 1M docs) ===
+RESULT  real instruction (stored)                  beta= 0.825  p95 R*=    47  med=   16
+RESULT  no instruction (stored)                    beta= 0.523  p95 R*=    74  med=   22
+    enc 0/2000
+    enc 320/2000
+    enc 640/2000
+    enc 960/2000
+    enc 1280/2000
+    enc 1600/2000
+    enc 1920/2000
+RESULT  PLACEBO mismatch                           beta= 0.325  p95 R*=   130  med=   38
+    enc 0/2000
+    enc 320/2000
+    enc 640/2000
+    enc 960/2000
+    enc 1280/2000
+    enc 1600/2000
+    enc 1920/2000
+RESULT  PLACEBO filler                             beta= 0.668  p95 R*=    62  med=   19
+
+=== Quora (Qwen3-0.6B) ===
+    enc 0/64
+  Quora stored-query reproduction cos = 0.99994
+RESULT  real instruction (stored)                  beta= 0.889  p95 R*=    35  med=   14
+    enc 0/2000
+    enc 320/2000
+    enc 640/2000
+    enc 960/2000
+    enc 1280/2000
+    enc 1600/2000
+    enc 1920/2000
+RESULT  no instruction                             beta= 0.740  p95 R*=    30  med=   13
+
+DONE
+{
+ "msm/real(stored)": [
+  0.8253071114126086,
+  47.0
+ ],
+ "msm/none(stored)": [
+  0.5230569201674158,
+  74.04999999999995
+ ],
+ "msm/mismatch": [
+  0.325136257871838,
+  130.0
+ ],
+ "msm/filler": [
+  0.6678220568252463,
+  62.0
+ ],
+ "quora/real(stored)": [
+  0.8893919300826368,
+  35.0
+ ],
+ "quora/none": [
+  0.7395224044890639,
+  30.049999999999955
+ ]
+}

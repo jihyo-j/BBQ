@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-11-25T19:14:22.386565+09:00",
+  "threads": 24,
+  "datasets": 16,
+  "methods": 11,
+  "result_rows": 3520,
+  "complete_20_point_curves": 176,
+  "missing_curves": 0,
+  "excluded_methods": [
+    "SPANN",
+    "Elasticsearch BBQ"
+  ],
+  "notes": [
+    "DBpedia BGE uses the 1M BEIR-400 dataset (200 calibration / 200 test queries).",
+    "All curves contain 20 distinct requested search settings and 3 rounds.",
+    "QPS retains each source's reported statistic; FP HNSW RAM uses median-round QPS."
+  ]
+}

@@ -1,1 +1,0 @@
-Fig 13 / Sec 6.5: calibration target sweep and L_visit / L_select (MS MARCO Qwen-1024, ef=256)

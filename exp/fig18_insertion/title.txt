@@ -1,0 +1,1 @@
+Fig 18 / Sec 6.5: incremental insertion 1M + 10M..100M (MS MARCO Qwen-1024; 32 threads)

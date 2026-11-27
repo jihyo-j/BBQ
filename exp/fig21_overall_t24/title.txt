@@ -1,0 +1,1 @@
+Fig 21: Recall@10-QPS, 16 dataset-embedding configurations x 11 methods, 24 search threads

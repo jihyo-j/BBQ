@@ -1,0 +1,33 @@
+======================================================================
+MS MARCO  (Qwen3-0.6B 1024d, 500 queries)
+======================================================================
+  judged answers per query: median 1  mean 1.05  exactly one 95.8%
+
+  target                        median     p95     p99
+  exact FP32 top-1                   1       3       5
+  exact FP32 top-2                   2       6      10
+  exact FP32 top-3                   4       9      21
+  exact FP32 top-5                   6      19      32
+  exact FP32 top-10                 16      47      97
+  judged answers                     2      52     351
+
+  ratio, exact top-10 over judged:  median 8.0x   p95 0.9x
+  R*(10) / R*(1):  median 16.0x   p95 15.7x
+
+======================================================================
+Quora  (Qwen3-0.6B 1024d, 500 queries)
+======================================================================
+  judged answers per query: median 1  mean 1.74  exactly one 66.6%
+
+  target                        median     p95     p99
+  exact FP32 top-1                   1       2       4
+  exact FP32 top-2                   2       5       8
+  exact FP32 top-3                   3       7      12
+  exact FP32 top-5                   6      14      27
+  exact FP32 top-10                 14      37      64
+  judged answers                     2      30     159
+
+  ratio, exact top-10 over judged:  median 9.3x   p95 1.2x
+  R*(10) / R*(1):  median 14.0x   p95 18.6x
+
+wrote /home/sieun/projects/BBQETA/out/ktarget.txt

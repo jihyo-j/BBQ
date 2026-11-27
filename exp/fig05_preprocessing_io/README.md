@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F5.`  (8 claims) |
+| Verify | `make build/verify && ./build/verify --root exp --only F5.`  (8 claims here) |
 | Re-plot | `./exp/fig05_preprocessing_io/plot/regen.sh` |
 | Paper figure | `plot/preprocessing_io.paper.pdf` |
 
@@ -34,16 +34,16 @@ Result files behind the figure (copied verbatim from the original run):
 
 | id | claim | paper |
 |---|---|---|
-| F5.1 | ADC-BQ query LUT build, MS MARCO | 4.7 |
-| F5.2 | TurboQuant query preprocessing, MS MARCO | 9.6 |
-| F5.3 | ADC-BQ exact-FP I/O wait (R=120), MS MARCO | 517.6 |
-| F5.4 | TurboQuant exact-FP I/O wait (R=80), MS MARCO | 280 |
-| S4.1 | ADC-BQ QPS @R>=0.99, MS MARCO | 349 |
-| S4.2 | TurboQuant QPS @R>=0.99, MS MARCO | 362 |
-| S4.3 | ADC-BQ QPS @R>=0.99, NQ | 984 |
-| S4.4 | TurboQuant QPS @R>=0.99, NQ | 1063 |
+| F5.1 | ADC-BQ query LUT build, MS MARCO (us) | 4.7 |
+| F5.2 | TurboQuant query preprocessing, MS MARCO (us) | 9.6 |
+| F5.3 | ADC-BQ exact-FP I/O wait, MS MARCO (us) | 517.6 |
+| F5.4 | TurboQuant exact-FP I/O wait, MS MARCO (us) | 280 |
+| S4.1 | ADC-BQ QPS @0.99, MS MARCO | 349 |
+| S4.2 | TurboQuant QPS @0.99, MS MARCO | 362 |
+| S4.3 | ADC-BQ QPS @0.99, NQ | 984 |
+| S4.4 | TurboQuant QPS @0.99, NQ | 1063 |
 
 ## Notes
 
-- The ADC-BQ bar uses the *fixed* R=120 (MS MARCO) / R=80 (NQ) operating point at Recall@10 >= 0.99, as in Sec. 4; calibrated BBQ is evaluated from Sec. 6 on.
+- The ADC-BQ bar uses the *fixed* R=120 (MS MARCO) / R=80 (NQ) operating point at Recall@10 >= 0.99, as in Sec. 4.
 - `plot_qwen1024_diskann_adaptive_compare_t1.py` merges the four timing campaigns into the five-method CSV used by the figure.

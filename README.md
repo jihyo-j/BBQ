@@ -9,14 +9,14 @@ from SSD in a single `io_uring` batch.
 
 ```
 bbq/   the system: ADC-BQ HNSW search, calibrated SSD rerank, online insertion, colocation  → bbq/README.md
-exp/   every experiment in Sec. 4–6: results, runners, figures, and a claim checker           → exp/README.md
+exp/   every experiment in Secs 1–6 and Appendix B: results, runners, figures, a claim checker → exp/README.md
 ```
 
 ## Quick start
 
 ```bash
-make verify          # check 129 paper claims (98 numbers + 31 derived ratios) against the stored results; g++ only
-make plots           # re-draw Figs 5, 8–20 and the LUT / query-bit / all-DRAM figures from the stored results (gnuplot >= 5.4)
+make verify          # check 312 paper claims (Secs 1-6, Appendix B) against the stored results; g++ only
+make plots           # re-draw Figs 5, 7-21 from the stored results (gnuplot >= 5.4)
 
 # BBQ itself: upstream FAISS, no fork (exp/baselines/patches/faiss/README.md has the exact commit and cmake line)
 source exp/env.sh    # set FAISS_ROOT / FAISS_BUILD / BLAS_LIB

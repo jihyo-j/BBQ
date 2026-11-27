@@ -1,0 +1,6 @@
+dataset,efSearch,no_lut_recall_at_10,lut_recall_at_10,lut_minus_no_lut_recall,no_lut_qps_median,lut_qps_median,lut_speedup
+quora_bge_m3_vanilla,80,0.84457,0.84457,0.0,188.059,5534.8,29.431189148086506
+quora_bge_m3_vanilla,128,0.84546,0.84546,0.0,127.933,3654.16,28.56307598508594
+quora_bge_m3_vanilla,256,0.84646,0.84646,0.0,71.112,1906.25,26.806305546180674
+quora_bge_m3_vanilla,512,0.84706,0.84706,0.0,39.2724,934.223,23.788283883847182
+quora_bge_m3_vanilla,1024,0.84767,0.84767,0.0,20.3876,418.301,20.517422354764662

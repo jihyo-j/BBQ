@@ -1,0 +1,136 @@
+# mrl_dimension / scalability_100m: QPS vs Recall@10 for 4 methods (t=1)
+# data: experiment/four_methods_scalability_mrl_t1/{nq_mrl,msmarco100m}/*/summary_t1.csv
+# curves: PCHIP (param. log efSearch) through 6 marker points spread evenly over the 20 measured efSearch values;
+# markers sit on measured values.
+import csv, math, numpy as np
+import os
+BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'results') + '/'
+METH = [('adc_bq_calibrated', 'bbq', 1), ('turboquant_tq1', 'tq', 2), ('rabitq_b1_adaptive', 'rbq1', 3), ('rabitq_b7', 'rbq7', 4)]
+def pchip(x, y, xq):
+    h = np.diff(x); d = np.diff(y) / h; n = len(x); m = np.zeros(n)
+    for k in range(1, n - 1):
+        if d[k-1] * d[k] > 0:
+            w1, w2 = 2*h[k] + h[k-1], h[k] + 2*h[k-1]
+            m[k] = (w1 + w2) / (w1/d[k-1] + w2/d[k])
+    m[0], m[-1] = d[0], d[-1]
+    i = np.clip(np.searchsorted(x, xq) - 1, 0, n - 2); s = (xq - x[i]) / h[i]
+    return ((2*s**3 - 3*s**2 + 1) * y[i] + (s**3 - 2*s**2 + s) * h[i] * m[i]
+            + (-2*s**3 + 3*s**2) * y[i+1] + (s**3 - s**2) * h[i] * m[i+1])
+RTICKS = [0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 0.998, 0.999]
+ul = lambda r: -math.log10(1 - r)
+def panel_data(path):
+    rows = list(csv.DictReader(open(path))); out = {}; allr = []; allq = []
+    for key, tag, ls in METH:
+        p = sorted((float(r['search_parameter_value']), float(r['recall_at_10']), float(r['qps'])) for r in rows if r['method_key'] == key)
+        idx = sorted(set(np.linspace(0, len(p) - 1, 6).round().astype(int)))
+        mk = [p[i] for i in idx]
+        e = np.log([m[0] for m in mk]); xs = np.array([m[1] for m in mk]); ys = np.array([m[2] for m in mk])
+        tt = np.linspace(e[0], e[-1], 120)
+        cx = 1 - 10 ** (-pchip(e, np.array([ul(v) for v in xs]), tt)); cy = np.exp(pchip(e, np.log(ys), tt))
+        out[tag] = (list(zip(cx, cy)), [(m[1], m[2]) for m in mk])
+        allr += [m[1] for m in mk]; allq += [m[2] for m in mk]
+    return out, min(allr), max(allr), min(allq), max(allq)
+def inleg_cmds(L, i, x0, qlo, qhi):
+    """in-panel legend: L = dict(panel, rows=[(ls or 0, text)], fs, smp, gst, row, w (widest text pt), anchor 'tr' | ('bl', qbottom))"""
+    if L['panel'] != 'all' and i != L['panel']: return ['unset arrow; do for [k=100:140] { unset label k }']
+    smp, gst, fs, row = L['smp'], L['gst'], L['fs'], L['row']
+    yp = lambda q: f'(PBOT + PH*log10({q}/{qlo:.1f})/log10({qhi:.1f}/{qlo:.1f}))'
+    if L['anchor'] == 'trr':     # top right, key-style: text right-aligned, sample at the right end
+        xr = f'({x0} + PW - 3.0)'; ytop = '(PBOT + PH - 3.0 - %g)' % (row / 2); c = []
+        for k, (ls, txt) in enumerate(L['rows']):
+            y = f'({ytop} - {k * row:g})'
+            c += [f'set arrow {101+k} from screen sx({xr}-{smp}),sy({y}) to screen sx({xr}),sy({y}) nohead ls {ls} front',
+                  f'set label {111+k} "" at screen sx({xr}-{smp/2}),sy({y}) point ls {ls} lw MLW front',
+                  f'set label {121+k} "{txt}" at screen sx({xr}-{smp+gst}),sy({y}) right font ",{fs}" front']
+        return c
+    if L['anchor'] == 'tr':
+        x = f'({x0} + PW - 3.0 - {smp + gst + L["w"]:.2f})'; ytop = '(PBOT + PH - 3.0 - %g)' % (row / 2)
+    else:
+        x = f'({x0} + 3.0)'; ytop = f'({yp(L["anchor"][1])} + {(len(L["rows"]) - 1) * row:g})'
+    c = []
+    for k, (ls, txt) in enumerate(L['rows']):
+        y = f'({ytop} - {k * row:g})'
+        if ls:
+            c += [f'set arrow {101+k} from screen sx({x}),sy({y}) to screen sx({x}+{smp}),sy({y}) nohead ls {ls} front',
+                  f'set label {111+k} "" at screen sx({x}+{smp/2}),sy({y}) point ls {ls} lw MLW front']
+        c.append(f'set label {121+k} "{txt}" at screen sx({x}+{smp+gst}),sy({y}) left font ",{fs}" front')
+    return c
+def build(name, panels, W, LM, G, RM, PH, title_fmt, LFS=6.5, SMP=12.0, GST=2.5, GC=8.0, inleg=None, yhi_mul=1.25):
+    dat = [f'# {name}: recall@10 / QPS (t=1); curves PCHIP through markers (param. log efSearch); pts measured']
+    P = []
+    for i, (lab, path) in enumerate(panels):
+        d, rlo, rhi, qlo, qhi = panel_data(BASE + path); P.append((lab, rlo, rhi, qlo, qhi))
+        for tag in d:
+            dat.append(f'\n\n# {tag}_{i}_curve'); dat += [f'{a:.6f} {b:.2f}' for a, b in d[tag][0]]
+            dat.append(f'\n\n# {tag}_{i}_pts');   dat += [f'{a:.6f} {b:.2f}' for a, b in d[tag][1]]
+    open(name + '.dat', 'w').write('\n'.join(dat) + '\n')
+    qlo = min(p[3] for p in P) * 0.8; qhi = max(p[4] for p in P) * yhi_mul
+    yt = [v for v in (20, 50, 100, 200, 500, 1000, 2000, 5000, 10000) if qlo <= v <= qhi]
+    ylab = lambda v: f'{v//1000}k' if v >= 1000 else str(v)
+    n = len(panels); PW = (W - LM - RM - (n - 1) * G) / n
+    legw = [w * LFS / 6.5 for w in (11.44, 44.03, 77.86, 48.33)]   # Carlito widths measured at 6.5pt
+    tot = sum(SMP + GST + w for w in legw) + 3 * GC
+    LEGROWS = 1 if tot <= W - 4 else 2
+    if inleg: LEGROWS = 0
+    TOPPAD = 1.0 if title_fmt else 0.8
+    g = [f'# {name} — generated by make_scal_dim.py', 'load "../../common/plot/common.gp"', f'LEGROWS = {LEGROWS}', 'FONT = "Carlito"; FT = 6.5; FL = 7.0',
+         f'PW = {PW:.3f}; PH = {PH}; PBOT = 17.5; LEGB = LEGROWS*8.5 + (LEGROWS ? 1.0 : 0.0)', f'W = {W}; H = PBOT + PH + {TOPPAD} + ' + ('TTL + ' if title_fmt else '') + f'LEGB; OUT = "{name}"',
+         'eval SETTERM',
+         'set style line 1 lc rgb C_PINK   lw LW pt 4  ps PS             # BBQ',
+         'set style line 2 lc rgb C_PURPLE lw LW pt 12 ps PS*1.25        # TurboQuant 1bit',
+         'set style line 3 lc rgb C_BLUE   lw LW pt 6  ps PS             # RaBitQ 1bit + adaptive rerank',
+         'set style line 4 lc rgb C_BLUE   lw LW pt 8  ps PS*1.1 dt (6,3) # RaBitQ 7bit (RAM)',
+         'set multiplot', f'SMP = {SMP}; GST = {GST}']
+    names = ['BBQ', 'TurboQuant 1bit', 'RaBitQ 1bit + adaptive rerank', 'RaBitQ 7bit (RAM)']
+    if tot <= W - 4:
+        rows = [[0, 1, 2, 3]]; colw = legw
+    else:
+        rows = [[0, 2], [1, 3]]; colw = [max(legw[0], legw[1]), max(legw[2], legw[3])]
+    for ri, row in enumerate(rows if not inleg else []):
+        if len(rows) == 1: widths = [legw[j] for j in row]
+        else: widths = colw
+        rt = sum(SMP + GST + w for w in widths) + GC * (len(row) - 1)
+        g.append(f'LY = H - {4.75 + 8.5*ri}; LX = (W - {rt:.2f})/2.0')
+        for j, w in zip(row, widths):
+            ls = j + 1
+            g += [f'set arrow {100+ls} from screen sx(LX),sy(LY) to screen sx(LX+SMP),sy(LY) nohead ls {ls} front',
+                  f'set label {110+ls} "" at screen sx(LX+SMP/2),sy(LY) point ls {ls} lw MLW front',
+                  f'set label {120+ls} "{names[j]}" at screen sx(LX+SMP+GST),sy(LY) left font ",{LFS}" front',
+                  f'LX = LX + SMP + GST + {w:.2f} + {GC}']
+    nleg = len(rows)
+    g += ['eval DRAWSCREEN', 'set tics in nomirror scale TICMAJ,0 font ",".sprintf("%g",FT)', 'unset mxtics; unset mytics',
+          'set logscale y', f'set yrange [{qlo:.1f}:{qhi:.1f}]',
+          'set nonlinear x via -log10(1-x) inverse 1-10**(-x)',
+          f'D = "{name}.dat"']
+    for i, (lab, rlo, rhi, _, _) in enumerate(P):
+        a = 1 - 10 ** (-(ul(rlo) - 0.06)); b = 1 - 10 ** (-(ul(rhi) + 0.08))
+        cand = [t for t in RTICKS if a <= t <= b]; tk = []
+        span = ul(b) - ul(a)
+        for t in reversed(cand):                       # keep labels at least 24% of the axis apart
+            if not tk or ul(tk[-1]) - ul(t) >= 0.24 * span: tk.append(t)
+        tk = sorted(tk)
+        x0 = f'{LM} + {i}*(PW + {G})'
+        g += [f'# {lab}', f'set origin ({x0})/W, PBOT/H; set size PW/W, PH/H',
+              f'set lmargin 0; set rmargin 0; set tmargin 0; set bmargin 0',
+              f'set lmargin at screen ({x0})/W; set rmargin at screen ({x0}+PW)/W; set bmargin at screen PBOT/H; set tmargin at screen (PBOT+PH)/H',
+              'unset nonlinear x', f'set xrange [{a:.5f}:{b:.5f}]', 'set nonlinear x via -log10(1-x) inverse 1-10**(-x)',
+              'set xtics (' + ', '.join(f'"{t:g}" {t}' for t in tk) + ') offset 0,0.45',
+              'set ytics (' + ', '.join((f'"{ylab(v)}" {v}' if i == 0 else f'"" {v}') for v in yt) + ') offset 0.3,0',
+              ('set ylabel "QPS" font ",7" offset 1.0,0' if i == 0 else 'unset ylabel'),
+              'set xlabel "Recall\\\\@10" font ",7" offset 0,1.0',
+              (f'set title "{title_fmt(lab)}" font ",7" offset 0,-0.75' if title_fmt else 'unset title'),
+              *(inleg_cmds(inleg, i, x0, qlo, qhi) if inleg else []),
+              'plot for [m in "bbq tq rbq1 rbq7"] D index m."_' + str(i) + '_curve" u 1:2 w l ls (m eq "bbq" ? 1 : m eq "tq" ? 2 : m eq "rbq1" ? 3 : 4) notitle, '
+              'for [m in "bbq tq rbq1 rbq7"] D index m."_' + str(i) + '_pts" u 1:2 w p ls (m eq "bbq" ? 1 : m eq "tq" ? 2 : m eq "rbq1" ? 3 : 4) lw MLW notitle']
+    g += ['unset multiplot']
+    open(name + '.gp', 'w').write('\n'.join(g) + '\n')
+DIMS = [('512', 'nq_mrl/nq_qwen8_mrl512/summary_t1.csv'), ('1,024', 'nq_mrl/nq_qwen8_mrl1024/summary_t1.csv'),
+        ('2,560', 'nq_mrl/nq_qwen8_mrl2560/summary_t1.csv'), ('4,096', 'nq_mrl/nq_qwen8_mrl4096/summary_t1.csv')]
+SCAL = [('10M', 'msmarco100m/msmarco_qwen1024_v2_10m/summary_t1.csv'), ('50M', 'msmarco100m/msmarco_qwen1024_v2_50m/summary_t1.csv'),
+        ('100M', 'msmarco100m/msmarco_qwen1024_v2_100m/summary_t1.csv')]
+LEG_S = dict(fs=5, smp=7.5, gst=1.5, row=5.7)
+build('mrl_dimension', DIMS, 506.30, 24.0, 8.0, 6.0, 77.0, lambda l: f'NQ Qwen {l}', yhi_mul=2.5,
+      inleg=dict(LEG_S, panel='all', anchor='trr', w=59.89,  # top right of every panel, text right-aligned
+                 rows=[(1, 'BBQ'), (2, 'TurboQuant 1bit'), (3, 'RaBitQ 1bit + adaptive rerank'), (4, 'RaBitQ 7bit (RAM)')]))
+build('scalability_100m', SCAL, 241.15, 19.5, 8.0, 6.0, 55.0, None,   # PH 77 -> 55 as in the paper figure   # no panel titles (subcaptions); one-row legend on top
+      LFS=6.0, SMP=9.0, GST=2.0, GC=5.0)

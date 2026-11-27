@@ -1,0 +1,24 @@
+wrote /home/sieun/projects/BBQETA/out/kcurve_msmarco_qw06.dat
+   sym_bq   c_Q=0.65  p95 R* at k=1,5,10,30,100:       4      37     124     665    3783
+   adc_bq   c_Q=0.41  p95 R* at k=1,5,10,30,100:       3      19      41     214     915
+   rabitq1  c_Q=0.36  p95 R* at k=1,5,10,30,100:       2      16      34     151     771
+   pq       c_Q=0.32  p95 R* at k=1,5,10,30,100:       4      19      41     168     806
+   opq      c_Q=0.24  p95 R* at k=1,5,10,30,100:       3      14      28     116     505
+wrote /home/sieun/projects/BBQETA/out/kcurve_quora_qw06.dat
+   sym_bq   c_Q=0.61  p95 R* at k=1,5,10,30,100:       3      25      69     304    1760
+   adc_bq   c_Q=0.40  p95 R* at k=1,5,10,30,100:       2      13      37     130     596
+   rabitq1  c_Q=0.32  p95 R* at k=1,5,10,30,100:       2      13      35     109     431
+   pq       c_Q=0.29  p95 R* at k=1,5,10,30,100:       3      18      44     157     603
+   opq      c_Q=0.20  p95 R* at k=1,5,10,30,100:       2      14      30      98     384
+wrote /home/sieun/projects/BBQETA/out/kcurve_nq_qw06.dat
+   sym_bq   c_Q=0.62  p95 R* at k=1,5,10,30,100:       4      65     227    1004    5712
+   adc_bq   c_Q=0.39  p95 R* at k=1,5,10,30,100:       3      23      64     254    1171
+   rabitq1  c_Q=0.33  p95 R* at k=1,5,10,30,100:       3      17      43     178     973
+   pq       c_Q=0.30  p95 R* at k=1,5,10,30,100:       3      22      48     240     828
+   opq      c_Q=0.22  p95 R* at k=1,5,10,30,100:       3      14      42     125     523
+wrote /home/sieun/projects/BBQETA/out/kcurve_dbpedia_qw06.dat
+   sym_bq   c_Q=0.61  p95 R* at k=1,5,10,30,100:       5      57     134     635    4341
+   adc_bq   c_Q=0.39  p95 R* at k=1,5,10,30,100:       3      24      50     198     926
+   rabitq1  c_Q=0.35  p95 R* at k=1,5,10,30,100:       5      19      42     174     808
+   pq       c_Q=0.31  p95 R* at k=1,5,10,30,100:       4      22      48     203     789
+   opq      c_Q=0.22  p95 R* at k=1,5,10,30,100:       3      17      35     123     519

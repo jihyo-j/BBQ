@@ -1,0 +1,4 @@
+dataset,method,mode,efSearch,recall_at_10,qps_median,time_ms_per_query,distance_evaluations_mean,fp32_reads_mean,nominal_scored_vector_bytes_per_query
+msmarco_qwen1024,BBQ,calibrated_ssd_refinement,512,0.992575,646.953,1.54588,9532.71,50.4172,1220186.88
+msmarco_qwen1024,BBQ,traversal_only,512,0.803997,765.121,1.30811,9532.71,0,1220186.88
+msmarco_qwen1024,In-memory FP32 HNSW,full_search,384,0.992642,335.796,2.97800,7256.38,0,29722132.48

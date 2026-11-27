@@ -1,0 +1,45 @@
+{
+  "protocol": "ADC-BQ top-10 directly; no calibration; no FP reranking",
+  "datasets": [
+    "quora_bge_m3_vanilla"
+  ],
+  "all_queries": {
+    "quora_bge_m3_vanilla": 10000
+  },
+  "k": 10,
+  "M": 24,
+  "efConstruction": 200,
+  "efs": [
+    80,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "rounds": 1,
+  "threads": 1,
+  "cpu": 44,
+  "modes": [
+    {
+      "key": "no_lut_fp32_direct_scalar",
+      "label": "No LUT (scalar direct)",
+      "adc_mode": "fp32-direct",
+      "lut_mode": "nibble",
+      "scalar_build": true
+    },
+    {
+      "key": "optimized_int16_nibble_lut",
+      "label": "Optimized int16 nibble LUT",
+      "adc_mode": "int16",
+      "lut_mode": "nibble",
+      "scalar_build": false
+    }
+  ],
+  "summary": "/home/jihyo/workspace/RaBitQ-Library/experiment/quora_bge1024_adcbq_scalar_vs_lut_no_calibration_t1/summary_t1.csv",
+  "paired": "/home/jihyo/workspace/RaBitQ-Library/experiment/quora_bge1024_adcbq_scalar_vs_lut_no_calibration_t1/paired_ef_comparison_t1.csv",
+  "figure_png": "/home/jihyo/workspace/RaBitQ-Library/experiment/quora_bge1024_adcbq_scalar_vs_lut_no_calibration_t1/recall_qps_no_calibration_lut_ablation_t1.png",
+  "figure_pdf": "/home/jihyo/workspace/RaBitQ-Library/experiment/quora_bge1024_adcbq_scalar_vs_lut_no_calibration_t1/recall_qps_no_calibration_lut_ablation_t1.pdf",
+  "lut_binary": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_optimized/faiss_adcbq_hnsw_lut_ablation",
+  "scalar_binary": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_optimized/faiss_adcbq_hnsw_scalar_direct_ablation",
+  "source": "/home/jihyo/workspace/RaBitQ-Library/experiment/faiss_fpgraph_packed_asym_bq_hnsw.cpp"
+}

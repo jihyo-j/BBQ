@@ -1,0 +1,177 @@
+dataset,corpus,model,dim,canonical_method,method,expected_points,available_points,status,reason,source_summary_csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_msmarco_openai1536/summary_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_msmarco_openai1536/summary_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_msmarco_openai1536/summary_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_msmarco_openai1536/summary_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_msmarco_openai1536/diskann_classic/search_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_msmarco_openai1536/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/sieun_msmarco_openai1536/pipeann/search_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_msmarco_openai1536,MSMARCO,OpenAI text-embedding-3-small,1536,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_bge1024/summary_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_bge1024/summary_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_bge1024/summary_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_bge1024/summary_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/msmarco_bge1024/diskann_classic/search_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/msmarco_bge1024/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/msmarco_bge1024/pipeann/search_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+msmarco_bge1024,MSMARCO,BGE-1024,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_qwen1024/summary_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_qwen1024/summary_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_qwen1024/summary_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_qwen1024/summary_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/msmarco_qwen1024/diskann_classic/search_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/msmarco_qwen1024/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/msmarco_qwen1024/pipeann/search_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+msmarco_qwen1024,MSMARCO,Qwen-1024,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_e5mistral4096/summary_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_e5mistral4096/summary_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_e5mistral4096/summary_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/msmarco_e5mistral4096/summary_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/msmarco_e5mistral4096/diskann_classic/search_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/msmarco_e5mistral4096/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/msmarco_e5mistral4096/pipeann/search_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+msmarco_e5mistral4096,MSMARCO,E5-Mistral-4096,4096,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_openai1536/summary_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_openai1536/summary_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_openai1536/summary_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_openai1536/summary_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_dbpedia_entity_openai1536/diskann_classic/search_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_dbpedia_entity_openai1536/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/sieun_dbpedia_entity_openai1536/pipeann/search_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_dbpedia_entity_openai1536,DBpedia,OpenAI text-embedding-3-small,1536,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_bge_large1024_beir400/summary_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_bge_large1024_beir400/summary_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_bge_large1024_beir400/summary_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_dbpedia_entity_bge_large1024_beir400/summary_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_dbpedia_entity_bge_large1024_beir400/diskann_classic/search_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_dbpedia_entity_bge_large1024_beir400/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/sieun_dbpedia_entity_bge_large1024_beir400/pipeann/search_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_dbpedia_entity_bge_large1024_beir400,DBpedia,BGE-large-en-v1.5 (BEIR-400),1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_qwen1024/summary_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_qwen1024/summary_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_qwen1024/summary_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_qwen1024/summary_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/dbpedia_qwen1024/diskann_classic/search_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/dbpedia_qwen1024/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/dbpedia_qwen1024/pipeann/search_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+dbpedia_qwen1024,DBpedia,Qwen-1024,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_e5mistral4096/summary_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_e5mistral4096/summary_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_e5mistral4096/summary_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/dbpedia_e5mistral4096/summary_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/dbpedia_e5mistral4096/diskann_classic/search_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/dbpedia_e5mistral4096/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/dbpedia_e5mistral4096/pipeann/search_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+dbpedia_e5mistral4096,DBpedia,E5-Mistral-4096,4096,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_quora_openai1536/summary_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_quora_openai1536/summary_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_quora_openai1536/summary_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_quora_openai1536/summary_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_quora_openai1536/diskann_classic/search_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_quora_openai1536/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/sieun_quora_openai1536/pipeann/search_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_quora_openai1536,QUORA,OpenAI text-embedding-3-small,1536,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_bge_m3_vanilla/summary_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_bge_m3_vanilla/summary_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_bge_m3_vanilla/summary_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_bge_m3_vanilla/summary_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/quora_bge_m3_vanilla/diskann_classic/search_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/quora_bge_m3_vanilla/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/quora_bge_m3_vanilla/pipeann/search_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+quora_bge_m3_vanilla,Quora,BGE-M3 vanilla,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_qwen1024/summary_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_qwen1024/summary_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_qwen1024/summary_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_qwen1024/summary_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/quora_qwen1024/diskann_classic/search_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/quora_qwen1024/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/quora_qwen1024/pipeann/search_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+quora_qwen1024,Quora,Qwen3-Embedding-0.6B,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_e5mistral4096/summary_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_e5mistral4096/summary_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_e5mistral4096/summary_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/quora_e5mistral4096/summary_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/quora_e5mistral4096/diskann_classic/search_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/quora_e5mistral4096/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/quora_e5mistral4096/pipeann/search_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+quora_e5mistral4096,Quora,E5-Mistral-7B,4096,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_nq_openai1536/summary_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_nq_openai1536/summary_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_nq_openai1536/summary_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/sieun_nq_openai1536/summary_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_nq_openai1536/diskann_classic/search_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/sieun_nq_openai1536/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/sieun_nq_openai1536/pipeann/search_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+sieun_nq_openai1536,NQ,OpenAI text-embedding-3-small,1536,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_bge_m3_vanilla/summary_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_bge_m3_vanilla/summary_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_bge_m3_vanilla/summary_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_bge_m3_vanilla/summary_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/nq_bge_m3_vanilla/diskann_classic/search_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/nq_bge_m3_vanilla/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/nq_bge_m3_vanilla/pipeann/search_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+nq_bge_m3_vanilla,NQ,BGE-M3 vanilla,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_qwen06_1024/summary_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_qwen06_1024/summary_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_qwen06_1024/summary_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_qwen06_1024/summary_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/nq_qwen06_1024/diskann_classic/search_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/nq_qwen06_1024/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/nq_qwen06_1024/pipeann/search_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+nq_qwen06_1024,NQ,Qwen3-Embedding-0.6B,1024,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,adcbq_pool_top10,BBQ (calibrated ADC-BQ),20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_e5mistral4096/summary_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,turboquant_tq1_tuned_r,TurboQuant TQ1+,20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_e5mistral4096/summary_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,rabitq_7bit,RaBitQ 7-bit (RAM),20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_e5mistral4096/summary_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,rabitq_1bit_adaptive,HNSW RaBitQ 1-bit + adaptive FP,20,20,complete,,experiment/full16_12methods_t24/four_methods/nq_e5mistral4096/summary_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,rabitq_ssd,RaBitQ-SSD B9,20,20,complete,,experiment/full16_12methods_t24/native_matrix/mrq_rabitq_ssd/summary_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,diskann_pq_onebit_budget,DiskANN-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/nq_e5mistral4096/diskann_classic/search_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,diskann_rabitq_1bit,DiskANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/native_matrix/diskann/nq_e5mistral4096/diskann_rabitq_1bit_adaptive_fp/search_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,pipeann_rabitq_1bit,PipeANN-RaBitQ 1-bit,20,20,complete,,experiment/full16_12methods_t24/spann_pipeann/nq_e5mistral4096/pipeann/search_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,pq8d8,Faiss PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,opq8d8,Faiss OPQ-PQ d/8,20,20,complete,,experiment/full16_12methods_t24/faiss_pq_opq_calibrated/selected_r_heldout_t24.csv
+nq_e5mistral4096,NQ,E5-Mistral-7B,4096,fp_hnsw_ram,FP32 HNSW RAM,20,20,complete,,experiment/fp_hnsw_ram_main16_t1_t24/msmarco_dbpedia_quora_nq_fp_hnsw_ram_t1_t24.csv

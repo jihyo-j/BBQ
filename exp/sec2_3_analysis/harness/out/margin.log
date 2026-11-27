@@ -1,0 +1,42 @@
+==============================================================================
+1.  IS THERE A CLIFF AT RANK 10?   median z(r), and the drop per rank
+==============================================================================
+corpus       z(1)    z(5)    z(9)   z(10)   z(11)   z(15)   z(20)   z(30)   z(60)
+Quora       10.55    8.47    7.86    7.74    7.68    7.37    7.11    6.74    6.21
+MS MARCO    10.16    8.24    7.62    7.52    7.43    7.18    6.95    6.63    6.13
+NQ           8.84    7.39    6.88    6.76    6.71    6.54    6.36    6.10    5.65
+DBpedia      9.17    7.65    7.27    7.17    7.09    6.81    6.63    6.34    5.88
+
+  drop in z from one rank to the next, median over queries:
+corpus        5->6     8->9    9->10   10->11   11->12   15->16   20->21
+Quora        0.108    0.065    0.047    0.044    0.049    0.034    0.026
+MS MARCO     0.099    0.060    0.057    0.051    0.040    0.032    0.027
+NQ           0.090    0.050    0.047    0.045    0.038    0.029    0.022
+DBpedia      0.079    0.052    0.050    0.044    0.040    0.030    0.024
+
+==============================================================================
+2.  HOW MUCH ERROR DOES THE RANK-10 BOUNDARY ABSORB?
+    n(delta) = documents within delta sd of the tenth answer (median)
+==============================================================================
+corpus     corpus N   d=0.05    d=0.1   d=0.25    d=0.5    d=1.0    d=2.0    c_Q  R* med
+Quora        522931       11       11       14       19       37      133   0.40      14
+MS MARCO    1000000       10       11       14       21       43      180   0.42      16
+NQ          1000000       11       12       15       21       48      263   0.39      16
+DBpedia     1000000       11       11       14       21       43      208   0.39      16
+
+  per-query Spearman against log R*, over the four corpora pooled:
+    n(delta=0.05) : +0.317
+    n(delta=0.1) : +0.460
+    n(delta=0.25) : +0.619
+    n(delta=0.5) : +0.681
+    n(delta=1.0) : +0.660
+    n(delta=2.0) : +0.574
+    c_Q         : -0.038
+
+  n(delta = that query's own c_Q) against its R*:
+    Quora     median predicted     17   actual R*    14   rho +0.693
+    MS MARCO  median predicted     19   actual R*    16   rho +0.698
+    NQ        median predicted     19   actual R*    16   rho +0.729
+    DBpedia   median predicted     18   actual R*    16   rho +0.651
+
+wrote /home/sieun/projects/BBQETA/out/margin.txt

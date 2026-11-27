@@ -15,35 +15,43 @@ MRL ladder, the 100M scale set and prebuilt indexes. This file lists:
 | `.ibin` | `int32 n, int32 k`, then `n*k` int32 neighbour ids (exact cosine top-k; ties broken by id). |
 | splits | `seed<S>.cal<C>.test<T>.{cal,test}.{query.fbin,gt.ibin}`, a random permutation of the query set, made by `make_split` in `scripts/run_adcbq_calibrated_threshold_overlap.py` (seed 11 for all paper runs). |
 
-## The BEIR sets of Table 5 (text-embedding-3-small, BGE-large)
+## The 16 configurations of Figs 9, 20, 21 (Table 5)
 
-Table 5's OpenAI rows and the DBpedia BGE row are BEIR sets prepared for the `openai_beir_11methods_t1` campaign
-(manifest: `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json`, built by
-`scripts/prepare_openai_beir_11methods_inputs.py`):
+The list comes from `fig09_20_overall_t1/results/recall_qps_as_printed_t1.csv` (the `PANEL` map in
+`plot/update_recall-qps_full16.py`). The OpenAI rows and the DBpedia BGE row are BEIR sets encoded by
+`data_prep/beir_embeddings/embed_all.py` and prepared for the runners by `scripts/prepare_openai_beir_11methods_inputs.py`
+(manifest `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json`). The other rows are listed in the table further
+below.
 
-| key | corpus | model | dim | base rows | queries (cal / test) | used by |
-|---|---|---|---|---|---|---|
-| sieun_msmarco_openai1536 | MS MARCO | OpenAI text-embedding-3-small | 1536 | 1,000,000 | 6,980 (1000 / 5980) | Fig 10/21 panel (i), Figs 15, 16 |
-| sieun_dbpedia_entity_openai1536 | DBpedia-entity | OpenAI text-embedding-3-small | 1536 | 1,000,000 | 400 (200 / 200) | Fig 10/21 panel (m) |
-| sieun_dbpedia_entity_bge_large1024_beir400 | DBpedia-entity | BGE-large-en-v1.5 (BEIR-400) | 1024 | 1,000,000 | 400 (200 / 200) | Fig 10/21 panel (n), once all 12 methods are measured |
-| sieun_nq_openai1536, sieun_quora_openai1536 | NQ, Quora | OpenAI text-embedding-3-small | 1536 | 1M / 522,931 | 3,452 / 10,000 | not in the paper figures |
+| corpus | OpenAI text-embedding-3-small (1536) | BGE (1024) | Qwen3-Embedding-0.6B (1024) | E5-Mistral-7B (4096) |
+|---|---|---|---|---|
+| NQ (1M, 3,452 q) | `sieun_nq_openai1536` | `nq_bge_m3_vanilla` (BGE-M3) | `nq_qwen06_1024` | `nq_e5mistral4096` |
+| Quora (522,931, 10,000 q) | `sieun_quora_openai1536` | `quora_bge_m3_vanilla` (BGE-M3) | `quora_qwen1024` | `quora_e5mistral4096` |
+| MS MARCO (1M, 6,980 q) | `sieun_msmarco_openai1536` | `msmarco_bge1024` | `msmarco_qwen1024` | `msmarco_e5mistral4096` |
+| DBpedia (1M, 400 q) | `sieun_dbpedia_entity_openai1536` | `sieun_dbpedia_entity_bge_large1024_beir400` (BGE-large-en-v1.5) | `dbpedia_qwen1024` | `dbpedia_e5mistral4096` |
 
-All 12 methods are measured at T = 1 (3 rounds) on the first two. They are collected into
-`fig10_overall_recall_qps/results/beir_recall_qps_t1.csv` by `scripts/collect_beir_recall_qps.py`. Only DiskANN-PQ,
-DiskANN-RaBitQ, SPANN and PipeANN are measured on the BGE-large BEIR-400 set so far.
+Each set holds out 1,000 queries for calibration (DBpedia: 200 calibration + 200 test). One exception is
+`msmarco_bge1024`: it was encoded from a 10,000-query set (1,000 calibration + 9,000 test), whereas Table 5 lists
+6,980 queries for MS MARCO.
 
-## The original 16-configuration matrix (registry: `scripts/run_v051_ssd_odirect_multidataset.py`)
+## Embedding generation (`data_prep/beir_embeddings/`)
 
-The first full matrix (`diskveclab_full_matrix`, rounds = 1) used the files below. Three of its rows predate the
-BEIR sets above:
-- `msmarco_openai1536` is the ada-002 `msmarco-v1-openai-ada2-1M` file;
-- `dbpedia_openai1536` is `openai-1536-1M` (999k rows, 1,000 queries);
-- `dbpedia_bge1024` is `bge-1024-100k` (99k rows, 1,000 queries).
+The BEIR text-embedding-3 vectors were produced by `embed_all.py`, using the OpenAI API with the key read from the
+environment:
+- Corpus subsample: every document relevant in the split's qrels, plus random documents (seed 42) up to 1M.
+- Input text: `(title + " " + text).strip()`, truncated at 8,000 tokens.
+- Output: float32 vectors, L2-normalised.
 
-Figs 10/21 now draw panels (i) and (m) from the BEIR sets. Panel (n) still shows `bge-1024-100k` until the BEIR-400
-BGE runs are complete.
+`fetch.sh` downloads BEIR from Hugging Face (`BeIR/{name}`). `SHA256SUMS` pins every produced `.npy`. See that
+folder's `README.md` for per-dataset counts. The text-embedding-3-large (3072-d) vectors used in Sec 3.2 come from the
+same script.
 
-Counts are taken from `fig10_overall_recall_qps/results/split_manifest.csv`, written by the runner.
+## Files of the non-BEIR rows (registry: `scripts/run_v051_ssd_odirect_multidataset.py`)
+
+Earlier campaigns also used the rows below. The rows `msmarco_openai1536` (ada-002), `dbpedia_openai1536` (999k)
+and `dbpedia_bge1024` (99k) are **not** in the paper's figures.
+
+Counts are taken from the runner's split manifest.
 
 | key | corpus | model (as labelled in the runner) | dim | base rows | cal / test queries | base file (under its root) |
 |---|---|---|---|---|---|---|
@@ -79,10 +87,9 @@ Table 5: MS MARCO BGE-1024 (`msmarco-bge-1024`) has 10,000 queries; Table 5 give
 | Fig 19 (1M + 100M inserts) | same 101M pool, 4 KiB-aligned | `prepare_msmarco_qwen1024_101m_dynamic_inputs.py` | `$BBQ_DATA2/{msmarco-qwen1024,qwen100m}` → 414 GB aligned file |
 | Fig 15/16 OpenAI-1536 | BEIR MS MARCO, OpenAI | `prepare_openai_beir_11methods_inputs.py` | `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json` |
 
-## Not available from this repository
+## Not in this repository
 
-- **The embedding step.** The scripts that encoded the corpora (model revisions, query instructions, truncation and
-  normalisation) are not in this tree. They were run separately by co-authors, and the runners start from the
-  `.fbin` files above.
-- **Hosting.** The vectors are too large for git. They need either a data release (e.g. a Hugging Face dataset with
-  the `.fbin` / `.ibin` files and their sha256) or the encoding scripts plus the exact model revisions.
+- **Vectors.** They are too large for git. They need a data release (e.g. a Hugging Face dataset with the `.npy` /
+  `.fbin` / `.ibin` files and the SHA256SUMS), or the scripts above plus API access.
+- **Encoders other than OpenAI.** The encoding of the BGE, Qwen3 and E5 vectors (model revisions, query instructions)
+  was done outside these scripts. Their `.fbin` files are the runners' starting point.

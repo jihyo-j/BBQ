@@ -1,0 +1,338 @@
+{
+ "key": "msmarco_ada2",
+ "ef": 256,
+ "meta": {
+  "key": "msmarco_ada2",
+  "ef": 256,
+  "nq_test": 2000,
+  "D": 1536,
+  "K": 10,
+  "pagesz": 8192,
+  "N": 1000000,
+  "vecfile": "/home/smrc/samsung-nvme/sieun/bbqeta/io/vec_msmarco_ada2_p8192.bin",
+  "poolfile": "/home/smrc/samsung-nvme/sieun/bbqeta/io/pool_msmarco_ada2_ef256.bin",
+  "knobs": {
+   "seq_bound_tuned": 2.2,
+   "seq_bound_default": 1.9,
+   "batch_boundM": 3.0,
+   "twophase": 1.7,
+   "calib_tau": 0.0384921133518219,
+   "fixedR": 63
+  },
+  "pages_per_vec": 2
+ },
+ "arms": {
+  "seq_bound|1.9|0": {
+   "arm": "seq_bound",
+   "param": 1.9,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 33.132,
+   "pages": 66.264,
+   "rounds": 33.132,
+   "lat_mean_us": 2369.5,
+   "lat_p50_us": 2074.03,
+   "lat_p95_us": 4585.88,
+   "lat_p99_us": 6866.27,
+   "qps_refine": 422.03,
+   "wall_s": 4.739,
+   "note": "RaBitQ bound @1.9, sequential",
+   "lat_mean_us_all": [
+    2358.19,
+    2370.73,
+    2369.5
+   ],
+   "qps_all": [
+    424.05,
+    421.81,
+    422.03
+   ]
+  },
+  "seq_bound|2.2|0": {
+   "arm": "seq_bound",
+   "param": 2.2,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 39.026,
+   "pages": 78.052,
+   "rounds": 39.026,
+   "lat_mean_us": 2785.26,
+   "lat_p50_us": 2378.78,
+   "lat_p95_us": 5718.18,
+   "lat_p99_us": 8678.37,
+   "qps_refine": 359.03,
+   "wall_s": 5.571,
+   "note": "RaBitQ bound tuned, sequential",
+   "lat_mean_us_all": [
+    2782.42,
+    2887.08,
+    2785.26
+   ],
+   "qps_all": [
+    359.4,
+    346.37,
+    359.03
+   ]
+  },
+  "seq_calib|0.0384921133518219|0": {
+   "arm": "seq_calib",
+   "param": 0.0384921,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 46.42,
+   "pages": 92.84,
+   "rounds": 46.42,
+   "lat_mean_us": 3318.85,
+   "lat_p50_us": 2928.28,
+   "lat_p95_us": 6686.54,
+   "lat_p99_us": 9679.61,
+   "qps_refine": 301.31,
+   "wall_s": 6.638,
+   "note": "calibrated prefix, sequential reads",
+   "lat_mean_us_all": [
+    3321.18,
+    3316.32,
+    3318.85
+   ],
+   "qps_all": [
+    301.1,
+    301.54,
+    301.31
+   ]
+  },
+  "batch_calib|0.0384921133518219|0": {
+   "arm": "batch_calib",
+   "param": 0.0384921,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 46.42,
+   "pages": 92.84,
+   "rounds": 1.0,
+   "lat_mean_us": 279.49,
+   "lat_p50_us": 260.37,
+   "lat_p95_us": 492.18,
+   "lat_p99_us": 655.57,
+   "qps_refine": 3578.0,
+   "wall_s": 0.559,
+   "note": "calibrated prefix, one io_uring batch",
+   "lat_mean_us_all": [
+    279.49,
+    278.92,
+    284.96
+   ],
+   "qps_all": [
+    3578.0,
+    3585.23,
+    3509.25
+   ]
+  },
+  "batch_boundM|3.0|0": {
+   "arm": "batch_boundM",
+   "param": 3,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 52.389,
+   "pages": 104.778,
+   "rounds": 1.0,
+   "lat_mean_us": 301.18,
+   "lat_p50_us": 272.35,
+   "lat_p95_us": 546.37,
+   "lat_p99_us": 752.94,
+   "qps_refine": 3320.28,
+   "wall_s": 0.602,
+   "note": "bound as margin, one batch",
+   "lat_mean_us_all": [
+    303.15,
+    301.18,
+    292.86
+   ],
+   "qps_all": [
+    3298.67,
+    3320.28,
+    3414.65
+   ]
+  },
+  "twophase|1.7|0": {
+   "arm": "twophase",
+   "param": 1.7,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 54.786,
+   "pages": 109.572,
+   "rounds": 1.996,
+   "lat_mean_us": 395.66,
+   "lat_p50_us": 340.16,
+   "lat_p95_us": 811.3,
+   "lat_p99_us": 1238.09,
+   "qps_refine": 2527.43,
+   "wall_s": 0.791,
+   "note": "bound, 2 rounds (top-k then batch)",
+   "lat_mean_us_all": [
+    397.77,
+    395.66,
+    382.95
+   ],
+   "qps_all": [
+    2513.99,
+    2527.43,
+    2611.28
+   ]
+  },
+  "batch_fixedR|63|0": {
+   "arm": "batch_fixedR",
+   "param": 63,
+   "nq": 2000,
+   "qd": 0,
+   "reads": 63.0,
+   "pages": 126.0,
+   "rounds": 1.0,
+   "lat_mean_us": 326.0,
+   "lat_p50_us": 319.26,
+   "lat_p95_us": 375.65,
+   "lat_p99_us": 433.9,
+   "qps_refine": 3067.44,
+   "wall_s": 0.652,
+   "note": "tuned fixed prefix, one batch",
+   "lat_mean_us_all": [
+    326.0,
+    325.28,
+    348.51
+   ],
+   "qps_all": [
+    3067.44,
+    3074.23,
+    2869.34
+   ]
+  },
+  "chunk_bound|2.2|4": {
+   "arm": "chunk_bound",
+   "param": 2.2,
+   "nq": 2000,
+   "qd": 4,
+   "reads": 39.049,
+   "pages": 78.098,
+   "rounds": 10.351,
+   "lat_mean_us": 912.98,
+   "lat_p50_us": 772.77,
+   "lat_p95_us": 1886.16,
+   "lat_p99_us": 2758.21,
+   "qps_refine": 1095.32,
+   "wall_s": 1.826,
+   "note": "bound chunked at 4, batch per chunk",
+   "lat_mean_us_all": [
+    918.77,
+    912.47,
+    912.98
+   ],
+   "qps_all": [
+    1088.41,
+    1095.93,
+    1095.32
+   ]
+  },
+  "chunk_bound|2.2|8": {
+   "arm": "chunk_bound",
+   "param": 2.2,
+   "nq": 2000,
+   "qd": 8,
+   "reads": 39.2055,
+   "pages": 78.411,
+   "rounds": 5.436,
+   "lat_mean_us": 581.84,
+   "lat_p50_us": 493.37,
+   "lat_p95_us": 1184.0,
+   "lat_p99_us": 1796.82,
+   "qps_refine": 1718.68,
+   "wall_s": 1.164,
+   "note": "bound chunked at 8, batch per chunk",
+   "lat_mean_us_all": [
+    584.44,
+    578.41,
+    581.84
+   ],
+   "qps_all": [
+    1711.05,
+    1728.87,
+    1718.68
+   ]
+  },
+  "chunk_bound|2.2|16": {
+   "arm": "chunk_bound",
+   "param": 2.2,
+   "nq": 2000,
+   "qd": 16,
+   "reads": 39.3285,
+   "pages": 78.657,
+   "rounds": 2.974,
+   "lat_mean_us": 417.58,
+   "lat_p50_us": 368.68,
+   "lat_p95_us": 831.19,
+   "lat_p99_us": 1258.42,
+   "qps_refine": 2394.77,
+   "wall_s": 0.835,
+   "note": "bound chunked at 16, batch per chunk",
+   "lat_mean_us_all": [
+    417.58,
+    418.7,
+    412.01
+   ],
+   "qps_all": [
+    2394.77,
+    2388.34,
+    2427.14
+   ]
+  },
+  "chunk_bound|2.2|32": {
+   "arm": "chunk_bound",
+   "param": 2.2,
+   "nq": 2000,
+   "qd": 32,
+   "reads": 43.4415,
+   "pages": 86.883,
+   "rounds": 1.6995,
+   "lat_mean_us": 328.75,
+   "lat_p50_us": 286.83,
+   "lat_p95_us": 611.52,
+   "lat_p99_us": 894.78,
+   "qps_refine": 3041.82,
+   "wall_s": 0.658,
+   "note": "bound chunked at 32, batch per chunk",
+   "lat_mean_us_all": [
+    328.75,
+    340.79,
+    325.77
+   ],
+   "qps_all": [
+    3041.82,
+    2934.34,
+    3069.67
+   ]
+  },
+  "chunk_bound|2.2|64": {
+   "arm": "chunk_bound",
+   "param": 2.2,
+   "nq": 2000,
+   "qd": 64,
+   "reads": 66.538,
+   "pages": 133.076,
+   "rounds": 1.138,
+   "lat_mean_us": 350.5,
+   "lat_p50_us": 326.69,
+   "lat_p95_us": 503.22,
+   "lat_p99_us": 689.53,
+   "qps_refine": 2853.04,
+   "wall_s": 0.701,
+   "note": "bound chunked at 64, batch per chunk",
+   "lat_mean_us_all": [
+    341.44,
+    350.5,
+    351.32
+   ],
+   "qps_all": [
+    2928.74,
+    2853.04,
+    2846.43
+   ]
+  }
+ }
+}

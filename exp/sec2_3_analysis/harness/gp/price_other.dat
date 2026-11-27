@@ -1,0 +1,7 @@
+0.6196 55.0 # msmarco_bgem3
+0.5512 44.0 # nq_bgem3
+0.8963 3.0 # quora_bgem3
+0.4898 111.0 # fever_bgem3
+0.6569 36.0 # dbpedia_bgel
+0.6611 52.2 # dbpedia_bgeb
+0.5464 14.0 # dbpedia_ada2

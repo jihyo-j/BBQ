@@ -1,0 +1,14 @@
+
+config            rho(c_Q,R*)  rho(sig_top,R*)  ADC rank by c_Q  by sig_top  true
+msmarco_qw06            0.400            0.700              5/5         5/5    4/5
+nq_qw06                 0.667            0.821              5/5         5/5    4/5
+quora_qw06              0.400            1.000              5/5         4/5    4/5
+dbpedia_qw06            0.700            0.900              5/5         5/5    5/5
+msmarco_bgem3           1.000            1.000              4/5         4/5    4/5
+nq_bgem3                0.900            0.900              5/5         5/5    4/5
+quora_bgem3             0.000            0.700              5/5         4/5    2/5
+dbpedia_bgel            0.400            0.300              4/5         4/5    5/5
+dbpedia_bgeb            1.000            1.000              4/5         4/5    4/5
+msmarco_e5m             0.300            0.800              5/5         5/5    4/5
+
+pooled within-config: rho(c_Q, R*) +0.603   rho(sigma_top, R*) +0.875

@@ -1,0 +1,15 @@
+[14:16:57] dbpedia_ada2: N=990000 d=1536 nq=2000  (DBpedia / ada-002)
+[14:17:08]   beta mean=0.5464  beta(10-100)=0.5291  z10 mean=6.467
+[14:17:35]   Sym-BQ             192.0B  kappa=0.8527 eta=1.288  p95R*=189  CR@30=0.9019 CR@80=0.9751  [26.3s]
+[14:17:48]     [verify] adc_bq q0 kappa gram=0.929279 direct=0.929279 diff=1.57e-08
+[14:17:58]   ADC-BQ             192.0B  kappa=0.9158 eta=0.919  p95R*=66  CR@30=0.9660 CR@80=0.9960  [23.5s]
+[14:18:24]   ADC-BQ +centre     192.0B  kappa=0.9030 eta=1.003  p95R*=191  CR@30=0.8717 CR@80=0.9665  [26.3s]
+[14:18:54]   ADC-BQ +centre+scale   196.0B  kappa=0.9171 eta=0.921  p95R*=153  CR@30=0.8920 CR@80=0.9751  [29.8s]
+[14:19:11]     [verify] pq q0 kappa gram=0.956370 direct=0.956370 diff=1.37e-11
+[14:19:22]   PQ                 192.0B  kappa=0.9448 eta=0.724  p95R*=103  CR@30=0.9362 CR@80=0.9906  [27.4s]
+[14:22:11]   OPQ                192.0B  kappa=0.9644 eta=0.574  p95R*=52  CR@30=0.9735 CR@80=0.9984  [169.3s]
+[14:22:34]   SQ-4bit            768.0B  kappa=0.9270 eta=0.855  p95R*=121  CR@30=0.8993 CR@80=0.9829  [22.8s]
+[14:22:57]   SQ-8bit           1536.0B  kappa=0.9998 eta=0.045  p95R*=12  CR@30=1.0000 CR@80=1.0000  [23.3s]
+[14:23:30]   RaBitQ-1bit        196.0B  kappa=0.9215 eta=0.887  p95R*=149  CR@30=0.9028 CR@80=0.9804  [33.3s]
+[14:23:56]   TurboQuant-1bit    192.0B  kappa=0.8931 eta=1.056  p95R*=133  CR@30=0.9273 CR@80=0.9845  [25.9s]
+[14:23:56] dbpedia_ada2 done in 427.6s -> /home/sieun/projects/BBQETA/out/dbpedia_ada2.json

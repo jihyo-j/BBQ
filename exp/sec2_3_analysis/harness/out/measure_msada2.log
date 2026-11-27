@@ -1,0 +1,15 @@
+[18:03:09] msmarco_ada2: N=1000000 d=1536 nq=2000  (MS MARCO / ada-002)
+[18:03:21]   beta mean=0.6119  beta(10-100)=0.5915  z10 mean=6.842
+[18:03:47]   Sym-BQ             192.0B  kappa=0.8397 eta=1.169  p95R*=183  CR@30=0.9105 CR@80=0.9787  [26.4s]
+[18:03:59]     [verify] adc_bq q0 kappa gram=0.901217 direct=0.901217 diff=2.56e-09
+[18:04:10]   ADC-BQ             192.0B  kappa=0.9103 eta=0.821  p95R*=63  CR@30=0.9698 CR@80=0.9969  [22.6s]
+[18:04:36]   ADC-BQ +centre     192.0B  kappa=0.9142 eta=0.801  p95R*=154  CR@30=0.8960 CR@80=0.9773  [26.5s]
+[18:05:06]   ADC-BQ +centre+scale   196.0B  kappa=0.9148 eta=0.798  p95R*=110  CR@30=0.9230 CR@80=0.9867  [29.7s]
+[18:05:23]     [verify] pq q0 kappa gram=0.929047 direct=0.929047 diff=2.09e-08
+[18:05:34]   PQ                 192.0B  kappa=0.9350 eta=0.682  p95R*=88  CR@30=0.9469 CR@80=0.9929  [27.9s]
+[18:08:28]   OPQ                192.0B  kappa=0.9725 eta=0.431  p95R*=40  CR@30=0.9854 CR@80=0.9998  [174.7s]
+[18:08:51]   SQ-4bit            768.0B  kappa=0.9937 eta=0.203  p95R*=18  CR@30=0.9999 CR@80=1.0000  [22.5s]
+[18:09:14]   SQ-8bit           1536.0B  kappa=1.0000 eta=0.012  p95R*=11  CR@30=1.0000 CR@80=1.0000  [23.2s]
+[18:09:47]   RaBitQ-1bit        196.0B  kappa=0.9170 eta=0.784  p95R*=106  CR@30=0.9281 CR@80=0.9883  [33.0s]
+[18:10:14]   TurboQuant-1bit    192.0B  kappa=0.8771 eta=0.989  p95R*=127  CR@30=0.9316 CR@80=0.9868  [26.9s]
+[18:10:14] msmarco_ada2 done in 432.6s -> /home/sieun/projects/BBQETA/out/msmarco_ada2.json

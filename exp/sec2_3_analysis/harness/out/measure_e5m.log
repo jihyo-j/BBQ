@@ -1,0 +1,15 @@
+[18:36:14] msmarco_e5m: N=1000000 d=4096 nq=2000  (MS MARCO / E5-Mistral)
+[18:36:47]   beta mean=0.7805  beta(10-100)=0.6739  z10 mean=7.044
+[18:38:20]   Sym-BQ             512.0B  kappa=0.8217 eta=0.987  p95R*=73  CR@30=0.9680 CR@80=0.9957  [93.3s]
+[18:39:41]     [verify] adc_bq q0 kappa gram=0.896964 direct=0.896964 diff=5.52e-08
+[18:39:55]   ADC-BQ             512.0B  kappa=0.9015 eta=0.680  p95R*=36  CR@30=0.9914 CR@80=0.9994  [94.2s]
+[18:41:50]   ADC-BQ +centre     512.0B  kappa=0.9131 eta=0.633  p95R*=53  CR@30=0.9746 CR@80=0.9979  [115.3s]
+[18:43:05]   ADC-BQ +centre+scale   516.0B  kappa=0.9157 eta=0.621  p95R*=40  CR@30=0.9876 CR@80=0.9994  [75.4s]
+[18:44:13]     [verify] pq q0 kappa gram=0.973253 direct=0.973253 diff=7.25e-09
+[18:44:26]   PQ                 512.0B  kappa=0.9745 eta=0.323  p95R*=46  CR@30=0.9846 CR@80=0.9989  [80.8s]
+[19:17:47]   OPQ                512.0B  kappa=0.9880 eta=0.219  p95R*=24  CR@30=0.9982 CR@80=1.0000  [2001.0s]
+[19:19:16]   SQ-4bit           2048.0B  kappa=0.9969 eta=0.111  p95R*=14  CR@30=1.0000 CR@80=1.0000  [89.2s]
+[19:20:42]   SQ-8bit           4096.0B  kappa=1.0000 eta=0.007  p95R*=10  CR@30=1.0000 CR@80=1.0000  [85.4s]
+[19:22:13]   RaBitQ-1bit        516.0B  kappa=0.9706 eta=0.348  p95R*=30  CR@30=0.9948 CR@80=1.0000  [91.6s]
+[19:23:48]   TurboQuant-1bit    512.0B  kappa=0.9570 eta=0.423  p95R*=29  CR@30=0.9952 CR@80=1.0000  [94.5s]
+[19:23:48] msmarco_e5m done in 2880.6s -> /home/sieun/projects/BBQETA/out/msmarco_e5m.json

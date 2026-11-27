@@ -1,0 +1,5 @@
+component,loss,queries
+L_visit,0.009582,454
+L_select,0.000686,40
+total,0.010268,5980
+visit_share,0.933225,

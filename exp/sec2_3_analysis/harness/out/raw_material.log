@@ -1,0 +1,27 @@
+==========================================================================
+1.  z(r) BY CORPUS -- one encoder (Qwen3-0.6B, 1024d), corpus varies
+==========================================================================
+corpus           N      sd   cos@1   cos@2   cos@3   cos@5  cos@10 cos@100   beta
+MS MARCO   1000000  0.0594   0.729   0.663   0.631   0.596   0.556   0.454  0.789
+NQ         1000000  0.0640   0.703   0.662   0.638   0.609   0.572   0.469  0.699
+Quora       522931  0.0630   0.835   0.766   0.735   0.698   0.653   0.532  0.837
+DBpedia    1000000  0.0627   0.696   0.646   0.624   0.599   0.569   0.465  0.724
+
+corpus       z(1)    z(2)    z(3)    z(5)   z(10)  z(100)  R* med  R* p95
+MS MARCO    10.22    9.15    8.66    8.06    7.36    5.68      16      47
+NQ           8.91    8.28    7.94    7.47    6.87    5.34      16      50
+Quora       10.53    9.36    8.84    8.33    7.68    5.81      14      35
+DBpedia      9.17    8.34    8.05    7.65    7.17    5.51      16      50
+
+==========================================================================
+2.  JUDGED ANSWERS PER QUERY vs THE FIXED TOP-10
+==========================================================================
+corpus    queries  median   mean   max     =1    >10   in exact top-10
+MS MARCO     6980       1   1.07     4  94.4%   0.0%   0.94 of 1.05 judged, 89% of queries complete
+Quora       10000       1   1.57    75  76.9%   0.8%   1.47 of 1.73 judged, 90% of queries complete
+NQ           3452       1   1.22     4  80.7%   0.0%   --  (rows do not map back)
+DBpedia       400      16  38.22  1398   4.0%  62.5%   --  (rows do not map back)
+   MS MARCO: judged document rank -- median 1, p95 29, inside top-10 89.0%
+   Quora: judged document rank -- median 2, p95 40, inside top-10 84.7%
+
+wrote /home/sieun/projects/BBQETA/out/raw_material.txt and raw_material.npz

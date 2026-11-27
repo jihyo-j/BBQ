@@ -1,0 +1,10 @@
+# Embeddings in VLDB ANN evaluations.
+# Sample: 71 VLDB main-conference papers, 361 paper x corpus/representation
+# groups.  Counts are groups, not papers.
+# year  n_papers  n_groups  conventional  modern  other_learned  unresolved
+2021   4   18  15   0   3   0
+2022   4   21  15   0   2   4
+2023   8   36  22   3  10   1
+2024   4   20  10   6   4   0
+2025  24  116  58  23  27   8
+2026  27  150  49  48  34  19

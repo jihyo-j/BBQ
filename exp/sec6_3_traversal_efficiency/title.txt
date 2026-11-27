@@ -1,0 +1,1 @@
+Sec 6.2-6.3: BBQ vs in-memory FP32 HNSW at matched recall; traversal-efficiency profile (MS MARCO / DBpedia Qwen-1024; T=1)

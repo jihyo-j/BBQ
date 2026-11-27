@@ -1,0 +1,129 @@
+# BBQ Section 4, Figure 1.  Palette and terminal from recall_qps.gp.
+# Every panel carries its own key; axis furniture is kept lighter than the data.
+set terminal pdfcairo enhanced font "Liberation Sans,8" fontscale 0.75 linewidth 1 size 7in,1.89in
+set output "fig4.pdf"
+LW = 2.0; MLW = 1.1
+C_ADA="#FF8000"; C_BGE="#1A9850"; C_QWEN="#E8336D"; C_GLV="#808080"
+C_BLUE="#0A0AF0"; C_PUR="#9933E6"; INK="#262626"
+set style line 1 lc rgb C_ADA  lw LW pt 6  ps .55
+set style line 2 lc rgb C_BGE  lw LW pt 4  ps .55
+set style line 3 lc rgb C_QWEN lw LW pt 12 ps .70
+set style line 4 lc rgb C_GLV  lw LW pt 2  ps .55
+set style line 5 lc rgb C_BLUE lw LW pt 8  ps .60
+set style line 21 lc rgb "#0A0AF0" lw LW pt 4  ps .55   # Quora/Qwen
+set style line 22 lc rgb "#9933E6" lw LW pt 10 ps .60   # NQ/Qwen
+set style line 23 lc rgb "#FF8000" lw LW pt 12 ps .65   # DBpedia/Qwen
+set style line 24 lc rgb "#E8336D" lw LW pt 6  ps .55   # MS MARCO/Qwen
+set style line 25 lc rgb "#1A9850" lw LW pt 8  ps .60   # MSM/BGE-M3
+set style line 26 lc rgb "#00838F" lw LW pt 14 ps .60   # MSM/E5-Mistral
+set style line 27 lc rgb "#909090" lw LW pt 2  ps .55   # GloVe
+set style line 28 lc rgb "#404040" lw LW pt 1  ps .55   # GIST
+set style line 9 lc rgb "#707070" lw 1.6 dt 2
+set border 31 lw 1.2
+set tics in nomirror scale 1.0,0.5 font ",7.5"
+unset x2tics; unset y2tics; unset grid
+set key font ",6.5" samplen 1.5 spacing 1.02 width -1 tc rgb INK
+set bmargin 0; set tmargin 0; set lmargin 0; set rmargin 0
+W=0.166; H=0.529; B=0.356
+L1=0.070; L2=0.312; L3=0.554; L4=0.800
+set multiplot
+
+# ---- (a) exact score profile: how the top ranks stand out, by embedding ----
+set size W,H; set origin L1,B
+set title "(a) Exact score profile" font ",8.5" offset 0,-0.5
+set logscale x; set xrange[0.9:115]; set xtics ("1" 1,"10" 10,"100" 100); set mxtics 10
+set xlabel "exact rank {/:Italic r}" font ",8.5" offset 0,0.6
+set ylabel "{/:Italic z}({/:Italic r})" font ",8.5" offset 1.8,0
+unset logscale y; set yrange[1.8:11.4]; set ytics 2; set mytics 2
+unset key
+plot for [i=2:9] "p_z6.dat"     u 1:i w l  ls (i+19) notitle, \
+     for [i=2:9] "p_z6_pts.dat" u 1:i w p  ls (i+19) lw MLW notitle
+
+# ---- (b) the budget those profiles buy, same settings and colours as (a).
+#      The slot is split: the learned embeddings get the room, the two
+#      non-learned controls sit above an axis break so they stay on the
+#      figure without flattening everything else.
+HB = 0.655*H        # lower strip, the Transformer configurations
+HT = 0.245*H        # upper strip, GloVe and GIST
+GAP = 0.100*H
+
+#      upper strip first: no x axis of its own, it shares the one below
+set size W,HT; set origin L2,B+HB+GAP
+set title "(b) Budget for exact top-{/:Italic k}" font ",8.5" offset 0,-0.5
+unset logscale x; set xrange[0.3:10.7]; unset mxtics
+set xtics ("" 1,"" 4,"" 7,"" 10) scale 1.0,0.5
+set xlabel ""
+set logscale y; set yrange[600:2.2e6]
+set ytics ("10^{3}" 1000,"10^{6}" 1000000) font ",7"; unset mytics
+set ylabel ""
+unset key
+set label 30 "{/*1.15 ≈}" at graph -0.012, graph -0.17 center font ",8" tc rgb INK front
+set label 31 "{/*1.15 ≈}" at graph  1.012, graph -0.17 center font ",8" tc rgb INK front
+plot for [i=8:9] "p_rk6.dat" u 1:i w lp ls (i+19) lw MLW notitle
+
+#      lower strip carries the x axis and the y label for both
+unset label 30; unset label 31
+set size W,HB; set origin L2,B
+unset title
+set xtics ("1" 1,"4" 4,"7" 7,"10" 10); set mxtics 3
+set xlabel "{/:Italic k}" font ",8.5" offset 0,0.6
+set yrange[1.6:95]
+set ytics ("2" 2,"10" 10,"50" 50) font ",7"; unset mytics
+set ylabel "{/:Italic R}^{*}" font ",8.5" offset 0.6,0.9
+unset key
+plot for [i=2:7] "p_rk6.dat" u 1:i w lp ls (i+19) lw MLW notitle
+
+# ---- (c) MRL ladder: every quantity relative to its value at d = 32 ----
+set size W,H; set origin L3,B
+set title "(c) MRL dimension" font ",8.5" offset 0,-0.5
+set logscale x; set xrange[26:9500]; set xtics ("32" 32,"256" 256,"4096" 4096); set mxtics 2
+set xlabel "dimension {/:Italic d}" font ",8.5" offset -1.2,0.6
+set logscale y; set yrange[0.00007:16]
+set ytics ("10" 10,"1" 1,"10^{-2}" 0.01,"10^{-4}" 0.0001) font ",7"
+unset mytics
+set ylabel "relative to {/:Italic d}=32" font ",8.5" offset 0.6,0
+unset style fill
+unset key
+set label 101 "{/Symbol b}"        at 4850,6.13   left font ",7" tc rgb "#1A9850"
+set label 102 "{/:Italic f}"       at 4850,0.985  left font ",7" tc rgb "#707070"
+set label 103 "{/:Italic c_Q}"     at 4850,0.335  left font ",7" tc rgb "#E8336D"
+set label 104 "{/Symbol h}"        at 4850,0.0614 left font ",7" tc rgb "#9933E6"
+set label 105 "{/:Italic R}^{*}"   at 4850,0.00100 left font ",7" tc rgb "#0A0AF0"
+plot "p_dimrel.dat" u 1:5 w lp lc rgb "#1A9850" pt 10 ps .60 lw LW notitle, \
+     ""             u 1:2 w lp lc rgb "#707070" pt 2  ps .55 lw LW dt 2 notitle, \
+     ""             u 1:3 w lp lc rgb "#E8336D" pt 4  ps .55 lw LW notitle, \
+     ""             u 1:6 w lp lc rgb "#9933E6" pt 12 ps .65 lw LW notitle, \
+     ""             u 1:4 w lp lc rgb "#0A0AF0" pt 8  ps .60 lw LW notitle
+
+# ---- (d) what a same-size quantizer buys: the hand-off to Section 4 ----
+#      the x-tic rotation lives in this block alone, which is the last one,
+#      so it cannot leak into the panels that follow.
+set size W,H; set origin L4,B
+unset label 101; unset label 102; unset label 103; unset label 104; unset label 105
+set title "(d) Score distortion" font ",8.5" offset 0,-0.5
+unset logscale x; set xrange[-0.45:6.45]
+set xtics ("Sym" 0,"ADC" 1,"TQ" 2,"+cs" 3,"RaB" 4,"PQ" 5,"OPQ" 6) \
+    rotate by -50 font ",6" offset -0.4,0.3
+unset mxtics
+set xlabel ""
+set ylabel "{/:Italic c_Q} rel. ADC-BQ" font ",8.5" offset 1.4,0
+set logscale y; set yrange[0.28:1.75]
+set ytics ("0.3" 0.3,"0.5" 0.5,"1" 1,"1.5" 1.5); unset mytics
+set key at graph 0.02,0.40 left top reverse Left samplen 1.3 spacing 1.05 width -0.5
+plot for [c=2:9] "p_cq.dat" u 1:c w l lc rgb "#C9C9C9" lw 1.0 notitle, \
+     "p_cq.dat" u 1:10 w lp lc rgb "#E8336D" pt 4 ps .55 lw LW t "1024D (8)", \
+     ""         u 1:11 w lp lc rgb "#0A0AF0" pt 8 ps .60 lw LW dt 3 t "E5 4096D", \
+     ""         u 1:12 w lp lc rgb "#808080" pt 2 ps .55 lw LW dt 2 t "GloVe"
+
+# ---- shared legend for (a) and (b), one centred row ----
+unset border; unset tics; unset xlabel; unset ylabel; unset title
+unset logscale x; unset logscale y
+set size 1,1; set origin 0,0; set xrange[0:1]; set yrange[0:1]
+set key at screen 0.5,0.149 center top horizontal maxrows 2 reverse Left \
+    samplen 1.6 spacing 1.08 width 1 font ",7" tc rgb INK
+plot NaN w lp ls 21 lw MLW t "Quora/Qwen", NaN w lp ls 22 lw MLW t "NQ/Qwen", \
+     NaN w lp ls 23 lw MLW t "DBpedia/Qwen", NaN w lp ls 24 lw MLW t "MS MARCO/Qwen", \
+     NaN w lp ls 25 lw MLW t "MS MARCO/BGE", NaN w lp ls 26 lw MLW t "MS MARCO/E5", \
+     NaN w lp ls 27 lw MLW t "GloVe", NaN w lp ls 28 lw MLW t "GIST"
+
+unset multiplot

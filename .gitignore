@@ -14,3 +14,6 @@ exp/fig*/plot/*.png
 !exp/fig*/plot/perquery_cloud_*.png
 exp/include
 exp/baselines/qdrant
+exp/sec*/plot/**/*.pdf
+!exp/sec*/plot/**/*.paper.pdf
+exp/sec*/plot/**/*.png

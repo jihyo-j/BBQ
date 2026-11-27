@@ -7,6 +7,8 @@
 //   file       result CSV, relative to exp/
 //   select     unique row selector: "key=value;key=value" (exact string match on CSV cells)
 //   column     the CSV column holding the measured value
+//   agg        optional: min | max | mean | median | count over ALL rows the selector matches (for range
+//              claims such as "26.0-40.5 %"); empty means the selector must match exactly one row
 //   derive     instead of file/select/column: an arithmetic expression over *measured* values of other
 //              claims, e.g. "F15.10/F15.9" (ratios, "x faster", "% fewer"). Operators + - * / and ( ).
 //   expected   the value as printed in the paper; empty for a *reference* row (an operating point the
@@ -20,6 +22,7 @@
 // with the reason reported. Header-only, C++17, no dependencies.
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -101,7 +104,7 @@ inline bool matches(const Row& r, const std::vector<std::pair<std::string, std::
 
 // ---------------------------------------------------------------- claims
 struct Claim {
-    std::string id, section, text, file, select, column, derive;
+    std::string id, section, text, file, select, column, derive, agg;
     double expected = 0, tolerance = 0;
     bool reference = false;  // measured for use in `derive`, not itself a paper claim
 };
@@ -190,15 +193,31 @@ private:
         const Table* t = table(c.file, o.reason);
         if (!t) return false;
         auto sel = parse_selector(c.select);
-        const Row* hit = nullptr;
-        int n = 0;
+        std::vector<const Row*> hits;
         for (auto& r : t->rows)
-            if (matches(r, sel)) { hit = &r; ++n; }
-        if (n != 1) { o.reason = "selector matched " + std::to_string(n) + " rows"; return false; }
-        auto it = hit->find(c.column);
-        if (it == hit->end()) { o.reason = "no column " + c.column; return false; }
-        try { o.measured = std::stod(it->second); }
-        catch (...) { o.reason = "non-numeric cell '" + it->second + "'"; return false; }
+            if (matches(r, sel)) hits.push_back(&r);
+        if (c.agg.empty()) {
+            if (hits.size() != 1) { o.reason = "selector matched " + std::to_string(hits.size()) + " rows"; return false; }
+        } else if (hits.empty()) {
+            o.reason = "selector matched 0 rows"; return false;
+        }
+        std::vector<double> v;
+        for (const Row* h : hits) {
+            auto it = h->find(c.column);
+            if (it == h->end()) { o.reason = "no column " + c.column; return false; }
+            try { v.push_back(std::stod(it->second)); }
+            catch (...) { o.reason = "non-numeric cell '" + it->second + "'"; return false; }
+        }
+        if (c.agg.empty()) { o.measured = v[0]; return true; }
+        std::sort(v.begin(), v.end());
+        double sum = 0;
+        for (double x : v) sum += x;
+        if (c.agg == "min") o.measured = v.front();
+        else if (c.agg == "max") o.measured = v.back();
+        else if (c.agg == "mean") o.measured = sum / v.size();
+        else if (c.agg == "count") o.measured = static_cast<double>(v.size());
+        else if (c.agg == "median") o.measured = v.size() % 2 ? v[v.size() / 2] : (v[v.size() / 2 - 1] + v[v.size() / 2]) / 2;
+        else { o.reason = "unknown agg " + c.agg; return false; }
         return true;
     }
     static bool derive(const Claim& c, const std::map<std::string, double>& measured, Outcome& o) {
@@ -231,7 +250,7 @@ inline bool load_claims(const std::string& path, std::vector<Claim>& out, std::s
     for (auto& r : t.rows) {
         Claim c;
         c.id = r["id"]; c.section = r["section"]; c.text = r["claim"]; c.file = r["file"];
-        c.select = r["select"]; c.column = r["column"]; c.derive = r["derive"];
+        c.select = r["select"]; c.column = r["column"]; c.derive = r["derive"]; c.agg = r["agg"];
         c.reference = r["expected"].empty();
         if (!c.reference) try { c.expected = std::stod(r["expected"]); c.tolerance = std::stod(r["tolerance"]); }
         catch (...) { err = "bad expected/tolerance in claim " + c.id; return false; }
