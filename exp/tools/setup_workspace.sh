@@ -13,6 +13,9 @@ ln -sfn "${ROOT}/bbq/src/adcbq_sign_packing.hpp"  "${W}/adcbq_sign_packing.hpp"
 ln -sfn "${ROOT}/bbq/src/bbq_dynamic_insert.cpp"  "${W}/adcbq_fpgraph_dynamic_5m.cpp"
 ln -sfn "${EXP}/baselines/qdrant_tq_ffi"          "${W}/qdrant_tq_ffi"
 for f in "${EXP}"/baselines/patches/qdrant/*.patch; do ln -sfn "$f" "${W}/$(basename "$f")"; done
+# dataset manifest of the 16 configurations, read by run_msmarco_te3small1536_adcbq_colocation.py (Fig 19)
+mkdir -p "${W}/full16_12methods_t24"
+ln -sfn "${EXP}/scripts/manifests/full16_12methods_t24.dataset_manifest.json" "${W}/full16_12methods_t24/dataset_manifest.json"
 
 # RaBitQ-Library v0.5.1 + the cumulative patch (baselines/patches/rabitq-library/README.md). One tree serves both the
 # FAISS-based drivers (-I REPO/include, REPO = exp/) and the Python binding of the RaBitQ baselines

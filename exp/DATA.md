@@ -85,7 +85,7 @@ Table 5: MS MARCO BGE-1024 (`msmarco-bge-1024`) has 10,000 queries; Table 5 give
 | Fig 16 (MRL 256–4096) | NQ, Qwen3-Embedding-8B, truncated + renormalised per width, GT recomputed per width | `prepare_nq_qwen8_mrl_inputs.py` | `$BBQ_DATA/nq_sieun_adcbq_rabitq` → `$BBQ_DATA/nq_qwen8_mrl_four_methods_t1` (17 GB) |
 | Fig 17 (10M / 50M / 100M) | MS MARCO passages, Qwen3-Embedding-0.6B | `prepare_msmarco_qwen1024_100m_scalability_inputs.py` | `$BBQ_DATA2/qwen100m` |
 | Fig 18 (1M + 100M inserts) | same 101M pool, 4 KiB-aligned | `prepare_msmarco_qwen1024_101m_dynamic_inputs.py` | `$BBQ_DATA2/{msmarco-qwen1024,qwen100m}` → 414 GB aligned file |
-| Figs 14/15/19 OpenAI-1536 | BEIR MS MARCO, OpenAI | `prepare_openai_beir_11methods_inputs.py` | `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json` |
+| Figs 14/15/19 OpenAI-1536 | BEIR MS MARCO, OpenAI text-embedding-3-small (key `sieun_msmarco_openai1536`) | `prepare_openai_beir_11methods_inputs.py` | `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json`; the Fig 19 runner reads the same paths from `scripts/manifests/full16_12methods_t24.dataset_manifest.json` |
 
 ## Not in this repository
 
