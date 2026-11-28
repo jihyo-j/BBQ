@@ -1,3 +1,2 @@
 repo: https://github.com/VectorDB-NTU/RaBitQ-Library.git
-commit: 7c2d0d71e416cba012e563d82219ca8a6348a759
-scope: include/ only (headers used by the FAISS-based TurboQuant/PQ/OPQ/sym-BQ/RaBitQ-1bit drivers in exp/scripts)
+commit: 44f8a607741e9e54f6dda3b38c325071e808aa45 (tag v0.5.1)

@@ -14,13 +14,15 @@ ln -sfn "${ROOT}/bbq/src/bbq_dynamic_insert.cpp"  "${W}/adcbq_fpgraph_dynamic_5m
 ln -sfn "${EXP}/baselines/qdrant_tq_ffi"          "${W}/qdrant_tq_ffi"
 for f in "${EXP}"/baselines/patches/qdrant/*.patch; do ln -sfn "$f" "${W}/$(basename "$f")"; done
 
-# RaBitQ headers for the FAISS-based drivers: they compile with -I REPO/include (REPO = exp/).
+# RaBitQ-Library v0.5.1 + the cumulative patch (baselines/patches/rabitq-library/README.md). One tree serves both the
+# FAISS-based drivers (-I REPO/include, REPO = exp/) and the Python binding of the RaBitQ baselines
+# (pip install "${W}/_deps/RaBitQ-Library").
 if [[ ! -d "${EXP}/include/rabitqlib" ]]; then
-  base=$(sed -n 's/^commit: //p' "${EXP}/baselines/patches/rabitq-library/BASE")
+  base=$(sed -n 's/^commit: \([0-9a-f]*\).*/\1/p' "${EXP}/baselines/patches/rabitq-library/BASE")
   dep="${W}/_deps/RaBitQ-Library"
   [[ -d "${dep}" ]] || git clone -q https://github.com/VectorDB-NTU/RaBitQ-Library.git "${dep}"
   git -C "${dep}" checkout -q "${base}"
-  git -C "${dep}" apply "${EXP}/baselines/patches/rabitq-library/include.patch"
+  git -C "${dep}" apply "${EXP}/baselines/patches/rabitq-library/rabitq_v051_adaptive_odirect.cumulative.patch"
   ln -sfn "${dep}/include" "${EXP}/include"
 fi
 
