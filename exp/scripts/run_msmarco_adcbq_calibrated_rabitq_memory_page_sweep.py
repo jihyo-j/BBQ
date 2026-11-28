@@ -32,7 +32,7 @@ FP_ROOT = Path(
 )
 CALIBRATION_PATH = (
     REPO
-    / "experiment/adcbq_calibrated_threshold_overlap/msmarco_openai1536/"
+    / "experiment/adcbq_calibrated_threshold_overlap/sieun_msmarco_openai1536/"
     "calibration.single_tau_ef256.json"
 )
 CALIBRATION_QUERIES = 1000

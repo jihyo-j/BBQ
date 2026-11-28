@@ -50,5 +50,5 @@ paper runs, as a single diff against v0.5.1. It touches `include/rabitqlib/index
 
 `rabitq_paged_adaptive_benchmark.cpp` (paged RaBitQ HNSW) is the exception. It needs paging methods
 (`prepare_1bit_paged_index`, ...) that are in neither tree. It was compiled against the working tree
-`experiment/rabitq_v051_adaptive_odirect_build` (2026-11-06), which the repository does not reproduce. Only the
-earlier ada-002 colocation runs, which the current Fig 19 replaces, used it.
+`experiment/rabitq_v051_adaptive_odirect_build` (2026-11-06), which the repository does not reproduce. Only earlier
+colocation runs, which the current Fig 19 replaces, used it.

@@ -59,7 +59,6 @@ class Dataset:
 
 
 OPENAI_ROOT = Path("/home/smrc/samsung-nvme/ann-benchmark-data/deep_1B/3072/openai")
-MARCO_OPENAI_ROOT = Path("/home/smrc/samsung-nvme/ann-benchmark-data/deep_1B/3072/marco")
 QWEN_ROOT = Path("/home/smrc/samsung-nvme/jihyo/qwen")
 E5_ROOT = Path("/home/smrc/samsung-nvme/jihyo/e5")
 DBP_BGE_ROOT = Path(
@@ -292,19 +291,21 @@ for corpus, prefix in (("DBpedia", "dbpedia-entity"), ("MSMARCO", "msmarco-1m"))
         )
     )
 
-# Only a local MSMARCO OpenAI-1536 set is available (not OpenAI-3072).
+# MSMARCO OpenAI text-embedding-3-small (BEIR, 1M; prepare_openai_beir_11methods_inputs.py). The Fig 19 colocation
+# runner uses this entry.
+TE3_SMALL_ROOT = Path("/home/smrc/samsung-nvme/jihyo/openai_beir_11methods_t1")
 add(
     ds(
-        "msmarco_openai1536",
+        "sieun_msmarco_openai1536",
         "MSMARCO",
-        "OpenAI-1536",
+        "OpenAI text-embedding-3-small",
         1536,
-        MARCO_OPENAI_ROOT / "msmarco-v1-openai-ada2-1M_train.fbin",
-        MARCO_OPENAI_ROOT / "msmarco-v1-openai-ada2-1M_query.fbin",
-        MARCO_OPENAI_ROOT / "msmarco-v1-openai-ada2-1M.ibin",
+        TE3_SMALL_ROOT / "data/sieun_msmarco_openai1536/sieun_msmarco_openai1536.train.fbin",
+        TE3_SMALL_ROOT / "data/sieun_msmarco_openai1536/sieun_msmarco_openai1536.query.fbin",
+        TE3_SMALL_ROOT / "data/sieun_msmarco_openai1536/sieun_msmarco_openai1536.gt100.ibin",
         None,
         None,
-        None,
+        TE3_SMALL_ROOT / "indexes/sieun_msmarco_openai1536/sieun_msmarco_openai1536.adcbq.M24.efC200.faiss",
     )
 )
 

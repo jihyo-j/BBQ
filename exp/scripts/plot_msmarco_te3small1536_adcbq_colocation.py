@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent / "msmarco_te3small1536_adcbq_colocation_
 
 def main():
     assert json.loads((ROOT / "validation.json").read_text())["status"] == "passed"
-    with (ROOT / "summary.csv").open() as stream:
+    with (ROOT / "msmarco_te3small1536_colocation_summary.csv").open() as stream:
         rows = list(csv.DictReader(stream))
     assert len(rows) == 24
     indexed = {(int(r["page_bytes"]), float(r["bq_ram_ratio_target"]), r["layout"]): r for r in rows}
@@ -64,17 +64,17 @@ def main():
     axes[0, 0].legend()
     fig.suptitle("MSMARCO text-embedding-3-small, 1536D | ADC-BQ | ef=256 | 24 threads\n"
                  f"Fixed calibrated tau={float(rows[0]['calibration_tau']):.6f}; recall@10={float(rows[0]['recall_at_10']):.6f}")
-    destination = ROOT / "comparison.csv"
+    destination = ROOT / "msmarco_te3small1536_colocation_comparison.csv"
     with destination.open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(comparison[0]))
         writer.writeheader()
         writer.writerows(comparison)
     assert len(comparison) == 12
-    fig.savefig(ROOT / "comparison.png", dpi=160)
-    fig.savefig(ROOT / "comparison.pdf")
+    fig.savefig(ROOT / "msmarco_te3small1536_colocation_comparison.png", dpi=160)
+    fig.savefig(ROOT / "msmarco_te3small1536_colocation_comparison.pdf")
     plt.close(fig)
     for source, target in ((destination, Path("/home/jihyo/msmarco_te3small1536_adcbq_colocation_comparison_t24.csv")),
-                           (ROOT / "comparison.png", Path("/home/jihyo/msmarco_te3small1536_adcbq_colocation_t24.png"))):
+                           (ROOT / "msmarco_te3small1536_colocation_comparison.png", Path("/home/jihyo/msmarco_te3small1536_adcbq_colocation_t24.png"))):
         temporary = target.with_suffix(target.suffix + ".tmp")
         shutil.copyfile(source, temporary)
         temporary.replace(target)

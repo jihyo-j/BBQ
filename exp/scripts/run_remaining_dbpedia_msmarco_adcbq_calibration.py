@@ -33,7 +33,6 @@ TARGETS = (
     ("msmarco_bge768", 1000),
     ("msmarco_bge1024", 1000),
     ("msmarco_e5mistral4096", 1000),
-    ("msmarco_openai1536", 1000),
 )
 
 EFS = (

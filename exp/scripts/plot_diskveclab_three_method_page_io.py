@@ -38,7 +38,6 @@ PANELS = (
     ("quora_qwen1024", "Quora · Qwen-0.6B (1024D)"),
     ("quora_nemotron4096", "Quora · Nemotron (4096D)"),
     ("quora_e5mistral4096", "Quora · E5-Mistral (4096D)"),
-    ("msmarco_openai1536", "MS MARCO · OpenAI (1536D)"),
     ("msmarco_bge1024", "MS MARCO · BGE (1024D)"),
     ("msmarco_qwen1024", "MS MARCO · Qwen-0.6B (1024D)"),
     ("msmarco_e5mistral4096", "MS MARCO · E5-Mistral (4096D)"),

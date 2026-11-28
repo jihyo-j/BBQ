@@ -57,7 +57,7 @@ LAYOUTS = ("baseline", "coloc")
 
 def datasets() -> list[base.Dataset]:
     return [
-        base.DATASETS["msmarco_openai1536"],
+        base.DATASETS["sieun_msmarco_openai1536"],
         base.DATASETS["msmarco_bge768"],
     ]
 

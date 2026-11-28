@@ -49,9 +49,6 @@ DEFAULT_EFS = (
 )
 
 NQ_QUORA_C16 = Path("/home/smrc/samsung-nvme/jihyo/nq_quora_c16_rabitq/indexes")
-MSMARCO_PAGED_C16 = Path(
-    "/home/smrc/samsung-nvme/jihyo/msmarco_rabitq_paged25_t24/indexes"
-)
 PREBUILT_INDEXES = {
     "nq_bge_m3_vanilla": NQ_QUORA_C16
     / "nq_bge_m3_vanilla.rabitq_b1_c16.n1000000.d1024.M24.efC200.index",
@@ -63,8 +60,6 @@ PREBUILT_INDEXES = {
     / "quora_qwen1024.rabitq_b1_c16.n522931.d1024.M24.efC200.index",
     "msmarco_qwen1024": NQ_QUORA_C16
     / "msmarco_qwen1024.rabitq_b1_c16.n1000000.d1024.M24.efC200.index",
-    "msmarco_openai1536": MSMARCO_PAGED_C16
-    / "msmarco_openai1536.rabitq_b1_c16.n1000000.d1536.M24.efC200.index",
 }
 
 

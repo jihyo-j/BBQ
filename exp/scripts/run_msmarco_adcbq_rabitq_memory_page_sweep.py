@@ -24,7 +24,7 @@ FIGURE_ROOT = REPO / "experiment/figures/msmarco_adcbq_rabitq_memory_page_sweep"
 ARTIFACT_ROOT = Path(
     "/home/smrc/samsung-nvme/jihyo/msmarco_adcbq_rabitq_memory_page_sweep"
 )
-DATASET = datasets_base.DATASETS["msmarco_openai1536"]
+DATASET = datasets_base.DATASETS["sieun_msmarco_openai1536"]
 PAGES = (4096, 8192, 16384)
 RATIOS = (0.10, 0.25, 0.50, 0.75)
 # Produce the requested fixed-25% page sweep first, then fill the RAM sweep.
@@ -63,10 +63,10 @@ ADC_INDEX_RESULT_ROOTS = {
 }
 RABITQ_BASE_INDEX = Path(
     "/home/smrc/samsung-nvme/jihyo/msmarco_rabitq_paged25_t24/indexes/"
-    "msmarco_openai1536.rabitq_b1_c16.n1000000.d1536.M24.efC200.index"
+    "sieun_msmarco_openai1536.rabitq_b1_c16.n1000000.d1536.M24.efC200.index"
 )
 LEGACY_ADC_ASYNC_4K_P025 = (
-    REPO / "experiment/msmarco_adcbq_colocation_4k_graph_async/msmarco_openai1536"
+    REPO / "experiment/msmarco_adcbq_colocation_4k_graph_async/sieun_msmarco_openai1536"
 )
 
 

@@ -5,6 +5,12 @@ tables.py,eta.spearman.pooled,0.9589169965638069
 tables.py,eta.n.pooled,153.0
 tables.py,eta.n.pairs_total,155.0
 tables.py,eta.n.configurations,20.0
+tables.py,eta.paper.spearman.adc_bq,0.9116571279743092
+tables.py,eta.paper.n.adc_bq,17.0
+tables.py,eta.paper.spearman.pooled,0.9565572477260507
+tables.py,eta.paper.n.pooled,133.0
+tables.py,eta.paper.n.pairs_total,135.0
+tables.py,eta.paper.n.configurations,18.0
 dbpedia_ada2_perq.npz,perq.dbpedia_ada2.sym_bq.median,31.0
 dbpedia_ada2_perq.npz,perq.dbpedia_ada2.sym_bq.p95,189.19999999999982
 dbpedia_ada2_perq.npz,perq.dbpedia_ada2.sym_bq.p99,468.49999999999955
@@ -629,3 +635,7 @@ levels.py,levels.7settings.query,0.8572586168909634
 levels.py,levels.7settings.setting,0.1025895753246081
 levels.py,levels.7settings.arm,0.02127023558310304
 levels.py,levels.7settings.interaction,0.01888157220132524
+levels.py,levels.paper.query,0.8943964150503982
+levels.py,levels.paper.setting,0.07731785026942309
+levels.py,levels.paper.arm,0.018364443444292285
+levels.py,levels.paper.interaction,0.009921291235886313

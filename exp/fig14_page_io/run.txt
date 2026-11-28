@@ -1,3 +1,4 @@
+run_page_io_text_embedding_3_small_rerun.py
 plot_page_io_text_embedding_3_small.py
 plot_msmarco_four_method_page_io.py
 run_onebit_disk_baselines_t1.py

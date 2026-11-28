@@ -45,7 +45,7 @@ covering Secs 1–6 and Appendix B:
 
 A claim passes when its value is within one unit of the last printed digit.
 
-Current status: **337 / 354**. Every failure is a place where the manuscript and the data disagree; they are listed
+Current status: **341 / 354**. Every failure is a place where the manuscript and the data disagree; they are listed
 below.
 
 **2. Re-draw the figures (a minute; gnuplot ≥ 5.4, python3 + numpy).** `make plots` runs every `regen.sh`. For Figs 14 and 18 this replaces the as-printed `.dat` with the data version.
@@ -53,7 +53,7 @@ below.
 | Figures | Result |
 |---|---|
 | Figs 5, 7(b), 9, 10–13, 15–17, 20, 21 | The regenerated `.dat` (and the Fig 9/20/21 panel files) are identical to the ones behind the printed figures. |
-| Fig 19 | Rebuilt from the text-embedding-3-small colocation run (`results/te3small_ef256_t24/`). It replaces the printed figure, which was drawn from an earlier ada-002 run. |
+| Fig 19 | Rebuilt from the text-embedding-3-small colocation run (`results/msmarco_te3small1536_adcbq_colocation_ef256_t24/`). It replaces the printed figure, which was drawn from an earlier run. |
 | Fig 14 | Only the printed TurboQuant curve of panel (a) is stale (80 pages/query; the data give 120). No stored file holds the 80-page curve; `regen.sh` rebuilds the panel from the data. |
 | Fig 18 | One point is stale: RaBitQ-1bit at 50M is drawn at the earlier RaBitQ-7bit value (0.9852). `regen.sh` rebuilds it from the 1-bit run (0.9878). |
 | Fig 8 | Rebuilt from the graph-construction run. The printed curves have the same Recall@10 at every efSearch; QPS varies between measurements by up to ~20 %. |
@@ -87,9 +87,8 @@ These are the manuscript's errors, or numbers no result file supports.
 | F18.12 | Fig 18(a) | RaBitQ-1bit at 50M drawn at 0.9852 | 0.9878. 0.9852 is the RaBitQ-7bit value at 50M in `frozen_adcbq_vs_rabitq_c16_comparison.csv`, left over when the series was switched to the 1-bit run. |
 | S66.16–17 | Sec 6.6 / Finding 9 | where BBQ clears the target by ≥ 0.3 pp it is fastest in 40 of 42 cells | 47 of 50 at 0.3 pp. A 0.5 pp headroom gives exactly 40 of 42, with the two Quora E5-4096 1.02× ties the text names; the text's threshold should read 0.5 pp. |
 | AB.9 | App B | NQ BGE TurboQuant 416 QPS at 0.995 | 352.8 in the table the figures were drawn from. 416 comes from the later rerun of that curve (see below). |
-| S3.18–20 | Sec 3.1 | η orders p95 R* with Spearman 0.921 over 90 (configuration, quantizer) pairs; 0.912 for ADC-BQ | 0.959 over 153 pairs and 0.903 over 19 configurations, from `src/tables.py` `diagnostics()` on the current 20-configuration outputs. The sentence predates the added configurations; the 90-pair set cannot be recovered (several 6-quantizer subsets give 0.919–0.922). |
-| S3.42–44 | Sec 3.3 | query / embedding / quantizer share of var(log R*) 89.4 / 7.7 / 1.8 % | `src/levels.py` gives 85.7 / 10.3 / 2.1 % (7 settings × 5 quantizers); no stored design gives 89.4 %. |
-| F19.1–5 | Sec 6.5 / Fig 19 | 16 KB @ 50 % DRAM: 112.2 → 170.6 QPS (+52.0 %), graph page hit ratio 57.6 % → 75.1 % | 157.0 → 200.1 QPS (+27.5 %), 57.1 % → 71.9 %. The printed numbers come from an earlier run on the ada-002 MS MARCO file, which is not in this repository. The new run uses the Table 5 text-embedding-3-small set. Its largest gain is +53.7 % at 16 KB @ 25 %; colocation wins in all 12 cells (+11.5 % to +53.7 %). |
+| S3.18–19 | Sec 3.1 | η orders p95 R* with Spearman 0.921 over 90 (configuration, quantizer) pairs | 0.957 over 133 pairs, from `src/tables.py` `diagnostics()` on the 18 configurations without ada-002 (0.959 over 153 with them). The ADC-BQ value of the same sentence (0.912) reproduces. The 90-pair set cannot be recovered. |
+| F19.1–5 | Sec 6.5 / Fig 19 | 16 KB @ 50 % DRAM: 112.2 → 170.6 QPS (+52.0 %), graph page hit ratio 57.6 % → 75.1 % | 157.0 → 200.1 QPS (+27.5 %), 57.1 % → 71.9 %. The printed numbers come from an earlier run that is not in this repository. The new run uses the Table 5 text-embedding-3-small set. Its largest gain is +53.7 % at 16 KB @ 25 %; colocation wins in all 12 cells (+11.5 % to +53.7 %). |
 
 ### Mixed sources
 

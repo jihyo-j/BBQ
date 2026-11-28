@@ -28,8 +28,10 @@ Where this repository reads the transcripts differently from `CLAIMS.md`:
   DiskANN-RaBitQ spans 11.5-29.9x and PipeANN 8.2-66.4x (claims S66.7-8 check the DiskANN-PQ range).
 - **"1.21-2.70x vs FP32 HNSW"** is the range over the 15 configurations BBQ wins; the 16th is 0.92x.
 - **Variance decomposition (05).** The closest matches come from searching thousands of configuration and quantizer
-  subsets, so landing near 89.4 / 7.7 / 1.8 is not a reproduction. The harness's own `src/levels.py` gives
-  85.7 / 10.3 / 2.1 (claims S3.42-44).
+  subsets, so they are not a reproduction. The harness's own `src/levels.py` reproduces 89.4 / 7.7 / 1.8 exactly once its
+  ada-002 setting (`msmarco_ada2`) is left out (claims S3.42-44); with it, the result is 85.7 / 10.3 / 2.1.
+- **Configuration set.** Likewise the ADC-BQ eta Spearman reproduces (0.912) on the 18 configurations without the two
+  ada-002 ones; the bundle's 0.959 / 0.903 are over all 20.
 - **OPQ "12 of 16"** is marked OK in `CLAIMS.md`, but no script in the bundle computes it.
 - **Haar rotation, whitening, text-embedding-3-large.** The bundle states that these paragraphs are not in the
   2026-11-25 manuscript. `04_rotation_ablation.py` measures a Haar rotation through the `tq1` arm, but it does not

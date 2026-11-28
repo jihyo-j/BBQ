@@ -45,7 +45,7 @@ F17 = "fig16_17_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_{}/summa
 F18 = "fig18_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv"
 F18R = "fig18_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv"
 F18T = "fig18_insertion/results/tq1plus_r60_random_independent_t32.csv"
-F19 = "fig19_colocation/results/te3small_ef256_t24/summary.csv"
+F19 = "fig19_colocation/results/msmarco_te3small1536_adcbq_colocation_ef256_t24/msmarco_te3small1536_colocation_summary.csv"
 S1 = "sec1_hnsw_vs_ivf/results/first_measured_point_at_recall099.csv"
 S3 = "sec2_3_analysis/results/sec3_values.csv"
 S3D = "sec2_3_analysis/results/sec3_derived.csv"   # tools/sec3_derived.py
@@ -98,9 +98,9 @@ C = [
  ("R", "S3.15", "Sec 3.1", "ADC-BQ p95 R*, NQ BGE-M3", S3, sv("nq_bgem3.json", "arms.adc_bq.Rstar_p95"), "value", "84"),
  ("R", "S3.16", "Sec 3.1", "ADC-BQ CandidateRecall@30, GloVe", S3, sv("glove.json", "arms.adc_bq.candrec.30"), "value", "0.412"),
  ("R", "S3.17", "Sec 3.1", "ADC-BQ CandidateRecall@30, GIST", S3, sv("gist.json", "arms.adc_bq.candrec.30"), "value", "0.000"),
- ("R", "S3.18", "Sec 3.1", "Spearman(eta, p95 R*), pooled (configuration, quantizer)", S3D, sv("tables.py", "eta.spearman.pooled"), "value", "0.921"),
- ("R", "S3.19", "Sec 3.1", "number of (configuration, quantizer) pairs", S3D, sv("tables.py", "eta.n.pooled"), "value", "90"),
- ("R", "S3.20", "Sec 3.1", "Spearman(eta, p95 R*), ADC-BQ only", S3D, sv("tables.py", "eta.spearman.adc_bq"), "value", "0.912"),
+ ("R", "S3.18", "Sec 3.1", "Spearman(eta, p95 R*), pooled (configuration, quantizer)", S3D, sv("tables.py", "eta.paper.spearman.pooled"), "value", "0.921"),
+ ("R", "S3.19", "Sec 3.1", "number of (configuration, quantizer) pairs", S3D, sv("tables.py", "eta.paper.n.pooled"), "value", "90"),
+ ("R", "S3.20", "Sec 3.1", "Spearman(eta, p95 R*), ADC-BQ only", S3D, sv("tables.py", "eta.paper.spearman.adc_bq"), "value", "0.912"),
  *[("R", f"S3.{21+i}", "Sec 3.2", f"p95 R* at d={d} (Qwen3-8B MRL)", S3, sv("dimsweep_msmarco_qw8.json", f"rows[d={d}].arms.adc_bq.Rstar_p95"), "value", v)
    for i, (d, v) in enumerate([(128, "2534"), (512, "124"), (1024, "47"), (4096, "22")])],
  *[("R", f"S3.{25+i}", "Sec 3.2", t, S3, sv(f, k), "value", v) for i, (t, f, k, v) in enumerate([
@@ -122,9 +122,9 @@ C = [
      ("p99 R*, MS MARCO Qwen-1024", "msmarco_qw06", "p99", "87"),
      ("p95 R*, MS MARCO BGE-M3 (per-query array)", "msmarco_bgem3", "p95", "99"),
      ("p99 R*, MS MARCO BGE-M3", "msmarco_bgem3", "p99", "195")])],
- ("REF", "S3R.1", "Sec 3.3", "query share of var(log R*), levels.py", S3D, sv("levels.py", "levels.7settings.query"), "value"),
- ("REF", "S3R.2", "Sec 3.3", "embedding share of var(log R*), levels.py", S3D, sv("levels.py", "levels.7settings.setting"), "value"),
- ("REF", "S3R.3", "Sec 3.3", "quantizer share of var(log R*), levels.py", S3D, sv("levels.py", "levels.7settings.arm"), "value"),
+ ("REF", "S3R.1", "Sec 3.3", "query share of var(log R*), levels.py", S3D, sv("levels.py", "levels.paper.query"), "value"),
+ ("REF", "S3R.2", "Sec 3.3", "embedding share of var(log R*), levels.py", S3D, sv("levels.py", "levels.paper.setting"), "value"),
+ ("REF", "S3R.3", "Sec 3.3", "quantizer share of var(log R*), levels.py", S3D, sv("levels.py", "levels.paper.arm"), "value"),
  ("D", "S3.42", "Sec 3.3", "query share of var(log R*) (%)", "S3R.1*100", "89.4"),
  ("D", "S3.43", "Sec 3.3", "embedding share of var(log R*) (%)", "S3R.2*100", "7.7"),
  ("D", "S3.44", "Sec 3.3", "quantizer share of var(log R*) (%)", "S3R.3*100", "1.8"),

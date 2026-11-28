@@ -48,8 +48,9 @@ same script.
 
 ## Files of the non-BEIR rows (registry: `scripts/run_v051_ssd_odirect_multidataset.py`)
 
-Earlier campaigns also used the rows below. The rows `msmarco_openai1536` (ada-002), `dbpedia_openai1536` (999k)
-and `dbpedia_bge1024` (99k) are **not** in the paper's figures.
+Earlier campaigns also used the rows below. The rows `dbpedia_openai1536` (text-embedding-3-large, 999k) and
+`dbpedia_bge1024` (99k) are **not** in the paper's figures. The OpenAI rows of the paper are the text-embedding-3-small
+sets above.
 
 Counts are taken from the runner's split manifest.
 
@@ -63,12 +64,11 @@ Counts are taken from the runner's split manifest.
 | quora_qwen1024 | Quora | Qwen3-Embedding-0.6B | 1024 | 522,931 | 1000 / 9000 | `$BBQ_DATA/quora_sieun_adcbq_rabitq/quora_vanilla-qw06_train.fbin` |
 | quora_nemotron4096 | Quora | NVIDIA Nemotron-8B | 4096 | 522,931 | 1000 / 9000 | `$BBQ_DATA/quora_sieun_adcbq_rabitq/quora_vanilla-nem8_train.fbin` |
 | quora_e5mistral4096 | Quora | E5-Mistral-7B | 4096 | 522,931 | 1000 / 9000 | `$BBQ_DATA/e5/quora_vanilla-e5m7_train.fbin` |
-| msmarco_openai1536 | MS MARCO | OpenAI-1536 (file: `msmarco-v1-openai-ada2-1M`) | 1536 | 1,000,000 | 1000 / 5980 | `$ANN_BENCH_DATA/deep_1B/3072/marco/msmarco-v1-openai-ada2-1M_train.fbin` |
 | msmarco_bge1024 | MS MARCO | BGE-1024 | 1024 | 1,000,000 | 1000 / 9000 | `$ANN_BENCH_DATA/msmarco/1m/bge_1m/msmarco-bge-1024-train.fbin` |
 | msmarco_qwen1024 | MS MARCO | Qwen3-Embedding-0.6B | 1024 | 1,000,000 | 1000 / 5980 | `$BBQ_DATA/qwen/msmarco-1m__vanilla-qwen06b_train.fbin` |
 | msmarco_e5mistral4096 | MS MARCO | E5-Mistral-7B | 4096 | 1,000,000 | 1000 / 5980 | `$BBQ_DATA/e5/msmarco-1m__vanilla-e5mistral_train.fbin` |
-| dbpedia_openai1536 | DBpedia | OpenAI-1536 (file: `openai-1536-1M`) | 1536 | 999,000 | 200 / 800 | `$ANN_BENCH_DATA/deep_1B/3072/openai/openai-1536-1M-train.fbin` |
 | dbpedia_bge1024 | DBpedia | BGE-1024 | 1024 | **99,000** | 200 / 800 | `$ANN_BENCH_DATA/deep_1B/3072/dbpedia-100k/bge/bge-1024-100k_train.fbin` |
+| dbpedia_openai1536 | DBpedia | OpenAI text-embedding-3-large at 1536 dims (file: `openai-1536-1M`; each row is the L2-normalised first 1536 coordinates of `openai-3072-1M`) | 1536 | 999,000 | 200 / 800 | `$ANN_BENCH_DATA/deep_1B/3072/openai/openai-1536-1M-train.fbin` |
 | dbpedia_qwen1024 | DBpedia | Qwen3-Embedding-0.6B | 1024 | 1,000,000 | 100 / 300 | `$BBQ_DATA/qwen/dbpedia-entity__vanilla-qwen06b_train.fbin` |
 | dbpedia_e5mistral4096 | DBpedia | E5-Mistral-7B | 4096 | 1,000,000 | 100 / 300 | `$BBQ_DATA/e5/dbpedia-entity__vanilla-e5mistral_train.fbin` |
 
@@ -86,6 +86,12 @@ Table 5: MS MARCO BGE-1024 (`msmarco-bge-1024`) has 10,000 queries; Table 5 give
 | Fig 17 (10M / 50M / 100M) | MS MARCO passages, Qwen3-Embedding-0.6B | `prepare_msmarco_qwen1024_100m_scalability_inputs.py` | `$BBQ_DATA2/qwen100m` |
 | Fig 18 (1M + 100M inserts) | same 101M pool, 4 KiB-aligned | `prepare_msmarco_qwen1024_101m_dynamic_inputs.py` | `$BBQ_DATA2/{msmarco-qwen1024,qwen100m}` → 414 GB aligned file |
 | Figs 14/15/19 OpenAI-1536 | BEIR MS MARCO, OpenAI text-embedding-3-small (key `sieun_msmarco_openai1536`) | `prepare_openai_beir_11methods_inputs.py` | `$BBQ_DATA/openai_beir_11methods_t1/dataset_manifest.json`; the Fig 19 runner reads the same paths from `scripts/manifests/full16_12methods_t24.dataset_manifest.json` |
+
+## Secs 2–3 workload analysis
+
+`sec2_3_analysis/harness/src/common.py` defines its own 20 configurations (exhaustive scoring, 2,000 queries each).
+Two of them are OpenAI ada-002 sets (`msmarco_ada2`: ann-benchmarks `msmarco-v1-openai-ada2-1M`; `dbpedia_ada2`:
+`dbpedia-openai-1000k-angular`). The manuscript's Sec 3 statistics are over the other 18 (see `sec2_3_analysis/README.md`).
 
 ## Not in this repository
 

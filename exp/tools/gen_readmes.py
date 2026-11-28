@@ -97,17 +97,16 @@ NOTES = {
   "`insertion_scale.dat` is the printed one; `make plots` / `regen.sh` overwrite it with the data.",
  ],
  "fig19_colocation": [
-  "Data: `results/te3small_ef256_t24/` from `run_msmarco_te3small1536_adcbq_colocation.py` (MS MARCO BEIR, text-embedding-3-small, "
+  "Data: `results/msmarco_te3small1536_adcbq_colocation_ef256_t24/` (CSV prefix `msmarco_te3small1536_colocation_`) from `run_msmarco_te3small1536_adcbq_colocation.py` (MS MARCO BEIR, text-embedding-3-small, "
   "the Table 5 set `sieun_msmarco_openai1536`; ef=256, 24 threads, tau_256 = 1.5349 frozen across all 24 configurations; "
   "Recall@10 0.9952 everywhere). QPS is the median of 3 fresh processes after one discarded warm-up process; `validation.json` passed. "
-  "`plot/make_colocation_dat.py` builds `colocation.dat` from `summary.csv`.",
+  "`plot/make_colocation_dat.py` builds `colocation.dat` from `msmarco_te3small1536_colocation_summary.csv`.",
   "The runner takes its data paths from `scripts/manifests/full16_12methods_t24.dataset_manifest.json`, which `make workspace` "
   "links to `experiment/full16_12methods_t24/dataset_manifest.json`. It stops unless the entry is text-embedding-3-small at 1536 "
-  "dimensions. It copies the old ada-002 registry entry (`msmarco_openai1536`) only as a record template and overwrites all 11 "
-  "of its fields, so no ada-002 setting or path reaches the run.",
+  "dimensions. Its record template is the text-embedding-3-small entry `sieun_msmarco_openai1536` of "
+  "`run_v051_ssd_odirect_multidataset.py`; the helper modules it imports default to the same entry.",
   "**Text not yet updated.** Sec 6.5 quotes 16 KB @ 50% DRAM as 112.2 -> 170.6 QPS (+52.0%) with hit ratio 57.6% -> 75.1%. Those "
-  "numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), which is not part of this "
-  "repository. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain "
+  "numbers come from an earlier run that is not part of this repository. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain "
   "is +53.7% at 16 KB @ 25% (97.4 -> 149.6); colocation wins in all 12 (page, ratio) cells, +11.5% to +53.7%. "
   "`plot/colocation.recovered.dat` holds the coordinates of the earlier printed figure.",
   "Colocation is `build_colocation_physical_rows()` in `bbq/src/bbq_hnsw.cpp` (LDG partitioning + page-aware reorder), ported from the "
@@ -134,15 +133,17 @@ NOTES = {
   "`tools/sec3_derived.py` (needs scipy) recomputes, with the harness's own functions, what the harness prints but does not store: "
   "the eta Spearman of `src/tables.py` `diagnostics()`, per-query median / p95 / p99 R*, and the `src/levels.py` decomposition. "
   "It writes `results/sec3_derived.csv`.",
-  "**eta Spearman (S3.18-20) is stale in the text.** The sentence quotes 0.921 over 90 (configuration, quantizer) pairs and "
-  "0.912 for ADC-BQ. The current outputs (20 configurations, 155 pairs; GIST's sym-BQ / ADC-BQ drop out because kappa is undefined) "
-  "give 0.959 over 153 pairs and 0.903 over 19 configurations. Sieun reports that 90 pairs = 15 configurations x 6 quantizers, "
-  "but six different 6-quantizer subsets give 0.919-0.922, so the old pair set cannot be recovered; `RESULTS.md` records a third "
-  "generation (0.981 / 94 pairs). Suggested text: *Spearman 0.959 across 153 (configuration, quantizer) pairs, and 0.903 for "
-  "ADC-BQ across the 19 configurations where kappa is defined.*",
-  "**Variance shares (S3.42-44) not reproduced.** `src/levels.py` gives query 85.7 % / embedding 10.3 % / quantizer 2.1 % for its "
-  "7 settings x 5 deployable quantizers; the text says 89.4 / 7.7 / 1.8. No combination of the stored settings and quantizers we "
-  "tried gives 89.4 %.",
+  "**Configuration set of the Sec 3 statistics.** The sweep has 20 configurations, two of them OpenAI ada-002 "
+  "(`msmarco_ada2`, `dbpedia_ada2`, kept as data). The manuscript's Sec 3 statistics reproduce on the other 18: ADC-BQ eta "
+  "Spearman 0.912 over 17 configurations (S3.20) and the `src/levels.py` variance shares 89.4 / 7.7 / 1.8 % on its settings "
+  "without `msmarco_ada2` (S3.42-44). `tools/sec3_derived.py` writes both scopes (`eta.*` / `levels.7settings.*` over all, "
+  "`eta.paper.*` / `levels.paper.*` without ada-002); the claims use the latter. Over all 20: 0.903, 0.959 over 153 pairs, "
+  "85.7 / 10.3 / 2.1 %.",
+  "**Pooled eta Spearman (S3.18-19) is stale in the text.** The sentence quotes 0.921 over 90 (configuration, quantizer) pairs; "
+  "the 18 configurations give 0.957 over 133 pairs (135 pairs; GIST's sym-BQ / ADC-BQ drop out because kappa is undefined). "
+  "No 6-quantizer subset of the 13 full-arm configurations lands within 0.006 of 0.921, so the 90-pair set cannot be recovered. "
+  "Suggested text: *Spearman 0.957 across 133 (configuration, quantizer) pairs, and 0.912 for ADC-BQ across the 17 "
+  "configurations where kappa is defined.*",
   "**Not found in any output:** the text-embedding-3-large width sweep (3072D p95 R* 17-31), the Haar-rotation sweep "
   "(25,123 -> 21) and the whitening result (c_Q 0.74-0.76 on DBpedia). The raw text-embedding-3-large vectors exist "
   "(`data_prep/beir_embeddings`). Sieun's evidence bundle (`../supplementary/sieun_evidence`) confirms that the 2026-11-25 "

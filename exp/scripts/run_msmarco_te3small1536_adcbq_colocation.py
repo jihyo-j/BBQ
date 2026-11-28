@@ -56,7 +56,7 @@ def dataset():
     manifest = REPO / "experiment/full16_12methods_t24/dataset_manifest.json"
     spec = next(x for x in json.loads(manifest.read_text())["datasets"] if x["key"] == KEY)
     assert spec["model"] == "OpenAI text-embedding-3-small" and int(spec["dim"]) == 1536
-    item = replace(base.datasets_base.DATASETS["msmarco_openai1536"],
+    item = replace(base.datasets_base.DATASETS[KEY],
                    key=KEY, corpus=spec["corpus"], model=spec["model"],
                    title="MSMARCO text-embedding-3-small 1536D",
                    train=Path(spec["train"]), query=Path(spec["query"]), gt=Path(spec["gt"]),
@@ -199,9 +199,9 @@ def collect(tau: float) -> tuple[list, list]:
                         "calibration_tau": tau, "calibration_protocol": per_ef.ADC_PROTOCOL,
                         "source_csv": ";".join(str(r["source_csv"]) for r in group)})
     if measured:
-        write_csv(ROOT / "measured_trials.csv", measured)
+        write_csv(ROOT / "msmarco_te3small1536_colocation_measured_trials.csv", measured)
     if summary:
-        write_csv(ROOT / "summary.csv", summary)
+        write_csv(ROOT / "msmarco_te3small1536_colocation_summary.csv", summary)
     return measured, summary
 
 
@@ -287,7 +287,7 @@ def main() -> None:
                    "configurations": 24, "search_semantics_invariant_across_pages_and_budgets": True})
         destination = Path("/home/jihyo/msmarco_te3small1536_adcbq_colocation_t24.csv")
         temporary = destination.with_suffix(".csv.tmp")
-        shutil.copyfile(ROOT / "summary.csv", temporary)
+        shutil.copyfile(ROOT / "msmarco_te3small1536_colocation_summary.csv", temporary)
         os.replace(temporary, destination)
         status("complete", completed_observations=96, measured_observations=72,
                configurations=24, summary_csv=str(destination), tau=tau)

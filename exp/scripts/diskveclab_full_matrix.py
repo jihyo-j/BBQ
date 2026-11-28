@@ -32,7 +32,6 @@ CALIBRATION_ROWS = {
     "quora_qwen1024": 1000,
     "quora_nemotron4096": 1000,
     "quora_e5mistral4096": 1000,
-    "msmarco_openai1536": 1000,
     "msmarco_bge1024": 1000,
     "msmarco_qwen1024": 1000,
     "msmarco_e5mistral4096": 1000,

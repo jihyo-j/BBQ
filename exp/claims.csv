@@ -51,9 +51,9 @@ S3.14,Sec 3.1,"sym-BQ p95 R*, NQ BGE-M3",sec2_3_analysis/results/sec3_values.csv
 S3.15,Sec 3.1,"ADC-BQ p95 R*, NQ BGE-M3",sec2_3_analysis/results/sec3_values.csv,source=nq_bgem3.json;key=arms.adc_bq.Rstar_p95,value,,,84,1
 S3.16,Sec 3.1,"ADC-BQ CandidateRecall@30, GloVe",sec2_3_analysis/results/sec3_values.csv,source=glove.json;key=arms.adc_bq.candrec.30,value,,,0.412,0.001
 S3.17,Sec 3.1,"ADC-BQ CandidateRecall@30, GIST",sec2_3_analysis/results/sec3_values.csv,source=gist.json;key=arms.adc_bq.candrec.30,value,,,0,0.001
-S3.18,Sec 3.1,"Spearman(eta, p95 R*), pooled (configuration, quantizer)",sec2_3_analysis/results/sec3_derived.csv,source=tables.py;key=eta.spearman.pooled,value,,,0.921,0.001
-S3.19,Sec 3.1,"number of (configuration, quantizer) pairs",sec2_3_analysis/results/sec3_derived.csv,source=tables.py;key=eta.n.pooled,value,,,90,1
-S3.20,Sec 3.1,"Spearman(eta, p95 R*), ADC-BQ only",sec2_3_analysis/results/sec3_derived.csv,source=tables.py;key=eta.spearman.adc_bq,value,,,0.912,0.001
+S3.18,Sec 3.1,"Spearman(eta, p95 R*), pooled (configuration, quantizer)",sec2_3_analysis/results/sec3_derived.csv,source=tables.py;key=eta.paper.spearman.pooled,value,,,0.921,0.001
+S3.19,Sec 3.1,"number of (configuration, quantizer) pairs",sec2_3_analysis/results/sec3_derived.csv,source=tables.py;key=eta.paper.n.pooled,value,,,90,1
+S3.20,Sec 3.1,"Spearman(eta, p95 R*), ADC-BQ only",sec2_3_analysis/results/sec3_derived.csv,source=tables.py;key=eta.paper.spearman.adc_bq,value,,,0.912,0.001
 S3.21,Sec 3.2,p95 R* at d=128 (Qwen3-8B MRL),sec2_3_analysis/results/sec3_values.csv,source=dimsweep_msmarco_qw8.json;key=rows[d=128].arms.adc_bq.Rstar_p95,value,,,2534,1
 S3.22,Sec 3.2,p95 R* at d=512 (Qwen3-8B MRL),sec2_3_analysis/results/sec3_values.csv,source=dimsweep_msmarco_qw8.json;key=rows[d=512].arms.adc_bq.Rstar_p95,value,,,124,1
 S3.23,Sec 3.2,p95 R* at d=1024 (Qwen3-8B MRL),sec2_3_analysis/results/sec3_values.csv,source=dimsweep_msmarco_qw8.json;key=rows[d=1024].arms.adc_bq.Rstar_p95,value,,,47,1
@@ -75,9 +75,9 @@ S3.38,Sec 3.3,"p95 R*, MS MARCO Qwen-1024",sec2_3_analysis/results/sec3_derived.
 S3.39,Sec 3.3,"p99 R*, MS MARCO Qwen-1024",sec2_3_analysis/results/sec3_derived.csv,source=msmarco_qw06_perq.npz;key=perq.msmarco_qw06.adc_bq.p99,value,,,87,1
 S3.40,Sec 3.3,"p95 R*, MS MARCO BGE-M3 (per-query array)",sec2_3_analysis/results/sec3_derived.csv,source=msmarco_bgem3_perq.npz;key=perq.msmarco_bgem3.adc_bq.p95,value,,,99,1
 S3.41,Sec 3.3,"p99 R*, MS MARCO BGE-M3",sec2_3_analysis/results/sec3_derived.csv,source=msmarco_bgem3_perq.npz;key=perq.msmarco_bgem3.adc_bq.p99,value,,,195,1
-S3R.1,Sec 3.3,"query share of var(log R*), levels.py",sec2_3_analysis/results/sec3_derived.csv,source=levels.py;key=levels.7settings.query,value,,,,
-S3R.2,Sec 3.3,"embedding share of var(log R*), levels.py",sec2_3_analysis/results/sec3_derived.csv,source=levels.py;key=levels.7settings.setting,value,,,,
-S3R.3,Sec 3.3,"quantizer share of var(log R*), levels.py",sec2_3_analysis/results/sec3_derived.csv,source=levels.py;key=levels.7settings.arm,value,,,,
+S3R.1,Sec 3.3,"query share of var(log R*), levels.py",sec2_3_analysis/results/sec3_derived.csv,source=levels.py;key=levels.paper.query,value,,,,
+S3R.2,Sec 3.3,"embedding share of var(log R*), levels.py",sec2_3_analysis/results/sec3_derived.csv,source=levels.py;key=levels.paper.setting,value,,,,
+S3R.3,Sec 3.3,"quantizer share of var(log R*), levels.py",sec2_3_analysis/results/sec3_derived.csv,source=levels.py;key=levels.paper.arm,value,,,,
 S3.42,Sec 3.3,query share of var(log R*) (%),,,,,S3R.1*100,89.4,0.1
 S3.43,Sec 3.3,embedding share of var(log R*) (%),,,,,S3R.2*100,7.7,0.1
 S3.44,Sec 3.3,quantizer share of var(log R*) (%),,,,,S3R.3*100,1.8,0.1
@@ -333,10 +333,10 @@ F18.9,Fig 18,TurboQuant Recall@10 after 100M,fig18_insertion/results/tq1plus_r60
 F18.10,Fig 18,TurboQuant Recall@10 at 10M,fig18_insertion/results/tq1plus_r60_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=10000000,recall_current_at_k,,,0.9883,0.0001
 F18.11,Fig 18,BBQ min Recall@10 over checkpoints,fig18_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv,mode=online_add_no_rebuild;efSearch=256,adc_recall_at_10,min,,0.9849,0.0001
 F18.12,Fig 18a,RaBitQ-1bit Recall@10 at 50M (as plotted: 0.9852),fig18_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv,mode=online_add_no_rebuild;efSearch=256;insert_size=50000000,recall_current_at_k,,,0.9852,0.0001
-F19.1,Fig 19,16KB baseline QPS @50% DRAM,fig19_colocation/results/te3small_ef256_t24/summary.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,qps_median,,,112.2,0.1
-F19.2,Fig 19,16KB colocated QPS @50% DRAM,fig19_colocation/results/te3small_ef256_t24/summary.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,qps_median,,,170.6,0.1
-F19.3,Fig 19,16KB baseline graph page hit ratio @50%,fig19_colocation/results/te3small_ef256_t24/summary.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,,,0.576,0.001
-F19.4,Fig 19,16KB colocated graph page hit ratio @50%,fig19_colocation/results/te3small_ef256_t24/summary.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,,,0.751,0.001
+F19.1,Fig 19,16KB baseline QPS @50% DRAM,fig19_colocation/results/msmarco_te3small1536_adcbq_colocation_ef256_t24/msmarco_te3small1536_colocation_summary.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,qps_median,,,112.2,0.1
+F19.2,Fig 19,16KB colocated QPS @50% DRAM,fig19_colocation/results/msmarco_te3small1536_adcbq_colocation_ef256_t24/msmarco_te3small1536_colocation_summary.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,qps_median,,,170.6,0.1
+F19.3,Fig 19,16KB baseline graph page hit ratio @50%,fig19_colocation/results/msmarco_te3small1536_adcbq_colocation_ef256_t24/msmarco_te3small1536_colocation_summary.csv,layout=baseline;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,,,0.576,0.001
+F19.4,Fig 19,16KB colocated graph page hit ratio @50%,fig19_colocation/results/msmarco_te3small1536_adcbq_colocation_ef256_t24/msmarco_te3small1536_colocation_summary.csv,layout=coloc;page_bytes=16384;bq_ram_ratio_target=0.5,graph_page_hit_ratio,,,0.751,0.001
 F19.5,Sec 6.5,colocation QPS gain (%),,,,,(F19.2/F19.1-1)*100,52,0.1
 S66.1,Sec 6.6,"RaBitQ-7bit over BBQ, median @0.95",fig09_20_overall_t1/results/full16_summary_t1.csv,kind=agg;metric=rabitq7_over_bbq_median_at_0.95,value,,,2.1,0.01
 S66.2,Sec 6.6,"RaBitQ-7bit over BBQ, median @0.99",fig09_20_overall_t1/results/full16_summary_t1.csv,kind=agg;metric=rabitq7_over_bbq_median_at_0.99,value,,,1.19,0.01

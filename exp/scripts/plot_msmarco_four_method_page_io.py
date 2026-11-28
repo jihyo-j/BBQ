@@ -28,13 +28,12 @@ ROOT = base.ROOT
 OUT = ROOT / "page_io_msmarco_4methods"
 
 PANELS = (
-    ("msmarco_openai1536", "MS MARCO · OpenAI (1536D)"),
     ("msmarco_qwen1024", "MS MARCO · Qwen-0.6B (1024D)"),
 )
 DATASETS = {key for key, _ in PANELS}
 
 # Dataset -> TurboQuant rerank depth and the io_uring source CSV.
-TQ_RERANK = {"msmarco_openai1536": 120, "msmarco_qwen1024": 60}
+TQ_RERANK = {"msmarco_qwen1024": 60}
 TQ_ROOT = ROOT / "tq_rerank_pareto_uring/raw"
 
 METHODS = dict(base.METHODS)

@@ -9,6 +9,7 @@
 
 Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the runners import each other). Set the paths in [`exp/env.sh`](../env.sh) first; see the top-level README.
 
+- `exp/scripts/run_page_io_text_embedding_3_small_rerun.py`
 - `exp/scripts/plot_page_io_text_embedding_3_small.py`
 - `exp/scripts/plot_msmarco_four_method_page_io.py`
 - `exp/scripts/run_onebit_disk_baselines_t1.py`
