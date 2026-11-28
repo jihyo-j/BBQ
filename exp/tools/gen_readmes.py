@@ -106,8 +106,8 @@ NOTES = {
   "dimensions. It copies the old ada-002 registry entry (`msmarco_openai1536`) only as a record template and overwrites all 11 "
   "of its fields, so no ada-002 setting or path reaches the run.",
   "**Text not yet updated.** Sec 6.5 quotes 16 KB @ 50% DRAM as 112.2 -> 170.6 QPS (+52.0%) with hit ratio 57.6% -> 75.1%. Those "
-  "numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), kept in "
-  "`results/superseded_ada002/`. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain "
+  "numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), which is not part of this "
+  "repository. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain "
   "is +53.7% at 16 KB @ 25% (97.4 -> 149.6); colocation wins in all 12 (page, ratio) cells, +11.5% to +53.7%. "
   "`plot/colocation.recovered.dat` holds the coordinates of the earlier printed figure.",
   "Colocation is `build_colocation_physical_rows()` in `bbq/src/bbq_hnsw.cpp` (LDG partitioning + page-aware reorder), ported from the "

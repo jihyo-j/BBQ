@@ -89,7 +89,7 @@ These are the manuscript's errors, or numbers no result file supports.
 | AB.9 | App B | NQ BGE TurboQuant 416 QPS at 0.995 | 352.8 in the table the figures were drawn from. 416 comes from the later rerun of that curve (see below). |
 | S3.18–20 | Sec 3.1 | η orders p95 R* with Spearman 0.921 over 90 (configuration, quantizer) pairs; 0.912 for ADC-BQ | 0.959 over 153 pairs and 0.903 over 19 configurations, from `src/tables.py` `diagnostics()` on the current 20-configuration outputs. The sentence predates the added configurations; the 90-pair set cannot be recovered (several 6-quantizer subsets give 0.919–0.922). |
 | S3.42–44 | Sec 3.3 | query / embedding / quantizer share of var(log R*) 89.4 / 7.7 / 1.8 % | `src/levels.py` gives 85.7 / 10.3 / 2.1 % (7 settings × 5 quantizers); no stored design gives 89.4 %. |
-| F19.1–5 | Sec 6.5 / Fig 19 | 16 KB @ 50 % DRAM: 112.2 → 170.6 QPS (+52.0 %), graph page hit ratio 57.6 % → 75.1 % | 157.0 → 200.1 QPS (+27.5 %), 57.1 % → 71.9 %. The printed numbers come from an earlier run on the ada-002 MS MARCO file (`results/superseded_ada002/`). The new run uses the Table 5 text-embedding-3-small set. Its largest gain is +53.7 % at 16 KB @ 25 %; colocation wins in all 12 cells (+11.5 % to +53.7 %). |
+| F19.1–5 | Sec 6.5 / Fig 19 | 16 KB @ 50 % DRAM: 112.2 → 170.6 QPS (+52.0 %), graph page hit ratio 57.6 % → 75.1 % | 157.0 → 200.1 QPS (+27.5 %), 57.1 % → 71.9 %. The printed numbers come from an earlier run on the ada-002 MS MARCO file, which is not in this repository. The new run uses the Table 5 text-embedding-3-small set. Its largest gain is +53.7 % at 16 KB @ 25 %; colocation wins in all 12 cells (+11.5 % to +53.7 %). |
 
 ### Mixed sources
 

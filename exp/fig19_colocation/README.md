@@ -16,10 +16,6 @@ Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the ru
 
 Result files behind the figure (copied verbatim from the original run):
 
-- `results/superseded_ada002/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv`
-- `results/superseded_ada002/page16k_qps_rerun_summary.csv`
-- `results/superseded_ada002/page4k_memory_sweep_ef256_allratios_rerun_adjusted.csv`
-- `results/superseded_ada002/page8k_qps_rerun_summary.csv`
 - `results/te3small_ef256_t24/calibration/ef256.summary.csv`
 - `results/te3small_ef256_t24/calibration/pool_top10_target99.ef256.json`
 - `results/te3small_ef256_t24/campaign.log`
@@ -45,5 +41,5 @@ Result files behind the figure (copied verbatim from the original run):
 
 - Data: `results/te3small_ef256_t24/` from `run_msmarco_te3small1536_adcbq_colocation.py` (MS MARCO BEIR, text-embedding-3-small, the Table 5 set `sieun_msmarco_openai1536`; ef=256, 24 threads, tau_256 = 1.5349 frozen across all 24 configurations; Recall@10 0.9952 everywhere). QPS is the median of 3 fresh processes after one discarded warm-up process; `validation.json` passed. `plot/make_colocation_dat.py` builds `colocation.dat` from `summary.csv`.
 - The runner takes its data paths from `scripts/manifests/full16_12methods_t24.dataset_manifest.json`, which `make workspace` links to `experiment/full16_12methods_t24/dataset_manifest.json`. It stops unless the entry is text-embedding-3-small at 1536 dimensions. It copies the old ada-002 registry entry (`msmarco_openai1536`) only as a record template and overwrites all 11 of its fields, so no ada-002 setting or path reaches the run.
-- **Text not yet updated.** Sec 6.5 quotes 16 KB @ 50% DRAM as 112.2 -> 170.6 QPS (+52.0%) with hit ratio 57.6% -> 75.1%. Those numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), kept in `results/superseded_ada002/`. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain is +53.7% at 16 KB @ 25% (97.4 -> 149.6); colocation wins in all 12 (page, ratio) cells, +11.5% to +53.7%. `plot/colocation.recovered.dat` holds the coordinates of the earlier printed figure.
+- **Text not yet updated.** Sec 6.5 quotes 16 KB @ 50% DRAM as 112.2 -> 170.6 QPS (+52.0%) with hit ratio 57.6% -> 75.1%. Those numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), which is not part of this repository. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain is +53.7% at 16 KB @ 25% (97.4 -> 149.6); colocation wins in all 12 (page, ratio) cells, +11.5% to +53.7%. `plot/colocation.recovered.dat` holds the coordinates of the earlier printed figure.
 - Colocation is `build_colocation_physical_rows()` in `bbq/src/bbq_hnsw.cpp` (LDG partitioning + page-aware reorder), ported from the pgvector implementation of Shim et al.
