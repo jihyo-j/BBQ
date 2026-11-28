@@ -47,7 +47,7 @@ SH
 chmod +x "${W}/adcbq_optimized/build.sh"
 cat > "${W}/build_adcbq_fpgraph_dynamic_101m.sh" <<SH
 #!/usr/bin/env bash
-OUT_DIR="${W}" "${ROOT}/bbq/build.sh" dynamic && mv -f "${W}/bbq_dynamic_insert" "${W}/adcbq_fpgraph_dynamic_101m"
+BBQ_WITH_TQ=1 OUT_DIR="${W}" "${ROOT}/bbq/build.sh" dynamic && mv -f "${W}/bbq_dynamic_insert" "${W}/adcbq_fpgraph_dynamic_101m"
 SH
 chmod +x "${W}/build_adcbq_fpgraph_dynamic_101m.sh"
 

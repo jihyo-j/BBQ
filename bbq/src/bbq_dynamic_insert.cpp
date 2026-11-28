@@ -32,7 +32,16 @@
 #include <thread>
 #include <unordered_set>
 
+// TurboQuant-1bit baseline (Fig 18 comparison arm, --online-graph-add tq1) through the Qdrant codec FFI.
+// BBQ_WITH_TQ=1 links exp/baselines/qdrant_tq_ffi; otherwise a stub keeps the BBQ paths free of Rust/Qdrant.
+#ifndef BBQ_WITH_TQ
+#define BBQ_WITH_TQ 0
+#endif
+#if BBQ_WITH_TQ
 #include "qdrant_tq_ffi/qdrant_tq_ffi.h"
+#else
+#include "qdrant_tq_stub.h"
+#endif
 
 namespace {
 
@@ -241,6 +250,12 @@ DynamicArgs parse_dynamic_args(int argc, char** argv) {
     }
     if (args.overlap_queries && args.io_queue_depth < args.rerank_n) {
         throw std::runtime_error("overlap mode requires --io-queue-depth >= --rerank-n");
+    }
+    if (!BBQ_WITH_TQ && (args.online_graph_add == DynamicGraphAddMode::Tq1 ||
+                         !args.tq_code_path.empty() || !args.tq_meta_path.empty())) {
+        throw std::runtime_error(
+                "--online-graph-add tq1 / --tq-code-path / --tq-meta-path need the TurboQuant baseline: "
+                "rebuild with BBQ_WITH_TQ=1 ./bbq/build.sh dynamic");
     }
     if (args.online_graph_add == DynamicGraphAddMode::Tq1 &&
         (args.tq_code_path.empty() || args.tq_meta_path.empty())) {

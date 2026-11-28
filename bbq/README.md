@@ -24,7 +24,8 @@ export FAISS_BUILD=$FAISS_ROOT/build/faiss  # directory holding libfaiss_avx2.so
 export BLAS_LIB=/path/to/openblas/lib       # optional
 ./bbq/build.sh            # -> build/bbq_hnsw
 ./bbq/build.sh test       # -> build/test_adcbq_sign_packing
-./bbq/build.sh dynamic    # -> build/bbq_dynamic_insert (also builds the TurboQuant FFI via cargo)
+./bbq/build.sh dynamic    # -> build/bbq_dynamic_insert (BBQ insertion only; no Rust/Qdrant needed)
+BBQ_WITH_TQ=1 ./bbq/build.sh dynamic   # + the TurboQuant-1bit comparison arm of Fig 18 (cargo + patched Qdrant)
 ```
 
 Needs g++ ≥ 11, OpenMP, liburing, OpenBLAS, and an AVX-512 CPU (`-march=native`). No FAISS fork is required: the
