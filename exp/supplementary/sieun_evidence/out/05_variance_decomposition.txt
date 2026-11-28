@@ -1,0 +1,20 @@
+configurations with per-query R* for all 10 arms: 15
+
+  pooling                                       embeddings  quantizers   queries
+  all 15 configurations x 10 arms                    52.7%       10.0%     37.3%
+  13 learned configurations x 10 arms                12.8%       21.6%     65.6%
+  13 learned configurations x 6 main arms            17.0%        8.9%     74.2%
+  manuscript                                          7.7%        1.8%     89.4%
+
+  The manuscript split is reproducible on learned-embedding subsets, but not
+  uniquely -- many subsets land on it.  Closest matches:
+    embeddings  8.0%  quantizers  2.4%  queries 89.6%   (3 arms)  dbpedia_bgeb, msmarco_e5m, msmarco_qw06, quora_bgem3
+    embeddings  8.3%  quantizers  1.8%  queries 89.9%   (3 arms)  dbpedia_bgel, dbpedia_qw06, msmarco_bgem3, msmarco_qw06, nq_bgem3
+    embeddings  8.2%  quantizers  1.8%  queries 90.0%   (5 arms)  dbpedia_bgeb, dbpedia_bgel, dbpedia_qw06, msmarco_e5m, nq_qw06, quora_qw06
+    embeddings  8.0%  quantizers  2.3%  queries 89.8%   (5 arms)  dbpedia_bgeb, msmarco_bgem3, msmarco_qw06, nq_qw06
+    embeddings  8.0%  quantizers  2.0%  queries 90.0%   (5 arms)  dbpedia_bgeb, msmarco_e5m, nq_qw06
+
+  VERDICT: the magnitude is solid -- query variation dominates by roughly an
+  order of magnitude over both the embedding and the quantizer -- but the exact
+  three numbers cannot be tied to a specific pooling.  Either re-state them from
+  a pooling fixed here, or soften the sentence to the magnitude.

@@ -1,0 +1,77 @@
+rows 3477   configurations 16   methods 11
+
+============================================================================================
+6.2  BBQ vs TurboQuant-1bit
+============================================================================================
+  Recall@10 >= 0.99: BBQ faster in 14/16 configurations where both reach it
+  Recall@10 >= 0.995: BBQ faster in 7/7 configurations where both reach it
+  [manuscript: 14 of 16 at 0.99, and all seven at 0.995]
+  NQ Qwen-1024 @0.995          BBQ    1275  TQ     636  = 2.00x
+  MS MARCO Qwen-1024 @0.99     BBQ    1055  TQ     664  = 1.59x
+  [manuscript: 1,275 vs 636 = 2.00x ; 1,055 vs 664 = 1.59x]
+  FP32 reads/query where recorded (n=5): BBQ 41.8 vs TQ 76.0  = 45% fewer    [manuscript: 41.8 vs 76.0, 45%]
+
+  losses (TurboQuant faster at Recall@10 >= 0.99):
+    DBpedia/BGE-1024       TQ    250 vs BBQ    181 QPS   FP32 reads     200 vs  77.495   ef   512 vs  1024
+    DBpedia/E5-4096        TQ    201 vs BBQ    182 QPS   FP32 reads     120 vs       -   ef   512 vs   768
+  [manuscript: two configurations, both DBpedia; 250 vs 181 and 201 vs 182;
+               on BGE-1024 BBQ reads 77.5 vs 200 but needs ef 1024 vs 512]
+
+============================================================================================
+6.2  BBQ vs in-memory FP32 HNSW
+============================================================================================
+  Recall@10 >= 0.99: BBQ faster in 15/16, range 0.92-2.70x     [manuscript: 15 of 16, 1.21-2.70x]
+     0.92x  DBpedia/BGE-1024
+     1.21x  Quora/Qwen-1024
+     1.25x  Quora/BGE-1024
+     1.35x  MSMARCO/BGE-1024
+     1.42x  NQ/Qwen-1024
+     1.77x  NQ/BGE-1024
+     1.78x  Quora/E5-4096
+     1.78x  DBpedia/Qwen-1024
+     1.86x  NQ/OpenAI-1536
+     1.90x  MSMARCO/Qwen-1024
+     1.99x  DBpedia/E5-4096
+     2.02x  NQ/E5-4096
+     2.17x  Quora/OpenAI-1536
+     2.58x  MSMARCO/OpenAI-1536
+     2.61x  MSMARCO/E5-4096
+     2.70x  DBpedia/OpenAI-1536
+  max-recall gap vs FP32 HNSW: mean +0.10 pp, worst +0.20 pp     [manuscript: within 0.20 pp everywhere, 0.10 pp on average]
+
+============================================================================================
+6.5  Method selection (Table 7, Findings 8 and 9)
+============================================================================================
+  BBQ fastest in 58/74 (configuration, recall-target) cells of the d/8-byte class     [manuscript: 58 of 74]
+  median margin of BBQ over the runner-up: 1.44x     [manuscript: 1.4x]
+  of BBQ's 16 losses, 12 are cells it cannot reach at all     [manuscript: 12 of 16]
+  where BBQ clears the target by >= 0.3 pp it is fastest in 47/50     [manuscript: 40 of 42]
+
+  ceiling lift over BBQ (percentage points, mean over the 16 configurations):
+    Faiss OPQ-PQ d/8                   +0.000 pp   higher in 10/16
+    Faiss PQ d/8                       -0.036 pp   higher in 5/16
+    TurboQuant TQ1+                    -0.059 pp   higher in 7/16
+    RaBitQ-SSD B9                      +0.200 pp   higher in 15/16
+    FP32 HNSW RAM                      +0.097 pp   higher in 15/16
+  [manuscript: OPQ +0.00, PQ -0.04, TQ -0.06; RaBitQ-SSD +0.20 in 15/16; FP32 +0.10 in 15/16]
+
+  RaBitQ-7bit (7d/8 bytes resident) vs BBQ:
+    Recall@10 >= 0.95: median 2.10x, faster in 16/16
+    Recall@10 >= 0.98: median 1.81x, faster in 14/16
+    Recall@10 >= 0.99: median 1.19x, faster in 8/13
+    reaches 0.99 in 13/16 and 0.995 in 2/16     [manuscript: median 2.10x at 0.95, 14/16 fastest at 0.98, 1.19x at 0.99, 0.995 in 2 of 16]
+
+  SSD-resident graphs vs BBQ at Recall@10 >= 0.99 (QPS ratio):
+    DiskANN-PQ d/8                     n=13   12.7-  31.6x  median  22.6x
+    DiskANN-RaBitQ 1-bit               n=15   11.5-  29.9x  median  22.9x
+    PipeANN-RaBitQ 1-bit               n=10    8.2-  66.4x  median  19.7x
+    RaBitQ-SSD B9                      n=16    3.1-  27.5x  median   9.1x
+    HNSW RaBitQ 1-bit + adaptive FP    n=15    1.4-  23.9x  median  14.6x
+  [manuscript: 12.7-31.6x, median 22.6x for DiskANN-PQ and 19.7x for PipeANN; IVF median 9.1x]
+
+============================================================================================
+NOT COVERED BY THIS FILE
+============================================================================================
+  The csv is 1M-scale only (nb = 1,000,000, or 522,931 for Quora).  The 10M/50M/100M
+  scaling numbers of Section 6.5 -- 563/541/539 QPS, 31.3 GiB vs 105.1 GiB, 51.7 -> 71.5
+  FP32 reads -- come from a separate run whose output is not on this machine.

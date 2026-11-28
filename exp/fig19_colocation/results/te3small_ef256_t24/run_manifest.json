@@ -1,0 +1,72 @@
+{
+  "dataset": "sieun_msmarco_openai1536",
+  "model": "OpenAI text-embedding-3-small",
+  "dim": 1536,
+  "nb": 1000000,
+  "train": "/home/smrc/samsung-nvme/jihyo/openai_beir_11methods_t1/data/sieun_msmarco_openai1536/sieun_msmarco_openai1536.train.fbin",
+  "query": "/home/smrc/samsung-nvme/jihyo/openai_beir_11methods_t1/data/sieun_msmarco_openai1536/sieun_msmarco_openai1536.query.fbin",
+  "gt": "/home/smrc/samsung-nvme/jihyo/openai_beir_11methods_t1/data/sieun_msmarco_openai1536/sieun_msmarco_openai1536.gt100.ibin",
+  "heldout_query": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_calibrated_threshold_overlap/splits/sieun_msmarco_openai1536/seed11.cal1000.test5980.test.query.fbin",
+  "heldout_gt": "/home/jihyo/workspace/RaBitQ-Library/experiment/adcbq_calibrated_threshold_overlap/splits/sieun_msmarco_openai1536/seed11.cal1000.test5980.test.gt.ibin",
+  "calibration_queries": 1000,
+  "test_queries": 5980,
+  "seed": 11,
+  "methods": [
+    "ADC-BQ calibrated"
+  ],
+  "efSearch": [
+    256
+  ],
+  "threads": 24,
+  "page_bytes": [
+    4096,
+    8192,
+    16384
+  ],
+  "ram_ratios": [
+    0.1,
+    0.25,
+    0.5,
+    0.75
+  ],
+  "layouts": [
+    "baseline",
+    "coloc"
+  ],
+  "warmup_trials_discarded": 1,
+  "measured_trials": 3,
+  "measured_configurations": 24,
+  "measured_observations": 72,
+  "total_observations": 96,
+  "calibration_protocol": "per-ef-pool-top10-split-conformal",
+  "target_pool_top10_coverage": 0.99,
+  "tau_policy": "fit tau_256 on calibration queries only; freeze across layouts, pages and cache budgets",
+  "graph_io": "batch-cache, all-cache-hit fast return, async io_uring QD16",
+  "fp_io": "O_DIRECT io_uring, on-fetch norms, QD256 per query",
+  "cache_policy": "shared cold LRU in each fresh process; cap derived from 4KB baseline footprint",
+  "colocation": {
+    "iterations": 20,
+    "partition_size": 64,
+    "shared_permutation": "/home/smrc/samsung-nvme/jihyo/msmarco_te3small1536_adcbq_colocation_ef256_t24/layouts/shared.ldg20.p64.map"
+  },
+  "artifact_root": "/home/smrc/samsung-nvme/jihyo/msmarco_te3small1536_adcbq_colocation_ef256_t24",
+  "calibration": {
+    "protocol": "per-ef-pool-top10-split-conformal",
+    "status": "feasible",
+    "target_pool_top10_coverage": 0.99,
+    "ef": 256,
+    "calibration_rows": 1000,
+    "efSearch": 256,
+    "tau": 1.534913696300107,
+    "target_all_top10_coverage": 0.99,
+    "empirical_all_top10_coverage": 0.991,
+    "conformal_order": 991,
+    "calibration_queries": 1000,
+    "reference": "exact FP top-10 within the ADC-HNSW candidate pool",
+    "rerank_count_mean": 34.544,
+    "rerank_count_min": 10,
+    "rerank_count_p95": 68.04999999999995,
+    "rerank_count_p99": 94.00999999999999,
+    "rerank_count_max": 142
+  }
+}

@@ -34,7 +34,7 @@ F8B = "fig08_graph_build_precision/results/graph_construction_precision/msmarco_
 F10 = "fig10_recall_at_k/results/nq_recall_k30_50_100_with_inmemory_fp.csv"
 F11 = "fig11_ablation/results/msmarco_qwen1024_recall_ablation_t1.csv"
 F11E = "fig11_ablation/results/equal_pool_qd_ablation/equal_pool_qd_fixed75_vs_calibrated.csv"
-F11G = "fig11_ablation/results/per_query_recall_groups_target099.ip_aligned.csv"
+F11G = "fig11_ablation/results/per_query_recall_groups_target099.legacy_gt.csv"   # plot/make_recall_groups.py
 F12 = "fig12_calibration/results/legacy_gt/target_sweep.csv"
 F12L = "fig12_calibration/results/legacy_gt/loss_split_target099.csv"
 F13 = "fig13_bbq_vs_tq_same_calibration/results/summary_t1.csv"
@@ -45,9 +45,10 @@ F17 = "fig16_17_dimension_scale/results/msmarco100m/msmarco_qwen1024_v2_{}/summa
 F18 = "fig18_insertion/results/frozen_adcbq_vs_rabitq_c16_comparison.csv"
 F18R = "fig18_insertion/results/rabitq_b1_adaptive_c16_random_independent_t32.csv"
 F18T = "fig18_insertion/results/tq1plus_r60_random_independent_t32.csv"
-F19 = "fig19_colocation/results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv"
+F19 = "fig19_colocation/results/te3small_ef256_t24/summary.csv"
 S1 = "sec1_hnsw_vs_ivf/results/first_measured_point_at_recall099.csv"
 S3 = "sec2_3_analysis/results/sec3_values.csv"
+S3D = "sec2_3_analysis/results/sec3_derived.csv"   # tools/sec3_derived.py
 S51 = "sec5_1_query_bits/results/summary_t1.csv"
 S63 = "sec6_3_traversal_efficiency/results/time_breakdown_20261124/matched_recall_breakdown.csv"
 
@@ -90,6 +91,43 @@ C = [
        ("BGE-M3", "bgem3", "sym_bq", "416"), ("BGE-M3", "bgem3", "adc_bq", "99"), ("BGE-M3", "bgem3", "adc_bq_c", "148"),
        ("BGE-M3", "bgem3", "tq1", "112"), ("BGE-M3", "bgem3", "rabitq1", "89"), ("BGE-M3", "bgem3", "pq", "81"),
        ("BGE-M3", "bgem3", "opq", "44"), ("BGE-M3", "bgem3", "sq4", "15")])],
+ # ---------------- Sec 3: remaining sentences (sources mapped by Sieun Kim, BBQETA)
+ ("R", "S3.12", "Sec 3.1", "sym-BQ CandidateRecall@30, NQ BGE-M3", S3, sv("nq_bgem3.json", "arms.sym_bq.candrec.30"), "value", "0.865"),
+ ("R", "S3.13", "Sec 3.1", "ADC-BQ CandidateRecall@30, NQ BGE-M3", S3, sv("nq_bgem3.json", "arms.adc_bq.candrec.30"), "value", "0.955"),
+ ("R", "S3.14", "Sec 3.1", "sym-BQ p95 R*, NQ BGE-M3", S3, sv("nq_bgem3.json", "arms.sym_bq.Rstar_p95"), "value", "367"),
+ ("R", "S3.15", "Sec 3.1", "ADC-BQ p95 R*, NQ BGE-M3", S3, sv("nq_bgem3.json", "arms.adc_bq.Rstar_p95"), "value", "84"),
+ ("R", "S3.16", "Sec 3.1", "ADC-BQ CandidateRecall@30, GloVe", S3, sv("glove.json", "arms.adc_bq.candrec.30"), "value", "0.412"),
+ ("R", "S3.17", "Sec 3.1", "ADC-BQ CandidateRecall@30, GIST", S3, sv("gist.json", "arms.adc_bq.candrec.30"), "value", "0.000"),
+ ("R", "S3.18", "Sec 3.1", "Spearman(eta, p95 R*), pooled (configuration, quantizer)", S3D, sv("tables.py", "eta.spearman.pooled"), "value", "0.921"),
+ ("R", "S3.19", "Sec 3.1", "number of (configuration, quantizer) pairs", S3D, sv("tables.py", "eta.n.pooled"), "value", "90"),
+ ("R", "S3.20", "Sec 3.1", "Spearman(eta, p95 R*), ADC-BQ only", S3D, sv("tables.py", "eta.spearman.adc_bq"), "value", "0.912"),
+ *[("R", f"S3.{21+i}", "Sec 3.2", f"p95 R* at d={d} (Qwen3-8B MRL)", S3, sv("dimsweep_msmarco_qw8.json", f"rows[d={d}].arms.adc_bq.Rstar_p95"), "value", v)
+   for i, (d, v) in enumerate([(128, "2534"), (512, "124"), (1024, "47"), (4096, "22")])],
+ *[("R", f"S3.{25+i}", "Sec 3.2", t, S3, sv(f, k), "value", v) for i, (t, f, k, v) in enumerate([
+     ("beta, Quora Qwen3-0.6B", "quora_qw06.json", "beta", "0.889"),
+     ("beta, Quora BGE-M3", "quora_bgem3.json", "beta", "0.896"),
+     ("p95 R*, Quora Qwen3-0.6B", "quora_qw06.json", "arms.adc_bq.Rstar_p95", "35"),
+     ("p95 R*, Quora BGE-M3", "quora_bgem3.json", "arms.adc_bq.Rstar_p95", "29"),
+     ("beta, MS MARCO Qwen3-0.6B", "msmarco_qw06.json", "beta", "0.825"),
+     ("beta, MS MARCO BGE-M3", "msmarco_bgem3.json", "beta", "0.620"),
+     ("p95 R*, MS MARCO Qwen3-0.6B", "msmarco_qw06.json", "arms.adc_bq.Rstar_p95", "47"),
+     ("p95 R*, MS MARCO BGE-M3", "msmarco_bgem3.json", "arms.adc_bq.Rstar_p95", "99"),
+     ("beta without query instruction, MS MARCO Qwen3-0.6B", "placebo.json", "msm/none(stored)[0]", "0.523"),
+     ("p95 R* without query instruction, MS MARCO", "placebo.json", "msm/none(stored)[1]", "74"),
+     ("beta without query instruction, Quora Qwen3-0.6B", "placebo.json", "quora/none[0]", "0.740"),
+     ("p95 R* without query instruction, Quora", "placebo.json", "quora/none[1]", "30")])],
+ *[("R", f"S3.{37+i}", "Sec 3.3", t, S3D, sv(f"{k}_perq.npz", f"perq.{k}.adc_bq.{q}"), "value", v) for i, (t, k, q, v) in enumerate([
+     ("median R*, MS MARCO Qwen-1024", "msmarco_qw06", "median", "16"),
+     ("p95 R*, MS MARCO Qwen-1024", "msmarco_qw06", "p95", "47"),
+     ("p99 R*, MS MARCO Qwen-1024", "msmarco_qw06", "p99", "87"),
+     ("p95 R*, MS MARCO BGE-M3 (per-query array)", "msmarco_bgem3", "p95", "99"),
+     ("p99 R*, MS MARCO BGE-M3", "msmarco_bgem3", "p99", "195")])],
+ ("REF", "S3R.1", "Sec 3.3", "query share of var(log R*), levels.py", S3D, sv("levels.py", "levels.7settings.query"), "value"),
+ ("REF", "S3R.2", "Sec 3.3", "embedding share of var(log R*), levels.py", S3D, sv("levels.py", "levels.7settings.setting"), "value"),
+ ("REF", "S3R.3", "Sec 3.3", "quantizer share of var(log R*), levels.py", S3D, sv("levels.py", "levels.7settings.arm"), "value"),
+ ("D", "S3.42", "Sec 3.3", "query share of var(log R*) (%)", "S3R.1*100", "89.4"),
+ ("D", "S3.43", "Sec 3.3", "embedding share of var(log R*) (%)", "S3R.2*100", "7.7"),
+ ("D", "S3.44", "Sec 3.3", "quantizer share of var(log R*) (%)", "S3R.3*100", "1.8"),
  # ---------------- Sec 4 / Fig 5
  ("R", "F5.1", "Fig 5", "ADC-BQ query LUT build, MS MARCO (us)", F5, {"dataset": "msmarco_qwen1024", "method_key": "adcbq1"}, "query_preprocess_us", "4.7"),
  ("R", "F5.2", "Fig 5", "TurboQuant query preprocessing, MS MARCO (us)", F5, {"dataset": "msmarco_qwen1024", "method_key": "qdranttq1"}, "query_preprocess_us", "9.6"),
@@ -346,8 +384,8 @@ C = [
  ("R", "F18.11", "Fig 18", "BBQ min Recall@10 over checkpoints", F18, {"mode": "online_add_no_rebuild", "efSearch": "256"}, "adc_recall_at_10", "0.9849", "min"),
  ("R", "F18.12", "Fig 18a", "RaBitQ-1bit Recall@10 at 50M (as plotted: 0.9852)", F18R, {"mode": "online_add_no_rebuild", "efSearch": "256", "insert_size": "50000000"}, "recall_current_at_k", "0.9852"),
  # ---------------- Fig 19 colocation
- ("R", "F19.1", "Fig 19", "16KB baseline QPS @50% DRAM", F19, {"layout": "baseline", "page_bytes": "16384", "bq_ram_ratio_target": "0.5"}, "qps", "112.2"),
- ("R", "F19.2", "Fig 19", "16KB colocated QPS @50% DRAM", F19, {"layout": "coloc", "page_bytes": "16384", "bq_ram_ratio_target": "0.5"}, "qps", "170.6"),
+ ("R", "F19.1", "Fig 19", "16KB baseline QPS @50% DRAM", F19, {"layout": "baseline", "page_bytes": "16384", "bq_ram_ratio_target": "0.5"}, "qps_median", "112.2"),
+ ("R", "F19.2", "Fig 19", "16KB colocated QPS @50% DRAM", F19, {"layout": "coloc", "page_bytes": "16384", "bq_ram_ratio_target": "0.5"}, "qps_median", "170.6"),
  ("R", "F19.3", "Fig 19", "16KB baseline graph page hit ratio @50%", F19, {"layout": "baseline", "page_bytes": "16384", "bq_ram_ratio_target": "0.5"}, "graph_page_hit_ratio", "0.576"),
  ("R", "F19.4", "Fig 19", "16KB colocated graph page hit ratio @50%", F19, {"layout": "coloc", "page_bytes": "16384", "bq_ram_ratio_target": "0.5"}, "graph_page_hit_ratio", "0.751"),
  ("D", "F19.5", "Sec 6.5", "colocation QPS gain (%)", "(F19.2/F19.1-1)*100", "52.0"),
@@ -358,8 +396,17 @@ C = [
  ("G", "S66.4", "Sec 6.6", "RaBitQ-SSD max-recall gain, mean (pp)", T1, "rabitq_ssd_minus_bbq_max_recall_mean_pp", "0.20"),
  ("G", "S66.5", "Sec 6.6", "BBQ over RaBitQ-SSD @0.99, median", T1, "bbq_over_rabitq_ssd_median_at_0.99", "9.1"),
  ("G", "S66.6", "Sec 6.6", "TurboQuant max-recall change vs BBQ, mean (pp; 'at most 0.06')", T1, "tq_minus_bbq_max_recall_mean_pp", "-0.06"),
- ("G", "S66.7", "Sec 6.6", "SSD-resident graphs slower than BBQ @0.99, low end", T1, "bbq_over_ssd_graph_min_at_0.99", "12.7"),
- ("G", "S66.8", "Sec 6.6", "SSD-resident graphs slower than BBQ @0.99, high end", T1, "bbq_over_ssd_graph_max_at_0.99", "31.6"),
+ ("G", "S66.7", "Sec 6.6", "SSD-resident graphs slower @0.99, low end (= DiskANN-PQ range)", T1, "bbq_over_diskann_pq_min_at_0.99", "12.7"),
+ ("G", "S66.8", "Sec 6.6", "SSD-resident graphs slower @0.99, high end (= DiskANN-PQ range)", T1, "bbq_over_diskann_pq_max_at_0.99", "31.6"),
+ ("G", "S66.9", "Sec 6.6", "BBQ over DiskANN-PQ @0.99, median", T1, "bbq_over_diskann_pq_median_at_0.99", "22.6"),
+ ("G", "S66.10", "Sec 6.6", "BBQ over PipeANN @0.99, median", T1, "bbq_over_pipeann_median_at_0.99", "19.7"),
+ ("G", "S66.11", "Sec 6.6", "(configuration, recall-target) cells at the d/8-byte budget", T1, "dbudget_cells", "74"),
+ ("G", "S66.12", "Sec 6.6", "cells where BBQ is fastest", T1, "dbudget_bbq_fastest_cells", "58"),
+ ("G", "S66.13", "Sec 6.6", "BBQ margin over the runner-up, median", T1, "dbudget_bbq_margin_over_runner_up_median", "1.4"),
+ ("G", "S66.14", "Sec 6.6", "BBQ losses in the d/8-byte class", T1, "dbudget_bbq_losses", "16"),
+ ("G", "S66.15", "Sec 6.6", "losses whose target is above BBQ's recall ceiling", T1, "dbudget_losses_above_bbq_ceiling", "12"),
+ ("G", "S66.16", "Sec 6.6", "cells where BBQ clears the target by >= 0.3 pp", T1, "dbudget_cells_bbq_headroom_ge_0.3pp", "42"),
+ ("G", "S66.17", "Sec 6.6", "of those, cells where BBQ is fastest", T1, "dbudget_bbq_fastest_headroom_ge_0.3pp", "40"),
  # ---------------- Appendix B (single thread, same table)
  *[("B", f"AB.{i+1}", "App B", t, T1, ds, m, th, "value", v) for i, (t, ds, m, th, v) in enumerate([
      ("BBQ QPS @0.99, NQ Qwen", "nq_qwen06_1024", B, "0.99", "1753"), ("TurboQuant @0.99, NQ Qwen", "nq_qwen06_1024", TQ, "0.99", "1253"),

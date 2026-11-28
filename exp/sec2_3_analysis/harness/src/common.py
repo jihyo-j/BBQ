@@ -13,12 +13,12 @@ os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
 import struct
 import numpy as np
 
-JH = "/home/smrc/samsung-nvme/jihyo"
-SYN = "/home/smrc/samsung-nvme/sieun/SYN/emb"
+JH = os.environ.get("BBQETA_JH", "/home/smrc/samsung-nvme/jihyo")  # env override: BBQ artifact
+SYN = os.environ.get("BBQETA_SYN", "/home/smrc/samsung-nvme/sieun/SYN/emb")  # env override: BBQ artifact
 KM = "/home/smrc/samsung-nvme/kyungmin/datasets"
 AB = "/home/smrc/samsung-nvme/ann-benchmark-data"
-WORK = "/home/smrc/samsung-nvme/sieun/bbqeta"
-OUT = "/home/sieun/projects/BBQETA/out"
+WORK = os.environ.get("BBQETA_WORK", "/home/smrc/samsung-nvme/sieun/bbqeta")  # env override: BBQ artifact
+OUT = os.environ.get("BBQETA_OUT", "/home/sieun/projects/BBQETA/out")  # env override: BBQ artifact
 # BEIR text (corpus / queries / qrels) for the corpora whose row order we
 # verified against our vectors.  Only Quora is the full BEIR corpus in its
 # native order; the other three are 1M subsamples and cannot be mapped back.

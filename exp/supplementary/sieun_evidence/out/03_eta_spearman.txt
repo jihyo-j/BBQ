@@ -1,0 +1,183 @@
+configurations: 20  with all 10 arms: 15
+
+per (configuration, quantizer): eta and p95 R*
+  configuration    quantizer                  kappa   beta     eta     p95 R*
+  dbpedia_ada2     Sym-BQ                    0.8527  0.546   1.121      189.2
+  dbpedia_ada2     ADC-BQ                    0.9158  0.546   0.803       66.0
+  dbpedia_ada2     ADC-BQ +centre            0.9030  0.546   0.871      191.1
+  dbpedia_ada2     ADC-BQ +centre+scale      0.9171  0.546   0.796      153.0
+  dbpedia_ada2     PQ                        0.9448  0.546   0.634      103.0
+  dbpedia_ada2     OPQ                       0.9644  0.546   0.502       52.0
+  dbpedia_ada2     SQ-4bit                   0.9270  0.546   0.740      121.0
+  dbpedia_ada2     SQ-8bit                   0.9998  0.546   0.039       12.0
+  dbpedia_ada2     RaBitQ-1bit               0.9215  0.546   0.771      149.0
+  dbpedia_ada2     TurboQuant-1bit (= rotat  0.8931  0.546   0.922      133.1
+  dbpedia_bgeb     Sym-BQ                    0.7977  0.661   1.144      543.1
+  dbpedia_bgeb     ADC-BQ                    0.8926  0.661   0.764      102.2
+  dbpedia_bgeb     ADC-BQ +centre            0.9139  0.661   0.672      125.0
+  dbpedia_bgeb     ADC-BQ +centre+scale      0.9144  0.661   0.670       85.2
+  dbpedia_bgeb     PQ                        0.9305  0.661   0.595       68.0
+  dbpedia_bgeb     OPQ                       0.9577  0.661   0.455       50.0
+  dbpedia_bgeb     SQ-4bit                   0.9954  0.661   0.146       16.0
+  dbpedia_bgeb     SQ-8bit                   1.0000  0.661   0.009       11.0
+  dbpedia_bgeb     RaBitQ-1bit               0.9151  0.661   0.667       90.0
+  dbpedia_bgeb     TurboQuant-1bit (= rotat  0.8861  0.661   0.791      118.1
+  dbpedia_bgel     Sym-BQ                    0.8290  0.657   1.027      210.1
+  dbpedia_bgel     ADC-BQ                    0.9110  0.657   0.689       77.0
+  dbpedia_bgel     ADC-BQ +centre            0.9307  0.657   0.598       79.0
+  dbpedia_bgel     ADC-BQ +centre+scale      0.9310  0.657   0.597       63.0
+  dbpedia_bgel     PQ                        0.9432  0.657   0.536       59.0
+  dbpedia_bgel     OPQ                       0.9685  0.657   0.392       41.0
+  dbpedia_bgel     SQ-4bit                   0.9962  0.657   0.134       15.0
+  dbpedia_bgel     SQ-8bit                   1.0000  0.657   0.008       10.0
+  dbpedia_bgel     RaBitQ-1bit               0.9302  0.657   0.601       60.5
+  dbpedia_bgel     TurboQuant-1bit (= rotat  0.9090  0.657   0.698       57.0
+  dbpedia_e5m      ADC-BQ                    0.9173  0.821   0.529       34.0
+  dbpedia_qw06     Sym-BQ                    0.8488  0.738   0.844      134.3
+  dbpedia_qw06     ADC-BQ                    0.9299  0.738   0.536       50.0
+  dbpedia_qw06     ADC-BQ +centre            0.9393  0.738   0.495       55.0
+  dbpedia_qw06     ADC-BQ +centre+scale      0.9394  0.738   0.494       41.0
+  dbpedia_qw06     PQ                        0.9536  0.738   0.428       47.0
+  dbpedia_qw06     OPQ                       0.9754  0.738   0.306       33.0
+  dbpedia_qw06     SQ-4bit                   0.9968  0.738   0.108       14.0
+  dbpedia_qw06     SQ-8bit                   1.0000  0.738   0.006       11.0
+  dbpedia_qw06     RaBitQ-1bit               0.9438  0.738   0.475       39.1
+  dbpedia_qw06     TurboQuant-1bit (= rotat  0.9353  0.738   0.513       44.0
+  fever_bgem3      Sym-BQ                    0.8398  0.490   1.320     1102.1
+  fever_bgem3      ADC-BQ                    0.9165  0.490   0.891      175.0
+  fever_bgem3      ADC-BQ +centre            0.9416  0.490   0.730      204.0
+  fever_bgem3      ADC-BQ +centre+scale      0.9422  0.490   0.726      169.0
+  fever_bgem3      PQ                        0.9534  0.490   0.646      126.0
+  fever_bgem3      OPQ                       0.9760  0.490   0.456       64.0
+  fever_bgem3      SQ-4bit                   0.9969  0.490   0.162       17.0
+  fever_bgem3      SQ-8bit                   1.0000  0.490   0.010       11.0
+  fever_bgem3      RaBitQ-1bit               0.9418  0.490   0.729      176.0
+  fever_bgem3      TurboQuant-1bit (= rotat  0.9291  0.490   0.813      192.0
+  gist             Sym-BQ                       nan  0.084     nan   995299.4
+  gist             ADC-BQ                       nan  0.084     nan   995299.4
+  gist             ADC-BQ +centre            0.9146  0.084   5.274   333512.2
+  gist             ADC-BQ +centre+scale      0.9239  0.084   4.941   410837.8
+  gist             PQ                        0.9733  0.084   2.811     3770.1
+  gist             OPQ                       0.9944  0.084   1.268      465.2
+  gist             SQ-4bit                   0.9942  0.084   1.290      204.0
+  gist             SQ-8bit                   1.0000  0.084   0.053       12.0
+  gist             RaBitQ-1bit               0.9812  0.084   2.347     3796.8
+  gist             TurboQuant-1bit (= rotat  0.9721  0.084   2.877     3136.3
+  glove            Sym-BQ                    0.6502  0.278   4.207   149070.7
+  glove            ADC-BQ                    0.8036  0.278   2.666    17644.7
+  glove            ADC-BQ +centre            0.8202  0.278   2.511    15995.7
+  glove            ADC-BQ +centre+scale      0.8244  0.278   2.472    13095.3
+  glove            PQ                        0.8221  0.278   2.493    23901.0
+  glove            OPQ                       0.8219  0.278   2.495    24991.4
+  glove            SQ-4bit                   0.9884  0.278   0.554       75.0
+  glove            SQ-8bit                   1.0000  0.278   0.033       11.0
+  glove            RaBitQ-1bit               0.8343  0.278   2.379    13357.5
+  glove            TurboQuant-1bit (= rotat  0.8211  0.278   2.503    21402.0
+  msmarco_ada2     Sym-BQ                    0.8397  0.612   1.057      183.0
+  msmarco_ada2     ADC-BQ                    0.9103  0.612   0.743       63.0
+  msmarco_ada2     ADC-BQ +centre            0.9142  0.612   0.725      154.0
+  msmarco_ada2     ADC-BQ +centre+scale      0.9148  0.612   0.721      110.0
+  msmarco_ada2     PQ                        0.9350  0.612   0.620       88.0
+  msmarco_ada2     OPQ                       0.9725  0.612   0.392       40.0
+  msmarco_ada2     SQ-4bit                   0.9937  0.612   0.185       18.0
+  msmarco_ada2     SQ-8bit                   1.0000  0.612   0.011       11.0
+  msmarco_ada2     RaBitQ-1bit               0.9170  0.612   0.711      106.0
+  msmarco_ada2     TurboQuant-1bit (= rotat  0.8771  0.612   0.895      127.1
+  msmarco_bgem3    Sym-BQ                    0.8300  0.620   1.085      416.0
+  msmarco_bgem3    ADC-BQ                    0.9117  0.620   0.728       99.0
+  msmarco_bgem3    ADC-BQ +centre            0.9306  0.620   0.635      148.0
+  msmarco_bgem3    ADC-BQ +centre+scale      0.9316  0.620   0.630       98.0
+  msmarco_bgem3    PQ                        0.9457  0.620   0.555       81.0
+  msmarco_bgem3    OPQ                       0.9731  0.620   0.382       44.0
+  msmarco_bgem3    SQ-4bit                   0.9964  0.620   0.138       15.0
+  msmarco_bgem3    SQ-8bit                   1.0000  0.620   0.008       11.0
+  msmarco_bgem3    RaBitQ-1bit               0.9340  0.620   0.617       89.0
+  msmarco_bgem3    TurboQuant-1bit (= rotat  0.9103  0.620   0.734      112.0
+  msmarco_e5m      Sym-BQ                    0.8217  0.781   0.888       73.0
+  msmarco_e5m      ADC-BQ                    0.9015  0.781   0.615       36.0
+  msmarco_e5m      ADC-BQ +centre            0.9131  0.781   0.572       53.0
+  msmarco_e5m      ADC-BQ +centre+scale      0.9157  0.781   0.562       40.0
+  msmarco_e5m      PQ                        0.9745  0.781   0.295       46.0
+  msmarco_e5m      OPQ                       0.9880  0.781   0.200       24.0
+  msmarco_e5m      SQ-4bit                   0.9969  0.781   0.101       14.0
+  msmarco_e5m      SQ-8bit                   1.0000  0.781   0.006       10.0
+  msmarco_e5m      RaBitQ-1bit               0.9706  0.781   0.318       30.0
+  msmarco_e5m      TurboQuant-1bit (= rotat  0.9570  0.781   0.388       29.0
+  msmarco_qw06     Sym-BQ                    0.8345  0.825   0.800      140.0
+  msmarco_qw06     ADC-BQ                    0.9222  0.825   0.508       47.0
+  msmarco_qw06     ADC-BQ +centre            0.9323  0.825   0.470       61.0
+  msmarco_qw06     ADC-BQ +centre+scale      0.9328  0.825   0.468       44.0
+  msmarco_qw06     PQ                        0.9502  0.825   0.397       48.0
+  msmarco_qw06     OPQ                       0.9714  0.825   0.296       33.0
+  msmarco_qw06     SQ-4bit                   0.9965  0.825   0.101       14.0
+  msmarco_qw06     SQ-8bit                   1.0000  0.825   0.006       10.0
+  msmarco_qw06     RaBitQ-1bit               0.9400  0.825   0.440       43.0
+  msmarco_qw06     TurboQuant-1bit (= rotat  0.9304  0.825   0.477       43.0
+  nq_bgem3         Sym-BQ                    0.8563  0.551   1.094      366.5
+  nq_bgem3         ADC-BQ                    0.9277  0.551   0.730       84.0
+  nq_bgem3         ADC-BQ +centre            0.9439  0.551   0.635      126.0
+  nq_bgem3         ADC-BQ +centre+scale      0.9448  0.551   0.629       88.1
+  nq_bgem3         PQ                        0.9566  0.551   0.553       70.0
+  nq_bgem3         OPQ                       0.9780  0.551   0.387       40.0
+  nq_bgem3         SQ-4bit                   0.9971  0.551   0.139       15.0
+  nq_bgem3         SQ-8bit                   1.0000  0.551   0.008       11.0
+  nq_bgem3         RaBitQ-1bit               0.9462  0.551   0.621       76.0
+  nq_bgem3         TurboQuant-1bit (= rotat  0.9298  0.551   0.718      103.0
+  nq_e5m           ADC-BQ                    0.9096  0.717   0.637       37.0
+  nq_nem8          ADC-BQ                    0.9392  2.165   0.169       17.0
+  nq_qw06          Sym-BQ                    0.8471  0.737   0.851      145.0
+  nq_qw06          ADC-BQ                    0.9291  0.737   0.540       50.0
+  nq_qw06          ADC-BQ +centre            0.9392  0.737   0.496       58.0
+  nq_qw06          ADC-BQ +centre+scale      0.9396  0.737   0.494       45.0
+  nq_qw06          PQ                        0.9561  0.737   0.415       50.0
+  nq_qw06          OPQ                       0.9755  0.737   0.306       35.0
+  nq_qw06          SQ-4bit                   0.9969  0.737   0.107       14.0
+  nq_qw06          SQ-8bit                   1.0000  0.737   0.006       10.0
+  nq_qw06          RaBitQ-1bit               0.9468  0.737   0.461       43.0
+  nq_qw06          TurboQuant-1bit (= rotat  0.9370  0.737   0.506       50.0
+  quora_bgem3      Sym-BQ                    0.8605  0.896   0.661       55.0
+  quora_bgem3      ADC-BQ                    0.9288  0.896   0.445       29.0
+  quora_bgem3      ADC-BQ +centre            0.9438  0.896   0.391       42.0
+  quora_bgem3      ADC-BQ +centre+scale      0.9442  0.896   0.389       31.0
+  quora_bgem3      PQ                        0.9587  0.896   0.331       35.0
+  quora_bgem3      OPQ                       0.9786  0.896   0.235       26.0
+  quora_bgem3      SQ-4bit                   0.9971  0.896   0.085       14.0
+  quora_bgem3      SQ-8bit                   1.0000  0.896   0.005       10.0
+  quora_bgem3      RaBitQ-1bit               0.9468  0.896   0.379       32.0
+  quora_bgem3      TurboQuant-1bit (= rotat  0.9309  0.896   0.438       29.0
+  quora_e5m        ADC-BQ                    0.9362  0.674   0.557       37.0
+  quora_nem8       ADC-BQ                    0.9455  1.788   0.193       19.0
+  quora_qw06       Sym-BQ                    0.8509  0.889   0.694       69.0
+  quora_qw06       ADC-BQ                    0.9288  0.889   0.449       35.0
+  quora_qw06       ADC-BQ +centre            0.9434  0.889   0.395       53.0
+  quora_qw06       ADC-BQ +centre+scale      0.9445  0.889   0.391       31.0
+  quora_qw06       PQ                        0.9613  0.889   0.322       40.0
+  quora_qw06       OPQ                       0.9799  0.889   0.229       29.0
+  quora_qw06       SQ-4bit                   0.9972  0.889   0.084       14.0
+  quora_qw06       SQ-8bit                   1.0000  0.889   0.005       10.0
+  quora_qw06       RaBitQ-1bit               0.9525  0.889   0.360       29.0
+  quora_qw06       TurboQuant-1bit (= rotat  0.9383  0.889   0.415       33.0
+
+==============================================================================
+pooled over (configuration, quantizer)   n= 153   Spearman = 0.959
+ADC-BQ across configurations             n=  19   Spearman = 0.903
+==============================================================================
+manuscript:  0.921 over 90 pairs, and 0.912 for ADC-BQ
+BBQETA RESULTS.md:111 (older vintage):  0.981 over 94 pairs
+
+Why 90 is not recoverable: 90 = 15 configurations x 6 arms, and several
+different 6-arm subsets land in the same place --
+   rho=0.9244 (n=89)   ADC-BQ, ADC-BQ +centre+scale, PQ, OPQ, RaBitQ-1bit, TurboQuant-1bit
+   rho=0.9243 (n=89)   ADC-BQ, ADC-BQ +centre, PQ, OPQ, RaBitQ-1bit, TurboQuant-1bit
+   rho=0.9241 (n=89)   ADC-BQ, ADC-BQ +centre, ADC-BQ +centre+scale, PQ, OPQ, RaBitQ-1bit
+   rho=0.9230 (n=88)   Sym-BQ, ADC-BQ, ADC-BQ +centre, PQ, RaBitQ-1bit, TurboQuant-1bit
+   rho=0.9224 (n=88)   Sym-BQ, ADC-BQ, ADC-BQ +centre, ADC-BQ +centre+scale, PQ, RaBitQ-1bit
+   rho=0.9179 (n=88)   Sym-BQ, ADC-BQ, ADC-BQ +centre, ADC-BQ +centre+scale, PQ, TurboQuant-1bit
+   rho=0.9168 (n=89)   ADC-BQ, ADC-BQ +centre, ADC-BQ +centre+scale, PQ, OPQ, TurboQuant-1bit
+   rho=0.9165 (n=89)   ADC-BQ, ADC-BQ +centre, ADC-BQ +centre+scale, PQ, RaBitQ-1bit, TurboQuant-1bit
+
+SUGGESTED REPLACEMENT for the Section 3.2 sentence:
+   "orders p95 R* with Spearman 0.959 across 153 (configuration,
+    quantizer) pairs, and 0.903 for ADC-BQ across the 19 configurations
+    where kappa is defined."
+(GIST is excluded: every sign code is all-+1, so kappa is undefined.)

@@ -13,15 +13,22 @@ NOTES = {
   "`plot_qwen1024_diskann_adaptive_compare_t1.py` merges the four timing campaigns into the five-method CSV used by the figure.",
  ],
  "fig07_adc_lut": [
-  "(a) `preserve.dat` was recovered from the original figure; its numbers (CandidateRecall@30 0.847 -> 0.947 on MS MARCO BGE-M3, "
-  "0.977 -> 0.994 on Quora) are checked against the Sec. 3 harness outputs (claims S3.1-S3.2) in `../sec2_3_analysis`.",
+  "(a) `plot/make_preserve_dat.py` builds `preserve.dat` from the per-query ranks of the Sec 2-3 harness "
+  "(`../sec2_3_analysis/harness/work/msmarco_bgem3_perq.npz`, MS MARCO BGE-M3, 2,000 queries, exhaustive 1M scan). "
+  "`remeasure_preserve.sh` re-runs that measurement from the raw BGE-M3 vectors (`harness/src/measure.py msmarco_bgem3`) into "
+  "`remeasure/` and redraws the panel. The printed panel's coordinates are kept in `plot/preserve.recovered.dat`. They agree with the "
+  "stored ranks within 0.003 everywhere except ADC-BQ at R = 10, which is 0.726 printed against 0.716 measured. CandidateRecall@30 "
+  "(0.848 / 0.947) is claims S3.1-S3.2.",
   "(b) is rebuilt from `results/quora_bge_m3/paired_ef_comparison_t1.csv`: same graph and efSearch, scalar FP32 ADC "
   "(`bbq/build.sh` with `ADCBQ_FORCE_FP32_DIRECT_SCALAR=1`) vs the int16 nibble LUT, no calibration, no rerank. "
   "The NQ / Quora Qwen-1024 runs of the same ablation are kept in `results/`.",
  ],
  "fig08_graph_build_precision": [
-  "`index_quality.dat` was recovered from the vector coordinates of the original matplotlib PDF; the measured numbers are in "
-  "`results/graph_construction_precision/*_paired.csv` and `*_build_times.csv`.",
+  "`plot/make_index_quality_dat.py` builds `index_quality.dat` from `results/graph_construction_precision/*_paired.csv` "
+  "(`run_msmarco_quora_qwen1024_graph_construction_precision.py`). The printed figure's coordinates, recovered from its PDF, are kept "
+  "as `plot/index_quality.recovered.dat`. Their Recall@10 values equal the 20 measured efSearch points of all four curves to "
+  "five decimals. Their QPS differs by up to about 20 % in either direction: single-thread QPS of a separate measurement, "
+  "not a different experiment.",
  ],
  "fig09_20_overall_t1": [
   "**Which table.** The paper's Figs 9 and 20 were drawn from `results/recall_qps_as_printed_t1.csv` (3,477 rows). "
@@ -44,9 +51,13 @@ NOTES = {
   "TurboQuant uses the Pareto-selected fixed R = 160 / 320 / 512 for k = 30 / 50 / 100.",
  ],
  "fig11_ablation": [
-  "**GT variant.** Panel (b) (91.8 % / 51.5 / 75.4 / 119.8) matches the `ip_aligned` per-query groups.",
-  "**Not reproduced.** The paper prints 91.79 % (data: 91.81 %), and panel (b)'s latencies 0.921 / 1.035 / 1.192 ms match none of the "
-  "three GT variants (ip_aligned: 0.904 / 1.014 / 1.165); they come from the earlier matplotlib figure (`perquery.dat` is recovered).",
+  "**Panel (b)** is built by `plot/make_recall_groups.py` from the default (legacy-GT) output of "
+  "`run_msmarco_qwen1024_calibration_analysis.py`, `../fig12_calibration/results/legacy_gt/per_query_target099.csv`. It groups the "
+  "test queries exactly as the runner does. Every printed number reproduces: 5,489 queries (91.79 %), 51.5 / 75.4 / 119.8 FP32 reads "
+  "and 0.921 / 1.035 / 1.192 ms. The `ip_aligned` and `exact_cosine_aligned` groups, which differ slightly (91.81 %, 0.904 ms, ...), "
+  "are kept for reference. Fig 11 therefore uses the legacy GT throughout, like Fig 12.",
+  "`plot/perquery.gp` (per-query R* vs z10 clouds, DBpedia z10 vs relevant documents) is an earlier Sec 3 figure, not part of Fig 11; "
+  "its clouds are raster images reused from that figure.",
   "Fixed R=75 vs calibrated (1,109 vs 1,191 QPS; 26.0-40.5 % fewer reads and 2.7-19.9 % more QPS over the sweep) is the "
   "equal-pool / equal-queue-depth run in `results/equal_pool_qd_ablation/`.",
  ],
@@ -64,7 +75,10 @@ NOTES = {
  ],
  "fig14_page_io": [
   "**Stale panel in the paper.** The paper PDF draws TurboQuant on OpenAI-1536 at 80 pages/query; the data and the text say 120 "
-  "(R = 60 vectors x 2 pages at d = 1536). The shipped `page_io.dat` is the printed one; `regen.sh` rebuilds it from `results/`.",
+  "(R = 60 vectors x 2 pages at d = 1536, `tq_selected_r_heldout_t1.csv`). No stored file holds an 80-page TurboQuant curve. "
+  "Only the TurboQuant curve of panel (a) differs; every other block of the shipped "
+  "`page_io.dat` equals what `regen.sh` builds. The shipped `page_io.dat` is the printed one; `make plots` / `regen.sh` "
+  "overwrite it with the data.",
  ],
  "fig15_io_modes": [
   "Claims use ef=320 (Qwen) / ef=88 (OpenAI), the first points at Recall@10 >= 0.99 (0.9908 / 0.9902 for all three modes).",
@@ -76,12 +90,22 @@ NOTES = {
  ],
  "fig18_insertion": [
   "Inserts measured at 10M, 30M, 50M and 100M, each from the same 1M index. TurboQuant inserts faster than BBQ at 10M, 30M and 100M.",
-  "**Not reproduced.** Panel (a) plots RaBitQ-1bit at 50M as 0.9852; the data (`rabitq_b1_adaptive_c16_random_independent_t32.csv`) "
-  "gives 0.9878 and no file contains 0.9852 (claim F18.12). The shipped `insertion_scale.dat` is the printed one; `regen.sh` gives the data.",
+  "**One stale point.** Panel (a) plots RaBitQ-1bit at 50M as 0.9852; the 1-bit run (`rabitq_b1_adaptive_c16_random_independent_t32.csv`) "
+  "gives 0.9878 (claim F18.12). 0.9852 is `rabitq_recall_at_10` of the earlier RaBitQ-7bit series at 50M in "
+  "`frozen_adcbq_vs_rabitq_c16_comparison.csv`: `make_insertion_scale_dat.py` swaps the RaBitQ series to the 1-bit run, and the "
+  "printed figure kept the 7-bit value at that one point. Every other point equals the regenerated file. The shipped "
+  "`insertion_scale.dat` is the printed one; `make plots` / `regen.sh` overwrite it with the data.",
  ],
  "fig19_colocation": [
-  "`colocation.dat` was recovered from the original matplotlib PDF; measured QPS and hit ratios are in "
-  "`results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv`.",
+  "Data: `results/te3small_ef256_t24/` from `run_msmarco_te3small1536_adcbq_colocation.py` (MS MARCO BEIR, text-embedding-3-small, "
+  "the Table 5 set `sieun_msmarco_openai1536`; ef=256, 24 threads, tau_256 = 1.5349 frozen across all 24 configurations; "
+  "Recall@10 0.9952 everywhere). QPS is the median of 3 fresh processes after one discarded warm-up process; `validation.json` passed. "
+  "`plot/make_colocation_dat.py` builds `colocation.dat` from `summary.csv`.",
+  "**Text not yet updated.** Sec 6.5 quotes 16 KB @ 50% DRAM as 112.2 -> 170.6 QPS (+52.0%) with hit ratio 57.6% -> 75.1%. Those "
+  "numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), kept in "
+  "`results/superseded_ada002/`. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain "
+  "is +53.7% at 16 KB @ 25% (97.4 -> 149.6); colocation wins in all 12 (page, ratio) cells, +11.5% to +53.7%. "
+  "`plot/colocation.recovered.dat` holds the coordinates of the earlier printed figure.",
   "Colocation is `build_colocation_physical_rows()` in `bbq/src/bbq_hnsw.cpp` (LDG partitioning + page-aware reorder), ported from the "
   "pgvector implementation of Shim et al.",
  ],
@@ -94,15 +118,33 @@ NOTES = {
   "977 lists (0.9959, 778,383 codes). The IVF point has higher recall; this is target-threshold evidence, not an iso-recall comparison.",
  ],
  "sec2_3_analysis": [
-  "Workload analysis harness of Secs. 2-3 (Sieun Kim): `harness/src` produces `harness/out/*.json` from exhaustive scoring of each "
-  "configuration; per-query arrays (`*_perq.npz`, 6.6 MB) live with the data (`$BBQ_DATA2/bbqeta`). `harness/gp` and `plot/` hold "
-  "the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) candidate-expansion data; `paper_figures/` the printed panels.",
-  "`tools/flatten_outputs.py` flattens every harness output into `results/sec3_values.csv` so that verify can check them "
-  "(CandidateRecall, kappa / beta / f across MRL widths, Table 2 from `bitsvsdims.txt`, Table 3 p95 R*).",
+  "Workload analysis harness of Secs. 2-3 (Sieun Kim, BBQETA): `harness/src` produces `harness/out/*.json` from exhaustive scoring "
+  "of 20 configurations x up to 10 quantizers; `harness/work/*_perq.npz` (6.6 MB) holds the per-query R* arrays behind Figs 3-4 and "
+  "the Sec 3.3 quantiles. `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) data; "
+  "`paper_figures/` the printed panels.",
+  "Sources, per Sieun's map: CandidateRecall / R* / kappa / nu / eta per configuration and quantizer = `out/<corpus>_<enc>.json` "
+  "(`src/measure.py`, `src/add_arms.py`); Fig 3(a) = `src/kcurve.py`; Fig 3(b) = `src/export_cq.py`; Fig 3(c) MRL = "
+  "`out/dimsweep_msmarco_qw8.json` (`src/dimsweep.py`); Fig 3(d) = `out/dimperq_msmarco_qw8.json` (`src/export_dimperq.py`); "
+  "Table 2 = `out/bitsvsdims.txt` (`src/bitsvsdims.py`); query-instruction removal = `out/placebo.json` / `placebo.log`; "
+  "Fig 4 = `src/export_fig4.py`.",
+  "Two tables feed verify: `tools/flatten_outputs.py` copies every harness value into `results/sec3_values.csv`; "
+  "`tools/sec3_derived.py` (needs scipy) recomputes, with the harness's own functions, what the harness prints but does not store: "
+  "the eta Spearman of `src/tables.py` `diagnostics()`, per-query median / p95 / p99 R*, and the `src/levels.py` decomposition. "
+  "It writes `results/sec3_derived.csv`.",
+  "**eta Spearman (S3.18-20) is stale in the text.** The sentence quotes 0.921 over 90 (configuration, quantizer) pairs and "
+  "0.912 for ADC-BQ. The current outputs (20 configurations, 155 pairs; GIST's sym-BQ / ADC-BQ drop out because kappa is undefined) "
+  "give 0.959 over 153 pairs and 0.903 over 19 configurations. Sieun reports that 90 pairs = 15 configurations x 6 quantizers, "
+  "but six different 6-quantizer subsets give 0.919-0.922, so the old pair set cannot be recovered; `RESULTS.md` records a third "
+  "generation (0.981 / 94 pairs). Suggested text: *Spearman 0.959 across 153 (configuration, quantizer) pairs, and 0.903 for "
+  "ADC-BQ across the 19 configurations where kappa is defined.*",
+  "**Variance shares (S3.42-44) not reproduced.** `src/levels.py` gives query 85.7 % / embedding 10.3 % / quantizer 2.1 % for its "
+  "7 settings x 5 deployable quantizers; the text says 89.4 / 7.7 / 1.8. No combination of the stored settings and quantizers we "
+  "tried gives 89.4 %.",
   "**Not found in any output:** the text-embedding-3-large width sweep (3072D p95 R* 17-31), the Haar-rotation sweep "
-  "(25,123 -> 21), the whitening result (c_Q 0.74-0.76 on DBpedia), p99 R* = 195, the 89.4 % variance share (levels.json gives "
-  "85.7 % for its 7 settings) and the Spearman correlations 0.921 / 0.912. The raw text-embedding-3-large vectors exist "
-  "(`data_prep/beir_embeddings`).",
+  "(25,123 -> 21) and the whitening result (c_Q 0.74-0.76 on DBpedia). The raw text-embedding-3-large vectors exist "
+  "(`data_prep/beir_embeddings`). Sieun's evidence bundle (`../supplementary/sieun_evidence`) confirms that the 2026-11-25 "
+  "manuscript has no such paragraphs. Its closest evidence is the `tq1` arm (Haar rotation + sign code): on GIST it takes p95 R* "
+  "from 995,299 to 3,136, which is not the printed 25,123 -> 21.",
  ],
  "sec5_1_query_bits": [
   "Query bit-width sweep at efSearch 256: 8-bit queries reach Recall@10 0.9934 on NQ against 0.9956 with FP32 queries (claim F7.1-F7.2).",
@@ -125,7 +167,7 @@ for r in all_claims:
 
 rows = []
 for d in sorted([p for p in EXP.glob("fig*") if p.is_dir()] + [p for p in EXP.glob("sec*") if p.is_dir()]
-                + [p for p in (EXP / "supplementary").glob("*") if p.is_dir()]):
+                + [p for p in (EXP / "supplementary").glob("*") if p.is_dir() and (p / "title.txt").exists()]):
     title = (d / "title.txt").read_text().strip()
     run = [l for l in (d / "run.txt").read_text().split() if l]
     res = sorted(p.relative_to(d) for p in (d / "results").rglob("*") if p.is_file())
@@ -133,7 +175,7 @@ for d in sorted([p for p in EXP.glob("fig*") if p.is_dir()] + [p for p in EXP.gl
     cl = claims.get(str(d.relative_to(EXP)).split("/")[0], [])
     md = [f"# {title}", "",
           "| | |", "|---|---|",
-          f"| Verify | `make build/verify && ./build/verify --root exp --only {max(set(c['id'].split('.')[0] for c in cl), key=[c['id'].split('.')[0] for c in cl].count)}.`  ({len(cl)} claims here) |" if cl else "| Verify | — |",
+          f"| Verify | `make build/verify && ./build/verify --root exp --only {(lambda ps: max(dict.fromkeys(ps), key=ps.count))([c['id'].split('.')[0] for c in cl])}.`  ({len(cl)} claims here) |" if cl else "| Verify | — |",
           f"| Re-plot | `./exp/{d.relative_to(EXP)}/plot/regen.sh` |" if (d / "plot" / "regen.sh").exists() else "| Re-plot | see `plot/` |",
           f"| Paper figure | {', '.join(f'`plot/{p}`' for p in pdfs) or '—'} |", ""]
     md += ["## Re-run the experiment", "",

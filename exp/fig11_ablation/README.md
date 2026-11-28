@@ -48,6 +48,7 @@ Result files behind the figure (copied verbatim from the original run):
 - `results/msmarco_qwen1024_recall_ablation_t1.csv`
 - `results/per_query_recall_groups_target099.exact_cosine_aligned.csv`
 - `results/per_query_recall_groups_target099.ip_aligned.csv`
+- `results/per_query_recall_groups_target099.legacy_gt.csv`
 
 ## Claims checked by `verify`
 
@@ -75,6 +76,6 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
-- **GT variant.** Panel (b) (91.8 % / 51.5 / 75.4 / 119.8) matches the `ip_aligned` per-query groups.
-- **Not reproduced.** The paper prints 91.79 % (data: 91.81 %), and panel (b)'s latencies 0.921 / 1.035 / 1.192 ms match none of the three GT variants (ip_aligned: 0.904 / 1.014 / 1.165); they come from the earlier matplotlib figure (`perquery.dat` is recovered).
+- **Panel (b)** is built by `plot/make_recall_groups.py` from the default (legacy-GT) output of `run_msmarco_qwen1024_calibration_analysis.py`, `../fig12_calibration/results/legacy_gt/per_query_target099.csv`. It groups the test queries exactly as the runner does. Every printed number reproduces: 5,489 queries (91.79 %), 51.5 / 75.4 / 119.8 FP32 reads and 0.921 / 1.035 / 1.192 ms. The `ip_aligned` and `exact_cosine_aligned` groups, which differ slightly (91.81 %, 0.904 ms, ...), are kept for reference. Fig 11 therefore uses the legacy GT throughout, like Fig 12.
+- `plot/perquery.gp` (per-query R* vs z10 clouds, DBpedia z10 vs relevant documents) is an earlier Sec 3 figure, not part of Fig 11; its clouds are raster images reused from that figure.
 - Fixed R=75 vs calibrated (1,109 vs 1,191 QPS; 26.0-40.5 % fewer reads and 2.7-19.9 % more QPS over the sweep) is the equal-pool / equal-queue-depth run in `results/equal_pool_qd_ablation/`.

@@ -1,0 +1,13 @@
+{
+  "stage": "complete",
+  "updated_at": "2026-11-25T21:06:31+0900",
+  "pid": 2558980,
+  "dataset": "sieun_msmarco_openai1536",
+  "efSearch": 256,
+  "threads": 24,
+  "completed_observations": 96,
+  "measured_observations": 72,
+  "configurations": 24,
+  "summary_csv": "/home/jihyo/msmarco_te3small1536_adcbq_colocation_t24.csv",
+  "tau": 1.534913696300107
+}

@@ -138,6 +138,37 @@ def main() -> None:
         agg("bbq_over_ssd_graph_min_at_0.99", min(r))
         agg("bbq_over_ssd_graph_max_at_0.99", max(r))
         agg("bbq_over_ssd_graph_pairs_at_0.99", len(r))
+    for m in SSD_GRAPH:
+        r = [q(best(d, ds, BBQ, .99)) / q(best(d, ds, m, .99)) for ds in datasets
+             if best(d, ds, BBQ, .99) and best(d, ds, m, .99)]
+        if r:
+            tag = {"DiskANN-PQ d/8": "diskann_pq", "DiskANN-RaBitQ 1-bit": "diskann_rabitq",
+                   "PipeANN-RaBitQ 1-bit": "pipeann"}[m]
+            agg(f"bbq_over_{tag}_min_at_0.99", min(r))
+            agg(f"bbq_over_{tag}_max_at_0.99", max(r))
+            agg(f"bbq_over_{tag}_median_at_0.99", st.median(r))
+
+    # --- method selection at a matched d/8-byte code budget (Sec 6.6, Table 7, Findings 8-9).
+    # A cell is (configuration, recall target); its contenders are every method except FP32 HNSW and RaBitQ-7bit,
+    # each at its best QPS with Recall@10 >= target. Definitions follow Sieun Kim's BBQ_evidence/02_verify_sec6.py.
+    iso = [m for m in methods if m not in (FP, R7)]
+    cells = []
+    for th in (0.95, 0.98, 0.99, 0.995, 0.998):
+        for ds in datasets:
+            c = sorted(((q(best(d, ds, m, th)), m) for m in iso if best(d, ds, m, th)), reverse=True)
+            if c:
+                cells.append((ds, th, c))
+    wins = [c for _, _, c in cells if c[0][1] == BBQ]
+    agg("dbudget_cells", len(cells))
+    agg("dbudget_bbq_fastest_cells", len(wins))
+    agg("dbudget_bbq_losses", len(cells) - len(wins))
+    agg("dbudget_bbq_margin_over_runner_up_median", st.median(c[0][0] / c[1][0] for c in wins if len(c) > 1))
+    agg("dbudget_losses_above_bbq_ceiling",
+        sum(1 for ds, th, c in cells if c[0][1] != BBQ and max_recall(d, ds, BBQ) < th))
+    for pp in (0.3, 0.5):
+        h = [(ds, th, c) for ds, th, c in cells if (max_recall(d, ds, BBQ) - th) * 100 >= pp]
+        agg(f"dbudget_cells_bbq_headroom_ge_{pp}pp", len(h))
+        agg(f"dbudget_bbq_fastest_headroom_ge_{pp}pp", sum(c[0][1] == BBQ for _, _, c in h))
 
     # --- scaling from T=1 to this table (Appendix B)
     if t1:

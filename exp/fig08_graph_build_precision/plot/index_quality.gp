@@ -1,5 +1,5 @@
 # index_quality — graph built from FP32 vs from 1-bit codes (Sec. 5)
-# data: index_quality.dat (recovered from the original figure)
+# data: index_quality.dat (make_index_quality_dat.py, from ../results/graph_construction_precision/*_paired.csv)
 # style matched to f2: Carlito, ticks 6.5pt / labels 7pt, plot-box aspect 1.509, major ticks on x/y axes only,
 # legend on top above the titles, page cropped to the content
 load "../../common/plot/common.gp"

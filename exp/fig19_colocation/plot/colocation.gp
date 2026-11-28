@@ -1,5 +1,5 @@
 # colocation — colocated vs baseline page layout for 4/8/16 KB pages (Sec. 6)
-# data: colocation.dat (recovered from the original figure)
+# data: colocation.dat (make_colocation_dat.py, from ../results/te3small_ef256_t24/summary.csv)
 load "../../common/plot/common.gp"
 # style matched to f2: Carlito, ticks 6.5pt / labels 7pt, plot-box aspect 1.509, labelled ticks only
 # (x / y axes), keys stay inside the panels, page cropped
@@ -42,9 +42,9 @@ XT = 'set xtics ("10" 0.10, "25" 0.25, "50" 0.50, "75" 0.75) offset 0,0.45; unse
 
 # (a) QPS
 eval PANEL(LM, PBOT, PW, PHX)
-set xrange [0.050011019:0.79997851]; set yrange [43.499968:285]   # 285 (was 255.9): headroom for the two-column key
+set xrange [0.05:0.80]; set yrange [60:400]   # headroom above 327 for the two-column key
 eval XT
-set ytics 50,50,250 offset 0.3,0
+set ytics 100,100,300 offset 0.3,0
 set ylabel "QPS" font ",7" offset 1.2,0
 set xlabel "Memory ratio (%)" font ",7" offset 0,1.0
 # key (a): page size = colour / marker
@@ -59,7 +59,7 @@ unset arrow; do for [t=11:24] { unset label t }
 
 # (b) graph page hit ratio
 eval PANEL(LM+PW+GM, PBOT, PW, PHX)
-set xrange [0.050001717:0.80000856]; set yrange [10.869277:94.865916]
+set xrange [0.05:0.80]; set yrange [5:95]
 eval XT
 set ytics 20,20,80 offset 0.3,0
 set ylabel "Graph page hit ratio (%)" font ",7" offset 1.2,0

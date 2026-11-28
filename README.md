@@ -15,7 +15,7 @@ exp/   every experiment in Secs 1–6 and Appendix B: results, runners, figures,
 ## Quick start
 
 ```bash
-make verify          # check 312 paper claims (Secs 1-6, Appendix B) against the stored results; g++ only
+make verify          # check 354 paper claims (Secs 1-6, Appendix B) against the stored results; g++ only
 make plots           # re-draw Figs 5, 7-21 from the stored results (gnuplot >= 5.4)
 
 # BBQ itself: upstream FAISS, no fork (exp/baselines/patches/faiss/README.md has the exact commit and cmake line)
@@ -51,7 +51,7 @@ See [`exp/MATRIX.md`](exp/MATRIX.md). Each `exp/figNN_*/README.md` names:
 - any caveats.
 
 The places where the manuscript and the stored data disagree are listed in
-[`exp/README.md` → "Paper ↔ data"](exp/README.md#paper--data). That list includes the two claims `verify` reports
+[`exp/README.md` → "Paper ↔ data"](exp/README.md#paper--data). That list includes every claim `verify` reports
 as failing. Datasets are described in [`exp/DATA.md`](exp/DATA.md); they are not part of the repository.
 
 ## Requirements

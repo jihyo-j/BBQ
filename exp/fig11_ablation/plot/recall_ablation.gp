@@ -1,5 +1,5 @@
 # recall_ablation — (left) Recall@10 vs QPS ablation, (right) per-query outcomes of calibrated BBQ
-# column width, square panels. MS MARCO Qwen 1,024.  left data: recall_ablation.dat; right: tab:calibration_analysis ; Fixed/Calibrated from equal_pool_qd_fixed75_vs_calibrated.csv
+# column width, square panels. MS MARCO Qwen 1,024.  left data: recall_ablation.dat; right: recall_groups.gp (make_recall_groups.py) ; Fixed/Calibrated from equal_pool_qd_fixed75_vs_calibrated.csv
 #   (efSearch 256, calibration target 0.99, 5,980 test queries)
 # previous version (QPS + target-vs-achieved): recall_ablation_v7.gp; target-vs-achieved moved to calibration.gp
 load "../../common/plot/common.gp"
@@ -81,11 +81,7 @@ unset object 71; unset object 72; unset arrow; do for [i=100:111] { unset label 
 
 # (right) per-query outcomes: bars = FP reads / query (left y), line = latency in ms (right y),
 #         number inside each bar = share of test queries (state in the caption)
-$C << EOD
-0 "1.0" 5489  91.79  51.5   0.921
-1 "0.9" 414   6.92   75.4   1.035
-2 "≤0.8" 77    1.29   119.8  1.192
-EOD
+load "recall_groups.gp"    # $C, written by make_recall_groups.py
 eval PANEL(LM+PW+GM, PBOT, PW, PH)
 unset nonlinear x; unset logscale y
 set boxwidth 0.62

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only F9.`  (76 claims here) |
+| Verify | `make build/verify && ./build/verify --root exp --only F9.`  (85 claims here) |
 | Re-plot | `./exp/fig09_20_overall_t1/plot/regen.sh` |
 | Paper figure | `plot/recall-qps_main.paper.pdf`, `plot/recall-qps_msmarco_dbpedia.paper.pdf` |
 
@@ -105,8 +105,17 @@ Result files behind the figure (copied verbatim from the original run):
 | S66.4 | RaBitQ-SSD max-recall gain, mean (pp) | 0.2 |
 | S66.5 | BBQ over RaBitQ-SSD @0.99, median | 9.1 |
 | S66.6 | TurboQuant max-recall change vs BBQ, mean (pp; 'at most 0.06') | -0.06 |
-| S66.7 | SSD-resident graphs slower than BBQ @0.99, low end | 12.7 |
-| S66.8 | SSD-resident graphs slower than BBQ @0.99, high end | 31.6 |
+| S66.7 | SSD-resident graphs slower @0.99, low end (= DiskANN-PQ range) | 12.7 |
+| S66.8 | SSD-resident graphs slower @0.99, high end (= DiskANN-PQ range) | 31.6 |
+| S66.9 | BBQ over DiskANN-PQ @0.99, median | 22.6 |
+| S66.10 | BBQ over PipeANN @0.99, median | 19.7 |
+| S66.11 | (configuration, recall-target) cells at the d/8-byte budget | 74 |
+| S66.12 | cells where BBQ is fastest | 58 |
+| S66.13 | BBQ margin over the runner-up, median | 1.4 |
+| S66.14 | BBQ losses in the d/8-byte class | 16 |
+| S66.15 | losses whose target is above BBQ's recall ceiling | 12 |
+| S66.16 | cells where BBQ clears the target by >= 0.3 pp | 42 |
+| S66.17 | of those, cells where BBQ is fastest | 40 |
 | AB.1 | BBQ QPS @0.99, NQ Qwen | 1753 |
 | AB.2 | TurboQuant @0.99, NQ Qwen | 1253 |
 | AB.3 | FP32 HNSW @0.99, NQ Qwen | 1234 |

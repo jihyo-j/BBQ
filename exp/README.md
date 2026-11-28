@@ -35,7 +35,7 @@ exp/
 
 ## Three levels of reproduction
 
-**1. Verify the numbers (seconds, needs only g++).** `make verify` checks 312 claims transcribed from the manuscript,
+**1. Verify the numbers (seconds, needs only g++).** `make verify` checks 354 claims transcribed from the manuscript,
 covering Secs 1–6 and Appendix B:
 - numbers printed in the text and tables;
 - ranges, which are checked as the min/max over the rows they summarise;
@@ -45,17 +45,20 @@ covering Secs 1–6 and Appendix B:
 
 A claim passes when its value is within one unit of the last printed digit.
 
-Current status: **303 / 312**. Every failure is a place where the manuscript and the data disagree; they are listed
+Current status: **337 / 354**. Every failure is a place where the manuscript and the data disagree; they are listed
 below.
 
-**2. Re-draw the figures (a minute; gnuplot ≥ 5.4, python3 + numpy).** `make plots` runs every `regen.sh`.
+**2. Re-draw the figures (a minute; gnuplot ≥ 5.4, python3 + numpy).** `make plots` runs every `regen.sh`. For Figs 14 and 18 this replaces the as-printed `.dat` with the data version.
 
 | Figures | Result |
 |---|---|
 | Figs 5, 7(b), 9, 10–13, 15–17, 20, 21 | The regenerated `.dat` (and the Fig 9/20/21 panel files) are identical to the ones behind the printed figures. |
-| Fig 14 | The printed TurboQuant panel is stale; `regen.sh` rebuilds it from the data. |
-| Fig 18 | One point was edited by hand; `regen.sh` rebuilds it from the data. |
-| Figs 7(a), 8, 19 and the Fig 11(b) clouds | Drawn from coordinates recovered from earlier matplotlib PDFs. Their numbers are checked against the result CSVs instead. |
+| Fig 19 | Rebuilt from the text-embedding-3-small colocation run (`results/te3small_ef256_t24/`). It replaces the printed figure, which was drawn from an earlier ada-002 run. |
+| Fig 14 | Only the printed TurboQuant curve of panel (a) is stale (80 pages/query; the data give 120). No stored file holds the 80-page curve; `regen.sh` rebuilds the panel from the data. |
+| Fig 18 | One point is stale: RaBitQ-1bit at 50M is drawn at the earlier RaBitQ-7bit value (0.9852). `regen.sh` rebuilds it from the 1-bit run (0.9878). |
+| Fig 8 | Rebuilt from the graph-construction run. The printed curves have the same Recall@10 at every efSearch; QPS varies between measurements by up to ~20 %. |
+| Fig 7(a) | Rebuilt from the Sec 2-3 harness's per-query ranks (`fig07_adc_lut/remeasure_preserve.sh` re-measures them from the raw vectors). |
+| Fig 11(b) | Rebuilt from the calibration-analysis run (legacy GT); every printed number reproduces. |
 
 **3. Re-run the experiments (days; the paper's hardware and data).** The original testbed:
 - 2 × Intel Xeon Gold 6442Y (AVX-512)
@@ -81,11 +84,12 @@ These are the manuscript's errors, or numbers no result file supports.
 | claim | where | paper | data |
 |---|---|---|---|
 | F9.27–28 | Sec 6.2 | RaBitQ-SSD at "9–20× lower throughput" at 0.99 | 3.1–27.5× (median 9.1×, claim S66.5) |
-| F11.12 | Fig 11(b) | 91.79 % | 5,490 / 5,980 = 91.81 % |
-| F11.16–17 | Fig 11(b) | latency 0.921 / 1.192 ms | 0.904 / 1.165 ms. The printed values come from the earlier matplotlib figure. |
-| F18.12 | Fig 18(a) | RaBitQ-1bit at 50M drawn at 0.9852 | 0.9878; no file contains 0.9852 |
-| S66.7–8 | Sec 6.6 | SSD-resident graphs "12.7–31.6× slower" at 0.99 | 8.2–66.4× over the 38 (configuration, system) pairs. The paper's definition is not stated and no script produced these numbers. |
+| F18.12 | Fig 18(a) | RaBitQ-1bit at 50M drawn at 0.9852 | 0.9878. 0.9852 is the RaBitQ-7bit value at 50M in `frozen_adcbq_vs_rabitq_c16_comparison.csv`, left over when the series was switched to the 1-bit run. |
+| S66.16–17 | Sec 6.6 / Finding 9 | where BBQ clears the target by ≥ 0.3 pp it is fastest in 40 of 42 cells | 47 of 50 at 0.3 pp. A 0.5 pp headroom gives exactly 40 of 42, with the two Quora E5-4096 1.02× ties the text names; the text's threshold should read 0.5 pp. |
 | AB.9 | App B | NQ BGE TurboQuant 416 QPS at 0.995 | 352.8 in the table the figures were drawn from. 416 comes from the later rerun of that curve (see below). |
+| S3.18–20 | Sec 3.1 | η orders p95 R* with Spearman 0.921 over 90 (configuration, quantizer) pairs; 0.912 for ADC-BQ | 0.959 over 153 pairs and 0.903 over 19 configurations, from `src/tables.py` `diagnostics()` on the current 20-configuration outputs. The sentence predates the added configurations; the 90-pair set cannot be recovered (several 6-quantizer subsets give 0.919–0.922). |
+| S3.42–44 | Sec 3.3 | query / embedding / quantizer share of var(log R*) 89.4 / 7.7 / 1.8 % | `src/levels.py` gives 85.7 / 10.3 / 2.1 % (7 settings × 5 quantizers); no stored design gives 89.4 %. |
+| F19.1–5 | Sec 6.5 / Fig 19 | 16 KB @ 50 % DRAM: 112.2 → 170.6 QPS (+52.0 %), graph page hit ratio 57.6 % → 75.1 % | 157.0 → 200.1 QPS (+27.5 %), 57.1 % → 71.9 %. The printed numbers come from an earlier run on the ada-002 MS MARCO file (`results/superseded_ada002/`). The new run uses the Table 5 text-embedding-3-small set. Its largest gain is +53.7 % at 16 KB @ 25 %; colocation wins in all 12 cells (+11.5 % to +53.7 %). |
 
 ### Mixed sources
 
@@ -98,8 +102,12 @@ These are the manuscript's errors, or numbers no result file supports.
   The rerun is `recall_qps_all_latest_t1.csv`. The text uses both versions: Sec 6.2 ("DBpedia E5 TurboQuant 201";
   "all seven" at 0.995) matches the printed table, while Appendix B (AB.9) matches the rerun. Use one version
   throughout.
-- **Fig 12 vs Fig 11(b).** Fig 12 and Fig 11(a) use the legacy GT of the MS MARCO run. Fig 11(b) matches the
-  `ip_aligned` variant. All three variants are kept under `fig12_calibration/results/`.
+- **GT variant of Figs 11-12.** Both figures use the legacy GT of the MS MARCO calibration run. The `ip_aligned` and
+  `exact_cosine_aligned` variants are kept under `fig12_calibration/results/` for reference.
+
+### Sieun Kim's evidence bundle
+
+`supplementary/sieun_evidence/` re-derives the Sec 3 and Sec 6.2/6.6 aggregates from the same files (its five transcripts regenerate byte-identically here). Its Sec 6.6 definitions are now in `scripts/summarize_full16.py` (claims S66.7–17). In particular, "12.7–31.6× slower" is DiskANN-PQ's range: DiskANN-RaBitQ spans 11.5–29.9× and PipeANN 8.2–66.4×, so the sentence should name DiskANN-PQ. `NOTES.md` there lists where this repository reads its `CLAIMS.md` differently.
 
 ### Statements not checkable from any stored result
 
@@ -108,11 +116,7 @@ These are the manuscript's errors, or numbers no result file supports.
 | Sec 3.2 | text-embedding-3-large width sweep (3072D p95 R* 17–31) |
 | Sec 3.2 | Haar-rotation sweep (25,123 → 21) |
 | Sec 3.2 | whitening (c_Q 0.74–0.76 on DBpedia) |
-| Sec 3.2 | Spearman 0.921 / 0.912 |
-| Sec 3.3 | p99 R* = 195 |
-| Sec 3.3 | 89.4 % of the variance (`levels.json` gives 85.7 % for its 7 settings) |
 | Sec 6.2 | OPQ "fewer candidates than PQ and still slower in 12 of 16" (the definition is not stated) |
-| Sec 6.6 | "58 of 74 settings", "40 of 42", "16 settings … 12 exceed its maximum recall" |
 | Sec 6.6 | "3–5× more memory", "280 B per vector" (analytic, not measured) |
 | Sec 6.5 | BBQ's 31.3 GiB index footprint (RaBitQ-7bit's 105.1 GiB is recorded) |
 

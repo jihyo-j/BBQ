@@ -68,4 +68,4 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
-- `index_quality.dat` was recovered from the vector coordinates of the original matplotlib PDF; the measured numbers are in `results/graph_construction_precision/*_paired.csv` and `*_build_times.csv`.
+- `plot/make_index_quality_dat.py` builds `index_quality.dat` from `results/graph_construction_precision/*_paired.csv` (`run_msmarco_quora_qwen1024_graph_construction_precision.py`). The printed figure's coordinates, recovered from its PDF, are kept as `plot/index_quality.recovered.dat`. Their Recall@10 values equal the 20 measured efSearch points of all four curves to five decimals. Their QPS differs by up to about 20 % in either direction: single-thread QPS of a separate measurement, not a different experiment.

@@ -1,4 +1,4 @@
-# Fig 19 / Sec 6.5: colocation under constrained DRAM (MS MARCO OpenAI-1536; 24 threads)
+# Fig 19 / Sec 6.5: colocation under constrained DRAM (MS MARCO text-embedding-3-small 1536; ef=256, 24 threads)
 
 | | |
 |---|---|
@@ -10,21 +10,27 @@
 
 Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the runners import each other). Set the paths in [`exp/env.sh`](../env.sh) first; see the top-level README.
 
-- `exp/scripts/rerun_msmarco_adcbq_calibrated_4k_p075_ef256.py`
-- `exp/scripts/run_msmarco_page4k_ef256_qps_rerun.py`
-- `exp/scripts/run_msmarco_adcbq_calibrated_rabitq_memory_page_sweep.py`
-- `exp/scripts/run_msmarco_adcbq_rabitq_memory_page_sweep.py`
-- `exp/scripts/run_msmarco_adcbq_graph_io_calibration.py`
-- `exp/scripts/plot_msmarco_adcbq_calibrated_4k8k16k_ef256.py`
+- `exp/scripts/run_msmarco_te3small1536_adcbq_colocation.py`
+- `exp/scripts/plot_msmarco_te3small1536_adcbq_colocation.py`
 
 ## Stored results
 
 Result files behind the figure (copied verbatim from the original run):
 
-- `results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv`
-- `results/page16k_qps_rerun_summary.csv`
-- `results/page4k_memory_sweep_ef256_allratios_rerun_adjusted.csv`
-- `results/page8k_qps_rerun_summary.csv`
+- `results/superseded_ada002/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv`
+- `results/superseded_ada002/page16k_qps_rerun_summary.csv`
+- `results/superseded_ada002/page4k_memory_sweep_ef256_allratios_rerun_adjusted.csv`
+- `results/superseded_ada002/page8k_qps_rerun_summary.csv`
+- `results/te3small_ef256_t24/calibration/ef256.summary.csv`
+- `results/te3small_ef256_t24/calibration/pool_top10_target99.ef256.json`
+- `results/te3small_ef256_t24/campaign.log`
+- `results/te3small_ef256_t24/comparison.csv`
+- `results/te3small_ef256_t24/fp_graph.csv`
+- `results/te3small_ef256_t24/measured_trials.csv`
+- `results/te3small_ef256_t24/run_manifest.json`
+- `results/te3small_ef256_t24/status.json`
+- `results/te3small_ef256_t24/summary.csv`
+- `results/te3small_ef256_t24/validation.json`
 
 ## Claims checked by `verify`
 
@@ -38,5 +44,6 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
-- `colocation.dat` was recovered from the original matplotlib PDF; measured QPS and hit ratios are in `results/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv`.
+- Data: `results/te3small_ef256_t24/` from `run_msmarco_te3small1536_adcbq_colocation.py` (MS MARCO BEIR, text-embedding-3-small, the Table 5 set `sieun_msmarco_openai1536`; ef=256, 24 threads, tau_256 = 1.5349 frozen across all 24 configurations; Recall@10 0.9952 everywhere). QPS is the median of 3 fresh processes after one discarded warm-up process; `validation.json` passed. `plot/make_colocation_dat.py` builds `colocation.dat` from `summary.csv`.
+- **Text not yet updated.** Sec 6.5 quotes 16 KB @ 50% DRAM as 112.2 -> 170.6 QPS (+52.0%) with hit ratio 57.6% -> 75.1%. Those numbers come from the earlier run on the ada-002 MS MARCO file (`msmarco_openai1536`, Recall@10 0.985), kept in `results/superseded_ada002/`. This run gives 157.0 -> 200.1 QPS (+27.5%) and 57.1% -> 71.9% (claims F19.1-5). The largest gain is +53.7% at 16 KB @ 25% (97.4 -> 149.6); colocation wins in all 12 (page, ratio) cells, +11.5% to +53.7%. `plot/colocation.recovered.dat` holds the coordinates of the earlier printed figure.
 - Colocation is `build_colocation_physical_rows()` in `bbq/src/bbq_hnsw.cpp` (LDG partitioning + page-aware reorder), ported from the pgvector implementation of Shim et al.

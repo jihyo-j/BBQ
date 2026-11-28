@@ -1,0 +1,38 @@
+configurations with the full arm set: 15
+
+configuration    kappa adc kappa rot | CR@30 adc CR@30 rot |  p95R* adc  p95R* rot   ratio
+dbpedia_ada2        0.9158    0.8931 |    0.9660    0.9273 |       66.0      133.1   2.017
+dbpedia_bgeb        0.8926    0.8861 |    0.9447    0.9455 |      102.2      118.1   1.155
+dbpedia_bgel        0.9110    0.9090 |    0.9665    0.9665 |       77.0       57.0   0.740
+dbpedia_qw06        0.9299    0.9353 |    0.9805    0.9855 |       50.0       44.0   0.880
+fever_bgem3         0.9165    0.9291 |    0.8987    0.8937 |      175.0      192.0   1.097
+gist                   nan    0.9721 |    0.0000    0.5263 |   995299.4     3136.3   0.003
+glove               0.8036    0.8211 |    0.4124    0.4008 |    17644.7    21402.0   1.213
+msmarco_ada2        0.9103    0.8771 |    0.9698    0.9316 |       63.0      127.1   2.017
+msmarco_bgem3       0.9117    0.9103 |    0.9469    0.9393 |       99.0      112.0   1.132
+msmarco_e5m         0.9015    0.9570 |    0.9914    0.9952 |       36.0       29.0   0.806
+msmarco_qw06        0.9222    0.9304 |    0.9842    0.9841 |       47.0       43.0   0.916
+nq_bgem3            0.9277    0.9298 |    0.9549    0.9472 |       84.0      103.0   1.227
+nq_qw06             0.9291    0.9370 |    0.9810    0.9829 |       50.0       50.0   1.001
+quora_bgem3         0.9288    0.9309 |    0.9948    0.9936 |       29.0       29.0   1.002
+quora_qw06          0.9288    0.9383 |    0.9910    0.9931 |       35.0       33.0   0.943
+
+  median p95 R*     plain sign     66.0   ->  rotated    103.0
+  rotation lowers p95 R* in 6/15 configurations
+  Pearson( d kappa , d log p95 R* ) = -0.699   (n=14, GIST excluded)
+    beta is a property of the exact scores and is unchanged by a rotation, so the
+    rotation moves eta = c_Q/beta purely through kappa -- which is what this shows.
+
+  GIST is the one place a rotation is decisive:
+    plain sign : kappa undefined (every coordinate positive -> every code all-+1), CandRec@30 0.0000, p95 R* 995,299
+    rotated    : kappa 0.9721, CandRec@30 0.5263, p95 R* 3,136   (317x better)
+
+  ingredient ablation, median over the configurations where kappa is defined:
+    plain sign (ADC-BQ)                    p95 R*     64.5   CandRec@30 0.9682
+    + centring                             p95 R*    102.0   CandRec@30 0.9407
+    + centring + scale                     p95 R*     74.1   CandRec@30 0.9612
+    + random rotation                      p95 R*     80.0   CandRec@30 0.9568
+    centring + rotation + beta (RaBitQ)    p95 R*     68.3   CandRec@30 0.9645
+    No added ingredient beats the plain sign code at the median.  This is the
+    offline counterpart of the Section 6.5 result that extra quantization
+    information does not raise the recall ceiling.

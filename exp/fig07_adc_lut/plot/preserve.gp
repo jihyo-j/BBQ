@@ -1,5 +1,5 @@
 # preserve — CandidateRecall@R vs candidate budget R: sym-BQ vs ADC (FP query)
-# data: preserve.dat (recovered from the original figure)
+# data: preserve.dat (make_preserve_dat.py, from sec2_3_analysis/harness/work/msmarco_bgem3_perq.npz)
 load "../../common/plot/common.gp"
 NROWS = 0                       # legend sits inside panel (a)
 LP = L2 + 3.0                   # a little more room: y title moved away from the tick labels

@@ -55,4 +55,4 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
-- **Stale panel in the paper.** The paper PDF draws TurboQuant on OpenAI-1536 at 80 pages/query; the data and the text say 120 (R = 60 vectors x 2 pages at d = 1536). The shipped `page_io.dat` is the printed one; `regen.sh` rebuilds it from `results/`.
+- **Stale panel in the paper.** The paper PDF draws TurboQuant on OpenAI-1536 at 80 pages/query; the data and the text say 120 (R = 60 vectors x 2 pages at d = 1536, `tq_selected_r_heldout_t1.csv`). No stored file holds an 80-page TurboQuant curve. Only the TurboQuant curve of panel (a) differs; every other block of the shipped `page_io.dat` equals what `regen.sh` builds. The shipped `page_io.dat` is the printed one; `make plots` / `regen.sh` overwrite it with the data.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Regenerate this figure from ../results (gnuplot >= 5.4, font "Liberation Sans", python3 + numpy).
+# Regenerate this figure from ../results (gnuplot >= 5.4, font "Carlito", python3).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
-R=../results
-# colocation.dat was recovered from the original matplotlib PDF (extract_colocation.py);
-# the numbers behind it are in $R/msmarco_openai1536_adcbq_calibrated_4k8k16k_ef256.csv.
+# colocation.dat <- ../results/te3small_ef256_t24/summary.csv
+#   (scripts/run_msmarco_te3small1536_adcbq_colocation.py: MS MARCO text-embedding-3-small, ef=256, 24 threads)
+python3 make_colocation_dat.py
 gnuplot colocation.gp

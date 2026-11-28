@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Verify | `make build/verify && ./build/verify --root exp --only T3.`  (35 claims here) |
+| Verify | `make build/verify && ./build/verify --root exp --only S3.`  (65 claims here) |
 | Re-plot | see `plot/` |
 | Paper figure | — |
 
@@ -10,20 +10,23 @@
 
 Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the runners import each other). Set the paths in [`exp/env.sh`](../env.sh) first; see the top-level README.
 
-- `exp/sec2_3_analysis/harness/src/measure.py`
-- `exp/sec2_3_analysis/harness/src/kcurve.py`
-- `exp/sec2_3_analysis/harness/src/dimsweep.py`
-- `exp/sec2_3_analysis/harness/src/dimperq.py`
-- `exp/sec2_3_analysis/harness/src/bitsvsdims.py`
-- `exp/sec2_3_analysis/harness/src/levels.py`
-- `exp/sec2_3_analysis/harness/src/export_fig4.py`
-- `exp/sec2_3_analysis/harness/src/export_perq.py`
-- `exp/sec2_3_analysis/harness/src/export_dimperq.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/measure.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/kcurve.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/dimsweep.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/dimperq.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/bitsvsdims.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/levels.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/export_fig4.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/export_perq.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/export_dimperq.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/tools/sec3_derived.py`
+- `exp/sec2_3_analysis/exp/sec2_3_analysis/harness/src/tables.py`
 
 ## Stored results
 
 Result files behind the figure (copied verbatim from the original run):
 
+- `results/sec3_derived.csv`
 - `results/sec3_values.csv`
 
 ## Claims checked by `verify`
@@ -65,9 +68,42 @@ Result files behind the figure (copied verbatim from the original run):
 | T3.14 | p95 R*, MS MARCO BGE-M3, pq | 81 |
 | T3.15 | p95 R*, MS MARCO BGE-M3, opq | 44 |
 | T3.16 | p95 R*, MS MARCO BGE-M3, sq4 | 15 |
+| S3.12 | sym-BQ CandidateRecall@30, NQ BGE-M3 | 0.865 |
+| S3.13 | ADC-BQ CandidateRecall@30, NQ BGE-M3 | 0.955 |
+| S3.14 | sym-BQ p95 R*, NQ BGE-M3 | 367 |
+| S3.15 | ADC-BQ p95 R*, NQ BGE-M3 | 84 |
+| S3.16 | ADC-BQ CandidateRecall@30, GloVe | 0.412 |
+| S3.17 | ADC-BQ CandidateRecall@30, GIST | 0 |
+| S3.18 | Spearman(eta, p95 R*), pooled (configuration, quantizer) | 0.921 |
+| S3.19 | number of (configuration, quantizer) pairs | 90 |
+| S3.20 | Spearman(eta, p95 R*), ADC-BQ only | 0.912 |
+| S3.21 | p95 R* at d=128 (Qwen3-8B MRL) | 2534 |
+| S3.22 | p95 R* at d=512 (Qwen3-8B MRL) | 124 |
+| S3.23 | p95 R* at d=1024 (Qwen3-8B MRL) | 47 |
+| S3.24 | p95 R* at d=4096 (Qwen3-8B MRL) | 22 |
+| S3.25 | beta, Quora Qwen3-0.6B | 0.889 |
+| S3.26 | beta, Quora BGE-M3 | 0.896 |
+| S3.27 | p95 R*, Quora Qwen3-0.6B | 35 |
+| S3.28 | p95 R*, Quora BGE-M3 | 29 |
+| S3.29 | beta, MS MARCO Qwen3-0.6B | 0.825 |
+| S3.30 | beta, MS MARCO BGE-M3 | 0.62 |
+| S3.31 | p95 R*, MS MARCO Qwen3-0.6B | 47 |
+| S3.32 | p95 R*, MS MARCO BGE-M3 | 99 |
+| S3.33 | beta without query instruction, MS MARCO Qwen3-0.6B | 0.523 |
+| S3.34 | p95 R* without query instruction, MS MARCO | 74 |
+| S3.35 | beta without query instruction, Quora Qwen3-0.6B | 0.74 |
+| S3.36 | p95 R* without query instruction, Quora | 30 |
+| S3.37 | median R*, MS MARCO Qwen-1024 | 16 |
+| S3.38 | p95 R*, MS MARCO Qwen-1024 | 47 |
+| S3.39 | p99 R*, MS MARCO Qwen-1024 | 87 |
+| S3.40 | p95 R*, MS MARCO BGE-M3 (per-query array) | 99 |
+| S3.41 | p99 R*, MS MARCO BGE-M3 | 195 |
 
 ## Notes
 
-- Workload analysis harness of Secs. 2-3 (Sieun Kim): `harness/src` produces `harness/out/*.json` from exhaustive scoring of each configuration; per-query arrays (`*_perq.npz`, 6.6 MB) live with the data (`$BBQ_DATA2/bbqeta`). `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) candidate-expansion data; `paper_figures/` the printed panels.
-- `tools/flatten_outputs.py` flattens every harness output into `results/sec3_values.csv` so that verify can check them (CandidateRecall, kappa / beta / f across MRL widths, Table 2 from `bitsvsdims.txt`, Table 3 p95 R*).
-- **Not found in any output:** the text-embedding-3-large width sweep (3072D p95 R* 17-31), the Haar-rotation sweep (25,123 -> 21), the whitening result (c_Q 0.74-0.76 on DBpedia), p99 R* = 195, the 89.4 % variance share (levels.json gives 85.7 % for its 7 settings) and the Spearman correlations 0.921 / 0.912. The raw text-embedding-3-large vectors exist (`data_prep/beir_embeddings`).
+- Workload analysis harness of Secs. 2-3 (Sieun Kim, BBQETA): `harness/src` produces `harness/out/*.json` from exhaustive scoring of 20 configurations x up to 10 quantizers; `harness/work/*_perq.npz` (6.6 MB) holds the per-query R* arrays behind Figs 3-4 and the Sec 3.3 quantiles. `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) data; `paper_figures/` the printed panels.
+- Sources, per Sieun's map: CandidateRecall / R* / kappa / nu / eta per configuration and quantizer = `out/<corpus>_<enc>.json` (`src/measure.py`, `src/add_arms.py`); Fig 3(a) = `src/kcurve.py`; Fig 3(b) = `src/export_cq.py`; Fig 3(c) MRL = `out/dimsweep_msmarco_qw8.json` (`src/dimsweep.py`); Fig 3(d) = `out/dimperq_msmarco_qw8.json` (`src/export_dimperq.py`); Table 2 = `out/bitsvsdims.txt` (`src/bitsvsdims.py`); query-instruction removal = `out/placebo.json` / `placebo.log`; Fig 4 = `src/export_fig4.py`.
+- Two tables feed verify: `tools/flatten_outputs.py` copies every harness value into `results/sec3_values.csv`; `tools/sec3_derived.py` (needs scipy) recomputes, with the harness's own functions, what the harness prints but does not store: the eta Spearman of `src/tables.py` `diagnostics()`, per-query median / p95 / p99 R*, and the `src/levels.py` decomposition. It writes `results/sec3_derived.csv`.
+- **eta Spearman (S3.18-20) is stale in the text.** The sentence quotes 0.921 over 90 (configuration, quantizer) pairs and 0.912 for ADC-BQ. The current outputs (20 configurations, 155 pairs; GIST's sym-BQ / ADC-BQ drop out because kappa is undefined) give 0.959 over 153 pairs and 0.903 over 19 configurations. Sieun reports that 90 pairs = 15 configurations x 6 quantizers, but six different 6-quantizer subsets give 0.919-0.922, so the old pair set cannot be recovered; `RESULTS.md` records a third generation (0.981 / 94 pairs). Suggested text: *Spearman 0.959 across 153 (configuration, quantizer) pairs, and 0.903 for ADC-BQ across the 19 configurations where kappa is defined.*
+- **Variance shares (S3.42-44) not reproduced.** `src/levels.py` gives query 85.7 % / embedding 10.3 % / quantizer 2.1 % for its 7 settings x 5 deployable quantizers; the text says 89.4 / 7.7 / 1.8. No combination of the stored settings and quantizers we tried gives 89.4 %.
+- **Not found in any output:** the text-embedding-3-large width sweep (3072D p95 R* 17-31), the Haar-rotation sweep (25,123 -> 21) and the whitening result (c_Q 0.74-0.76 on DBpedia). The raw text-embedding-3-large vectors exist (`data_prep/beir_embeddings`). Sieun's evidence bundle (`../supplementary/sieun_evidence`) confirms that the 2026-11-25 manuscript has no such paragraphs. Its closest evidence is the `tq1` arm (Haar rotation + sign code): on GIST it takes p95 R* from 995,299 to 3,136, which is not the printed 25,123 -> 21.

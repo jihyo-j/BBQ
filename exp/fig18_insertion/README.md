@@ -44,4 +44,4 @@ Result files behind the figure (copied verbatim from the original run):
 ## Notes
 
 - Inserts measured at 10M, 30M, 50M and 100M, each from the same 1M index. TurboQuant inserts faster than BBQ at 10M, 30M and 100M.
-- **Not reproduced.** Panel (a) plots RaBitQ-1bit at 50M as 0.9852; the data (`rabitq_b1_adaptive_c16_random_independent_t32.csv`) gives 0.9878 and no file contains 0.9852 (claim F18.12). The shipped `insertion_scale.dat` is the printed one; `regen.sh` gives the data.
+- **One stale point.** Panel (a) plots RaBitQ-1bit at 50M as 0.9852; the 1-bit run (`rabitq_b1_adaptive_c16_random_independent_t32.csv`) gives 0.9878 (claim F18.12). 0.9852 is `rabitq_recall_at_10` of the earlier RaBitQ-7bit series at 50M in `frozen_adcbq_vs_rabitq_c16_comparison.csv`: `make_insertion_scale_dat.py` swaps the RaBitQ series to the 1-bit run, and the printed figure kept the 7-bit value at that one point. Every other point equals the regenerated file. The shipped `insertion_scale.dat` is the printed one; `make plots` / `regen.sh` overwrite it with the data.

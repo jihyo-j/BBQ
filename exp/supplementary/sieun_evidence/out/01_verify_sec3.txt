@@ -1,0 +1,96 @@
+======================================================================================
+3.1  Candidate preservation under BQ
+======================================================================================
+  MS MARCO BGE-M3 CandRec@30 sym-BQ                paper 0.848      data    0.8477  OK
+  MS MARCO BGE-M3 p95 R* sym-BQ                    paper 416        data  416.0500  OK
+  MS MARCO BGE-M3 CandRec@30 ADC-BQ                paper 0.947      data    0.9469  OK
+  MS MARCO BGE-M3 p95 R* ADC-BQ                    paper 99         data   99.0000  OK
+  NQ BGE-M3 CandRec@30 sym-BQ                      paper 0.865      data    0.8652  OK
+  NQ BGE-M3 p95 R* sym-BQ                          paper 367        data  366.5500  OK
+  NQ BGE-M3 CandRec@30 ADC-BQ                      paper 0.955      data    0.9549  OK
+  NQ BGE-M3 p95 R* ADC-BQ                          paper 84         data   84.0000  OK
+  GloVe  CandRec@30 ADC-BQ                         paper 0.412      data    0.4124  OK
+  GIST   CandRec@30 ADC-BQ                         paper 0.0        data    0.0000  OK
+
+======================================================================================
+3.2  Geometry: the eta = c_Q / beta ordering
+======================================================================================
+  pooled over (configuration, quantizer): n=153  Spearman=0.959     [manuscript: 0.921 over 90 pairs]
+  ADC-BQ across configurations:           n=19  Spearman=0.903     [manuscript: 0.912]
+  excluded (kappa undefined, all-+1 sign codes): ['gist']
+  >> STALE: the manuscript number predates the current 20-configuration sweep.
+     RESULTS.md:111 of the BBQETA project carries a third vintage, 0.981 over 94 pairs.
+     90 pairs is reproducible as 15 configurations x some 6 arms, but six different
+     6-arm subsets land in 0.919-0.922, so the original subset is not identifiable.
+
+======================================================================================
+3.2  MRL width ladder (Qwen3-8B on MS MARCO, own ground truth per width)
+======================================================================================
+  sign alignment f, minimum                        paper 0.775      data    0.7746  OK
+  sign alignment f, maximum                        paper 0.802      data    0.8015  OK
+  kappa  ADC-BQ at d=32                            paper 0.782      data    0.7823  OK
+  kappa  ADC-BQ at d=4096                          paper 0.958      data    0.9577  OK
+  beta at d=32                                     paper 0.17       data    0.1745  OK
+  beta at d=4096                                   paper 1.07       data    1.0690  OK
+  p95 R* ADC-BQ at d=128                           paper 2534       data 2533.9000  OK
+  p95 R* ADC-BQ at d=512                           paper 124        data  124.1000  OK
+  p95 R* ADC-BQ at d=1024                          paper 47         data   47.0500  OK
+  p95 R* ADC-BQ at d=4096                          paper 22         data   22.0000  OK
+
+======================================================================================
+3.2  Corpus / encoder / query-instruction effects
+======================================================================================
+  Quora Qwen3-0.6B beta                            paper 0.889      data    0.8894  OK
+  Quora Qwen3-0.6B p95 R* ADC-BQ                   paper 35         data   35.0000  OK
+  Quora BGE-M3 beta                                paper 0.896      data    0.8963  OK
+  Quora BGE-M3 p95 R* ADC-BQ                       paper 29         data   29.0000  OK
+  MS MARCO Qwen3-0.6B beta                         paper 0.825      data    0.8253  OK
+  MS MARCO Qwen3-0.6B p95 R* ADC-BQ                paper 47         data   47.0000  OK
+  MS MARCO BGE-M3 beta                             paper 0.62       data    0.6196  OK
+  MS MARCO BGE-M3 p95 R* ADC-BQ                    paper 99         data   99.0000  OK
+  instruction ablation, from data/misc/placebo.log:
+    RESULT  real instruction (stored)                  beta= 0.825  p95 R*=    47  med=   16
+    RESULT  no instruction (stored)                    beta= 0.523  p95 R*=    74  med=   22
+    RESULT  PLACEBO mismatch                           beta= 0.325  p95 R*=   130  med=   38
+    RESULT  PLACEBO filler                             beta= 0.668  p95 R*=    62  med=   19
+    RESULT  real instruction (stored)                  beta= 0.889  p95 R*=    35  med=   14
+    RESULT  no instruction                             beta= 0.740  p95 R*=    30  med=   13
+    [manuscript: MS MARCO beta 0.825 -> 0.523, budget 47 -> 74;
+                 Quora    beta 0.889 -> 0.740, budget 35 -> 30]
+
+======================================================================================
+3.2  Table 2 -- width or precision at a fixed byte budget
+======================================================================================
+Qwen3-8B on MS MARCO, N=1000000, d=4096, 500 queries
+Ground truth: exact FP32 top-10 of the full 4096D vectors.
+
+================================================================
+512 B/vector
+================================================================
+  arm            d  B/vec   mean R*   p95 R*  median  CandRec@100
+  BQ          4096    512      13.2       21      12        1.000
+  SQ-4bit     1024    512      17.4       37      14        1.000
+  SQ-8bit      512    512      30.8       87      17        0.995
+  PQ          4096    512      14.0       23      13        1.000
+
+================================================================
+128 B/vector
+================================================================
+  arm            d  B/vec   mean R*   p95 R*  median  CandRec@100
+  BQ          1024    128      30.1       73      19        0.996
+  SQ-4bit      256    128     118.8      352      29        0.972
+  SQ-8bit      128    128     555.4     1596      55        0.924
+  PQ          4096    128     295.4      822      38        0.951
+
+======================================================================================
+3.4  Long-tailed candidate demand: median / p95 / p99 of R*
+======================================================================================
+  quora_qw06       median     14   p95     35   p99     63
+  msmarco_qw06     median     16   p95     47   p99     87
+  msmarco_bgem3    median     23   p95     99   p99    195
+  [manuscript: MS MARCO Qwen-1024 16 / 47 / 87 ; MS MARCO BGE-M3 23 / 99 / 195]
+
+======================================================================================
+exact-match checks: 28 OK, 0 MISMATCH
+the eta Spearman sentence is reported separately above and is STALE
+======================================================================================
