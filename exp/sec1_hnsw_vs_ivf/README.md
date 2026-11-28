@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only I.`  (5 claims here) |
 | Re-plot | `./exp/sec1_hnsw_vs_ivf/plot/regen.sh` |
-| Paper figure | — |
 
 ## Re-run the experiment
 

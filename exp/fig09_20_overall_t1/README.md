@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F9.`  (85 claims here) |
 | Re-plot | `./exp/fig09_20_overall_t1/plot/regen.sh` |
-| Paper figure | `plot/recall-qps_main.paper.pdf`, `plot/recall-qps_msmarco_dbpedia.paper.pdf` |
 
 ## Re-run the experiment
 

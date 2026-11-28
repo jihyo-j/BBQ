@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only S3.`  (65 claims here) |
 | Re-plot | see `plot/` |
-| Paper figure | — |
 
 ## Re-run the experiment
 
@@ -101,7 +100,7 @@ Result files behind the figure (copied verbatim from the original run):
 
 ## Notes
 
-- Workload analysis harness of Secs. 2-3 (Sieun Kim, BBQETA): `harness/src` produces `harness/out/*.json` from exhaustive scoring of 20 configurations x up to 10 quantizers; `harness/work/*_perq.npz` (6.6 MB) holds the per-query R* arrays behind Figs 3-4 and the Sec 3.3 quantiles. `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) data; `paper_figures/` the printed panels.
+- Workload analysis harness of Secs. 2-3 (Sieun Kim, BBQETA): `harness/src` produces `harness/out/*.json` from exhaustive scoring of 20 configurations x up to 10 quantizers; `harness/work/*_perq.npz` (6.6 MB) holds the per-query R* arrays behind Figs 3-4 and the Sec 3.3 quantiles. `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) data.
 - Sources, per Sieun's map: CandidateRecall / R* / kappa / nu / eta per configuration and quantizer = `out/<corpus>_<enc>.json` (`src/measure.py`, `src/add_arms.py`); Fig 3(a) = `src/kcurve.py`; Fig 3(b) = `src/export_cq.py`; Fig 3(c) MRL = `out/dimsweep_msmarco_qw8.json` (`src/dimsweep.py`); Fig 3(d) = `out/dimperq_msmarco_qw8.json` (`src/export_dimperq.py`); Table 2 = `out/bitsvsdims.txt` (`src/bitsvsdims.py`); query-instruction removal = `out/placebo.json` / `placebo.log`; Fig 4 = `src/export_fig4.py`.
 - Two tables feed verify: `tools/flatten_outputs.py` copies every harness value into `results/sec3_values.csv`; `tools/sec3_derived.py` (needs scipy) recomputes, with the harness's own functions, what the harness prints but does not store: the eta Spearman of `src/tables.py` `diagnostics()`, per-query median / p95 / p99 R*, and the `src/levels.py` decomposition. It writes `results/sec3_derived.csv`.
 - **eta Spearman (S3.18-20) is stale in the text.** The sentence quotes 0.921 over 90 (configuration, quantizer) pairs and 0.912 for ADC-BQ. The current outputs (20 configurations, 155 pairs; GIST's sym-BQ / ADC-BQ drop out because kappa is undefined) give 0.959 over 153 pairs and 0.903 over 19 configurations. Sieun reports that 90 pairs = 15 configurations x 6 quantizers, but six different 6-quantizer subsets give 0.919-0.922, so the old pair set cannot be recovered; `RESULTS.md` records a third generation (0.981 / 94 pairs). Suggested text: *Spearman 0.959 across 153 (configuration, quantizer) pairs, and 0.903 for ADC-BQ across the 19 configurations where kappa is defined.*

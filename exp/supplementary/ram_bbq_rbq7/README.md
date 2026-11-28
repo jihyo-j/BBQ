@@ -4,7 +4,6 @@
 |---|---|
 | Verify | — |
 | Re-plot | `./exp/supplementary/ram_bbq_rbq7/plot/regen.sh` |
-| Paper figure | `plot/ram_bbq_rbq7.paper.pdf` |
 
 ## Re-run the experiment
 

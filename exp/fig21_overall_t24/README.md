@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F21.`  (16 claims here) |
 | Re-plot | `./exp/fig21_overall_t24/plot/regen.sh` |
-| Paper figure | `plot/recall-qps_main_t24.paper.pdf` |
 
 ## Re-run the experiment
 

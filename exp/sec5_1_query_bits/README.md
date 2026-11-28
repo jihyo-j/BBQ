@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F7.`  (2 claims here) |
 | Re-plot | `./exp/sec5_1_query_bits/plot/regen.sh` |
-| Paper figure | `plot/query_bits.paper.pdf` |
 
 ## Re-run the experiment
 

@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F15.`  (10 claims here) |
 | Re-plot | `./exp/fig15_io_modes/plot/regen.sh` |
-| Paper figure | `plot/io_ablation.paper.pdf` |
 
 ## Re-run the experiment
 

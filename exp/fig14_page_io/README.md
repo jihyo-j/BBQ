@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F14.`  (24 claims here) |
 | Re-plot | `./exp/fig14_page_io/plot/regen.sh` |
-| Paper figure | `plot/page_io.paper.pdf` |
 
 ## Re-run the experiment
 
@@ -21,7 +20,6 @@ Result files behind the figure (copied verbatim from the original run):
 
 - `results/page_io/normalized_page_io.csv`
 - `results/page_io/operating_points.csv`
-- `results/page_io/page_io.pdf`
 - `results/page_io/page_io.png`
 
 ## Claims checked by `verify`

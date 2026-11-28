@@ -120,8 +120,7 @@ NOTES = {
  "sec2_3_analysis": [
   "Workload analysis harness of Secs. 2-3 (Sieun Kim, BBQETA): `harness/src` produces `harness/out/*.json` from exhaustive scoring "
   "of 20 configurations x up to 10 quantizers; `harness/work/*_perq.npz` (6.6 MB) holds the per-query R* arrays behind Figs 3-4 and "
-  "the Sec 3.3 quantiles. `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) data; "
-  "`paper_figures/` the printed panels.",
+  "the Sec 3.3 quantiles. `harness/gp` and `plot/` hold the gnuplot sources of Figs 2-4; `kcurve/` the Fig. 3(a) data.",
   "Sources, per Sieun's map: CandidateRecall / R* / kappa / nu / eta per configuration and quantizer = `out/<corpus>_<enc>.json` "
   "(`src/measure.py`, `src/add_arms.py`); Fig 3(a) = `src/kcurve.py`; Fig 3(b) = `src/export_cq.py`; Fig 3(c) MRL = "
   "`out/dimsweep_msmarco_qw8.json` (`src/dimsweep.py`); Fig 3(d) = `out/dimperq_msmarco_qw8.json` (`src/export_dimperq.py`); "
@@ -170,14 +169,12 @@ for d in sorted([p for p in EXP.glob("fig*") if p.is_dir()] + [p for p in EXP.gl
                 + [p for p in (EXP / "supplementary").glob("*") if p.is_dir() and (p / "title.txt").exists()]):
     title = (d / "title.txt").read_text().strip()
     run = [l for l in (d / "run.txt").read_text().split() if l]
-    res = sorted(p.relative_to(d) for p in (d / "results").rglob("*") if p.is_file())
-    pdfs = sorted(p.name for p in (d / "plot").glob("*.paper.pdf"))
+    res = sorted(p.relative_to(d) for p in (d / "results").rglob("*") if p.is_file() and p.suffix.lower() != ".pdf")
     cl = claims.get(str(d.relative_to(EXP)).split("/")[0], [])
     md = [f"# {title}", "",
           "| | |", "|---|---|",
           f"| Verify | `make build/verify && ./build/verify --root exp --only {(lambda ps: max(dict.fromkeys(ps), key=ps.count))([c['id'].split('.')[0] for c in cl])}.`  ({len(cl)} claims here) |" if cl else "| Verify | — |",
-          f"| Re-plot | `./exp/{d.relative_to(EXP)}/plot/regen.sh` |" if (d / "plot" / "regen.sh").exists() else "| Re-plot | see `plot/` |",
-          f"| Paper figure | {', '.join(f'`plot/{p}`' for p in pdfs) or '—'} |", ""]
+          f"| Re-plot | `./exp/{d.relative_to(EXP)}/plot/regen.sh` |" if (d / "plot" / "regen.sh").exists() else "| Re-plot | see `plot/` |", ""]
     md += ["## Re-run the experiment", "",
            "Scripts live in [`exp/scripts/`](../scripts) (one flat directory, because the runners import each other). "
            "Set the paths in [`exp/env.sh`](../env.sh) first; see the top-level README.", ""]

@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F13.`  (7 claims here) |
 | Re-plot | `./exp/fig13_bbq_vs_tq_same_calibration/plot/regen.sh` |
-| Paper figure | `plot/recall_qps_bbq_tq.paper.pdf` |
 
 ## Re-run the experiment
 

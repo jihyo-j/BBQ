@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F10.`  (19 claims here) |
 | Re-plot | `./exp/fig10_recall_at_k/plot/regen.sh` |
-| Paper figure | `plot/recall_k.paper.pdf` |
 
 ## Re-run the experiment
 

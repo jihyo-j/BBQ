@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only T4.`  (24 claims here) |
 | Re-plot | `./exp/fig08_graph_build_precision/plot/regen.sh` |
-| Paper figure | `plot/index_quality.paper.pdf` |
 
 ## Re-run the experiment
 

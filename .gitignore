@@ -7,13 +7,10 @@ __pycache__/
 *.fbin
 *.ibin
 *.npy
-# regenerated figures (the paper versions are committed as *.paper.pdf)
-exp/fig*/plot/*.pdf
-!exp/fig*/plot/*.paper.pdf
+# figures are not committed: regen.sh / make plots draws them
+*.pdf
 exp/fig*/plot/*.png
 !exp/fig*/plot/perquery_cloud_*.png
 exp/include
 exp/baselines/qdrant
-exp/sec*/plot/**/*.pdf
-!exp/sec*/plot/**/*.paper.pdf
 exp/sec*/plot/**/*.png

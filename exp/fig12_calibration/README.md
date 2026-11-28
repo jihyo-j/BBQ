@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F12.`  (11 claims here) |
 | Re-plot | `./exp/fig12_calibration/plot/regen.sh` |
-| Paper figure | `plot/calibration.paper.pdf`, `plot/calibration_analysis.paper.pdf` |
 
 ## Re-run the experiment
 

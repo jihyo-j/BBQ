@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F5.`  (8 claims here) |
 | Re-plot | `./exp/fig05_preprocessing_io/plot/regen.sh` |
-| Paper figure | `plot/preprocessing_io.paper.pdf` |
 
 ## Re-run the experiment
 

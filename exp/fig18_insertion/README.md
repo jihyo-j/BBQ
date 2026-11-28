@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F18.`  (12 claims here) |
 | Re-plot | `./exp/fig18_insertion/plot/regen.sh` |
-| Paper figure | `plot/insertion_scale.paper.pdf` |
 
 ## Re-run the experiment
 

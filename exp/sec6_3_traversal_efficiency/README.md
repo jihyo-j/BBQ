@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only S63.`  (14 claims here) |
 | Re-plot | `./exp/sec6_3_traversal_efficiency/plot/regen.sh` |
-| Paper figure | `plot/comparision_hnsw.paper.pdf` |
 
 ## Re-run the experiment
 
@@ -33,7 +32,6 @@ Result files behind the figure (copied verbatim from the original run):
 - `results/clean_rerun_20261110_cpu20/msmarco_qwen1024/adcbq_ssd_per_ef_target099/ef64.csv`
 - `results/clean_rerun_20261110_cpu20/msmarco_qwen1024/fp_hnsw_ram.csv`
 - `results/clean_rerun_20261110_cpu20/recall_qps_t1_from_recall096_rerun.csv`
-- `results/clean_rerun_20261110_cpu20/recall_qps_t1_from_recall096_rerun.pdf`
 - `results/clean_rerun_20261110_cpu20/recall_qps_t1_from_recall096_rerun.png`
 - `results/clean_rerun_20261110_cpu20/run_manifest.json`
 - `results/paper_run_20261109/recall_qps_fullvec_ram_t1.csv`

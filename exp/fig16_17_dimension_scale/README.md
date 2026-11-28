@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F17.`  (20 claims here) |
 | Re-plot | `./exp/fig16_17_dimension_scale/plot/regen.sh` |
-| Paper figure | `plot/mrl_dimension.paper.pdf`, `plot/scalability_100m.paper.pdf` |
 
 ## Re-run the experiment
 

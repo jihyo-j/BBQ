@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F11.`  (19 claims here) |
 | Re-plot | `./exp/fig11_ablation/plot/regen.sh` |
-| Paper figure | `plot/perquery.paper.pdf`, `plot/recall_ablation.paper.pdf` |
 
 ## Re-run the experiment
 

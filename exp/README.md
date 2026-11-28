@@ -21,7 +21,7 @@ exp/
 ├── figNN_*/  secN_*/
 │   ├── README.md       what was run, which result file backs which claim, caveats
 │   ├── results/        result CSV/JSON copied verbatim from the original runs
-│   └── plot/           NAME.gp, NAME.dat, builders, regen.sh, NAME.paper.pdf (as printed)
+│   └── plot/           NAME.gp, NAME.dat, builders, regen.sh
 ├── sec2_3_analysis/    the Secs 2-3 workload-analysis harness (exhaustive scoring; Figs 2-4, Tables 2-3)
 ├── supplementary/      measured but not in the paper
 ├── data_prep/          embedding generation for the BEIR text-embedding-3 sets

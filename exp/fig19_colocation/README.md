@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F19.`  (5 claims here) |
 | Re-plot | `./exp/fig19_colocation/plot/regen.sh` |
-| Paper figure | `plot/colocation.paper.pdf` |
 
 ## Re-run the experiment
 

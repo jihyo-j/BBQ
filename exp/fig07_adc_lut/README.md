@@ -4,7 +4,6 @@
 |---|---|
 | Verify | `make build/verify && ./build/verify --root exp --only F7.`  (5 claims here) |
 | Re-plot | `./exp/fig07_adc_lut/plot/regen.sh` |
-| Paper figure | `plot/lut_ablation.paper.pdf`, `plot/preserve.paper.pdf` |
 
 ## Re-run the experiment
 
